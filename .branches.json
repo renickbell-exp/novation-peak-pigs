@@ -54,11 +54,16 @@
           "summary": "Epoch 6 of 8: Two-Bowls / YAAE Native egui Desktop GUI (NovationPeakApp) — Oscillators/Wavetable, SVF Filter, Envelopes/LFOs/16-Slot Mod Matrix, FX/Animate Bar & Headless Geometry Auditor (Target: src/app.rs; Related: src/gui.rs, crates/synth-ui-theme). Extend crates/synth-ui-theme with NovationPeakOxfordBlue / NovationPeakAmber accent tokens and custom vector widgets (5-wave wavetable interpolator display, SVF LP/BP/HP filter & drive response curve, 3x ADSR envelope plotter, 16-slot mod matrix grid, and Animate 1/2 performance pads). Build the complete eframe::App desktop GUI in src/app.rs and src/gui.rs embedding synth_core::CommandHistory directly for global Undo/Redo (Ctrl+Z/Ctrl+Y), top hardware status bar (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0, explicit Live MIDI Arm toggle defaulting to safe virtual loopback, Panic button), Librarian/A-B Diff/Randomizer modals, single-key shortcut gating when text inputs are focused, and a headless egui::Context::run layout geometry auditor verifying zero overlapping rects at 1280x800 and 1920x1080. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-006.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
           "passed": true,
           "timestamp": "2026-11-05T20:22:59.395Z"
+        },
+        {
+          "summary": "Epoch 8 of 8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release Polish (Target: src/stress_bench.rs; Related: src/main.rs, README.md). Implement the 1,000-event 8-voice polyphonic note + 9-lane CC sweep stress benchmark in src/stress_bench.rs verifying zero dropped notes, 8-voice polyphony budget compliance, zero stuck voices on panic(), and strict safeSweepRange enforcement on CCs 29/36/79/80/104/110. Add non-blocking CLI flags (--verify-hardware, --dry-stress, --export-shared-schemas, --synth, --midi-in, --midi-out, --channel, --preset, --headless-server, --port) in src/main.rs, document the complete 5-synth architecture, 74-CC/NRPN/SysEx map, and konduktiva-peak live-coding API in README.md, and verify zero compiler warnings across all crates and Node.js packages. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-008.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+          "passed": true,
+          "timestamp": "2026-11-05T20:40:06.650Z"
         }
       ],
       "stats": {
-        "attempted": 3,
-        "passed": 3
+        "attempted": 4,
+        "passed": 4
       }
     },
     "branch:tui-interaction": {

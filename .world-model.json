@@ -2,7 +2,7 @@
   "meta": {
     "projectId": "novation-peak-manager",
     "version": "0.1.0",
-    "epoch": 8,
+    "epoch": 9,
     "runtimeEnvironment": {
       "platform": "linux",
       "target": "rust-and-node",
@@ -727,7 +727,8 @@
           "entity:novation-peak-pigs:midi",
           "entity:novation-peak-pigs:peak_librarian",
           "entity:novation-peak-pigs:peak_mod_fx",
-          "entity:novation-peak-pigs:peak_synth"
+          "entity:novation-peak-pigs:peak_synth",
+          "entity:novation-peak-pigs:stress_bench"
         ],
         "blackboxConstraints": {},
         "structuralOutline": [
@@ -739,14 +740,17 @@
           "L13: pub mod peak_librarian;",
           "L14: pub mod peak_mod_fx;",
           "L15: pub mod peak_synth;",
-          "L31: pub fn synth_id() -> &'static str {",
-          "L40: fn test_synth_id_baseline() {",
-          "L45: fn test_novation_peak_profile_root_integration() {",
-          "L56: fn test_hardware_verify_and_midi_service_exported() {",
-          "L74: fn test_peak_synth_domain_engine_root_exports() {",
-          "L104: fn test_peak_mod_fx_engine_root_exports() {",
-          "L173: fn test_peak_librarian_domain_root_exports() {",
-          "L230: fn test_konduktiva_bridge_root_exports() {"
+          "L16: pub mod stress_bench;",
+          "L34: pub fn synth_id() -> &'static str {",
+          "L43: fn test_synth_id_baseline() {",
+          "L48: fn test_novation_peak_profile_root_integration() {",
+          "L59: fn test_hardware_verify_and_midi_service_exported() {",
+          "L77: fn test_peak_synth_domain_engine_root_exports() {",
+          "L107: fn test_peak_mod_fx_engine_root_exports() {",
+          "L176: fn test_peak_librarian_domain_root_exports() {",
+          "L233: fn test_konduktiva_bridge_root_exports() {",
+          "L252: fn test_stress_bench_root_exports() {",
+          "L271: fn test_export_shared_schemas_root_exports() {"
         ]
       },
       "entity:novation-peak-pigs:main": {
@@ -759,7 +763,9 @@
         "dependencies": [],
         "blackboxConstraints": {},
         "structuralOutline": [
-          "L6: fn main() {"
+          "L31: fn parse_cli_args(args: &[String]) -> CliOptions {",
+          "L100: fn print_help() {",
+          "L121: fn main() {"
         ]
       },
       "entity:novation-peak-pigs:konduktiva-peak": {
@@ -905,8 +911,10 @@
           "L236: pub fn format_report(report: &HardwareVerificationReport) -> String {",
           "L287: pub fn print_verification_report(report: &HardwareVerificationReport) {",
           "L292: pub fn run_cli_verification(safety_mode: MidiSafetyMode) {",
-          "L302: fn test_virtual_loopback_default_safety() {",
-          "L327: fn test_dry_run_inspection_live_files() {"
+          "L299: pub fn export_shared_schemas(out_dir: &std::path::Path) -> Result<Vec<std::path::PathBuf>, std::io::",
+          "L334: fn test_virtual_loopback_default_safety() {",
+          "L359: fn test_dry_run_inspection_live_files() {",
+          "L398: fn test_export_shared_schemas_integration() {"
         ]
       },
       "entity:novation-peak-pigs:midi": {
@@ -1227,6 +1235,47 @@
           "L367: pub fn new_single(name: impl Into<String>, controller: u8) -> Self {",
           "L388: pub fn new_dual(name: impl Into<String>, controller_a: u8, controller_b: u8) -> Self {"
         ]
+      },
+      "entity:novation-peak-pigs:stress_bench": {
+        "id": "entity:novation-peak-pigs:stress_bench",
+        "type": "MODULE",
+        "path": "src/stress_bench.rs",
+        "purpose": "`novation_peak_manager::stress_bench`: 1,000-event 8-voice polyphonic + 9-lane CC sweep stress benchmark verifying zero dropped notes, 8-voice polyphony budget compliance, zero stuck voices on panic, and strict safeSweepRange enforcement on CCs 29/36/79/80/104/110. The 9 canonical CC sweep lanes evaluated during polyphonic stress testing.",
+        "responsibilities": [
+          "Exports StressBenchmarkConfig, StressBenchmarkReport, format_report, print_report, run_default_stress_benchmark, run_stress_benchmark in src/stress_bench.rs"
+        ],
+        "exposedInterfaces": [
+          "StressBenchmarkConfig",
+          "StressBenchmarkReport",
+          "format_report",
+          "print_report",
+          "run_default_stress_benchmark",
+          "run_stress_benchmark"
+        ],
+        "dependencies": [
+          "entity:novation-peak-pigs:midi",
+          "entity:novation-peak-pigs:peak_synth"
+        ],
+        "blackboxConstraints": {},
+        "structuralOutline": [
+          "L29: pub struct StressBenchmarkConfig {",
+          "L42: impl Default for StressBenchmarkConfig {",
+          "L43: fn default() -> Self {",
+          "L56: pub struct StressBenchmarkReport {",
+          "L83: impl StressBenchmarkReport {",
+          "L85: pub fn format_report(&self) -> String {",
+          "L108: pub fn print_report(&self) {",
+          "L118: impl SimpleRng {",
+          "L119: fn new(seed: u64) -> Self {",
+          "L125: fn next_u64(&mut self) -> u64 {",
+          "L134: fn next_f64(&mut self) -> f64 {",
+          "L138: fn next_range(&mut self, min: u8, max: u8) -> u8 {",
+          "L148: pub fn run_default_stress_benchmark() -> StressBenchmarkReport {",
+          "L159: pub fn run_stress_benchmark(config: &StressBenchmarkConfig) -> StressBenchmarkReport {",
+          "L365: fn test_1000_event_stress_benchmark_invariants() {",
+          "L388: fn test_strict_safesweeprange_enforcement_on_critical_ccs() {",
+          "L415: fn test_heavy_voice_stealing_cluster() {"
+        ]
       }
     },
     "relations": [
@@ -1419,6 +1468,24 @@
       {
         "from": "entity:novation-peak-pigs:lib",
         "to": "entity:novation-peak-pigs:konduktiva_bridge",
+        "relationType": "DEPENDS_ON",
+        "contract": "Internal module dependency"
+      },
+      {
+        "from": "entity:novation-peak-pigs:lib",
+        "to": "entity:novation-peak-pigs:stress_bench",
+        "relationType": "DEPENDS_ON",
+        "contract": "Internal module dependency"
+      },
+      {
+        "from": "entity:novation-peak-pigs:stress_bench",
+        "to": "entity:novation-peak-pigs:midi",
+        "relationType": "DEPENDS_ON",
+        "contract": "Internal module dependency"
+      },
+      {
+        "from": "entity:novation-peak-pigs:stress_bench",
+        "to": "entity:novation-peak-pigs:peak_synth",
         "relationType": "DEPENDS_ON",
         "contract": "Internal module dependency"
       }
@@ -1638,17 +1705,17 @@
       },
       {
         "id": "change-tx-tx-2026-11-05T20",
-        "title": "Epoch 6 of 8: Two-Bowls / YAAE Native egui Desktop GUI (NovationPeakApp) — Oscillators/Wavetable, SVF Filter, Envelopes/LFOs/16-Slot Mod Matrix, FX/Animate Bar & Headless Geometry Auditor (Target: src/app.rs; Related: src/gui.rs, crates/synth-ui-theme). Extend crates/synth-ui-theme with NovationPeakOxfordBlue / NovationPeakAmber accent tokens and custom vector widgets (5-wave wavetable interpolator display, SVF LP/BP/HP filter & drive response curve, 3x ADSR envelope plotter, 16-slot mod matrix grid, and Animate 1/2 performance pads). Build the complete eframe::App desktop GUI in src/app.rs and src/gui.rs embedding synth_core::CommandHistory directly for global Undo/Redo (Ctrl+Z/Ctrl+Y), top hardware status bar (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0, explicit Live MIDI Arm toggle defaulting to safe virtual loopback, Panic button), Librarian/A-B Diff/Randomizer modals, single-key shortcut gating when text inputs are focused, and a headless egui::Context::run layout geometry auditor verifying zero overlapping rects at 1280x800 and 1920x1080. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-006.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
-        "description": "Epoch 6 of 8: Two-Bowls / YAAE Native egui Desktop GUI (NovationPeakApp) — Oscillators/Wavetable, SVF Filter, Envelopes/LFOs/16-Slot Mod Matrix, FX/Animate Bar & Headless Geometry Auditor (Target: src/app.rs; Related: src/gui.rs, crates/synth-ui-theme). Extend crates/synth-ui-theme with NovationPeakOxfordBlue / NovationPeakAmber accent tokens and custom vector widgets (5-wave wavetable interpolator display, SVF LP/BP/HP filter & drive response curve, 3x ADSR envelope plotter, 16-slot mod matrix grid, and Animate 1/2 performance pads). Build the complete eframe::App desktop GUI in src/app.rs and src/gui.rs embedding synth_core::CommandHistory directly for global Undo/Redo (Ctrl+Z/Ctrl+Y), top hardware status bar (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0, explicit Live MIDI Arm toggle defaulting to safe virtual loopback, Panic button), Librarian/A-B Diff/Randomizer modals, single-key shortcut gating when text inputs are focused, and a headless egui::Context::run layout geometry auditor verifying zero overlapping rects at 1280x800 and 1920x1080. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-006.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
-        "prompt": "Epoch 6 of 8: Two-Bowls / YAAE Native egui Desktop GUI (NovationPeakApp) — Oscillators/Wavetable, SVF Filter, Envelopes/LFOs/16-Slot Mod Matrix, FX/Animate Bar & Headless Geometry Auditor (Target: src/app.rs; Related: src/gui.rs, crates/synth-ui-theme). Extend crates/synth-ui-theme with NovationPeakOxfordBlue / NovationPeakAmber accent tokens and custom vector widgets (5-wave wavetable interpolator display, SVF LP/BP/HP filter & drive response curve, 3x ADSR envelope plotter, 16-slot mod matrix grid, and Animate 1/2 performance pads). Build the complete eframe::App desktop GUI in src/app.rs and src/gui.rs embedding synth_core::CommandHistory directly for global Undo/Redo (Ctrl+Z/Ctrl+Y), top hardware status bar (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0, explicit Live MIDI Arm toggle defaulting to safe virtual loopback, Panic button), Librarian/A-B Diff/Randomizer modals, single-key shortcut gating when text inputs are focused, and a headless egui::Context::run layout geometry auditor verifying zero overlapping rects at 1280x800 and 1920x1080. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-006.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+        "title": "Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktiva_bridge.rs; Related: js/konduktiva-peak, tests/cross_synth_parity.rs). Integrate js/konduktiva-peak (createPeakKit(K), sweepCC, dualSweepCC, rhythmPresets, noteVoice, ccLane, createPeakPlayers, runStressTest, safeSweepRange, midi-cc-map.json) with js/shared-synth-sdk and Rust src/konduktiva_bridge.rs + GUI Konduktiva live-coding tab displaying the 8 canonical Peak players (bass, chords, lead, arp, ccCutoff, ccReso, ccMod, ccFx), density graphs (peakHold, peakBuild), and live CC lane telemetry. Add cross-language integration tests in tests/cross_synth_parity.rs and js/konduktiva-peak/test/run.js verifying byte-identical CC/NRPN/SysEx, safeSweepRange clamping, OSC, and preset roundtrips between Rust and Node.js. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-007.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+        "description": "Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktiva_bridge.rs; Related: js/konduktiva-peak, tests/cross_synth_parity.rs). Integrate js/konduktiva-peak (createPeakKit(K), sweepCC, dualSweepCC, rhythmPresets, noteVoice, ccLane, createPeakPlayers, runStressTest, safeSweepRange, midi-cc-map.json) with js/shared-synth-sdk and Rust src/konduktiva_bridge.rs + GUI Konduktiva live-coding tab displaying the 8 canonical Peak players (bass, chords, lead, arp, ccCutoff, ccReso, ccMod, ccFx), density graphs (peakHold, peakBuild), and live CC lane telemetry. Add cross-language integration tests in tests/cross_synth_parity.rs and js/konduktiva-peak/test/run.js verifying byte-identical CC/NRPN/SysEx, safeSweepRange clamping, OSC, and preset roundtrips between Rust and Node.js. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-007.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+        "prompt": "Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktiva_bridge.rs; Related: js/konduktiva-peak, tests/cross_synth_parity.rs). Integrate js/konduktiva-peak (createPeakKit(K), sweepCC, dualSweepCC, rhythmPresets, noteVoice, ccLane, createPeakPlayers, runStressTest, safeSweepRange, midi-cc-map.json) with js/shared-synth-sdk and Rust src/konduktiva_bridge.rs + GUI Konduktiva live-coding tab displaying the 8 canonical Peak players (bass, chords, lead, arp, ccCutoff, ccReso, ccMod, ccFx), density graphs (peakHold, peakBuild), and live CC lane telemetry. Add cross-language integration tests in tests/cross_synth_parity.rs and js/konduktiva-peak/test/run.js verifying byte-identical CC/NRPN/SysEx, safeSweepRange clamping, OSC, and preset roundtrips between Rust and Node.js. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-007.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
         "status": "IMPLEMENTED",
         "category": "FEATURE",
         "domain": "ARCHITECTURE",
         "subIntentId": null,
-        "createdAt": "2026-11-05T20:04:38.891Z",
-        "completedAt": "2026-11-05T20:04:38.891Z",
-        "commitSha": "04cc177ea15d9db616aaac4d00c7a3fe9f808e1e",
-        "txId": "tx-2026-11-05T20-04-38-891Z-srvi"
+        "createdAt": "2026-11-05T20:22:59.705Z",
+        "completedAt": "2026-11-05T20:22:59.705Z",
+        "commitSha": "ecc948124f36bf06ba22cee4302e9dff69701b00",
+        "txId": "tx-2026-11-05T20-22-59-705Z-oxrt"
       },
       {
         "id": "change:epoch-7-of-8-konduktiva-peak-live-coding-integra",
@@ -1660,21 +1727,21 @@
         "domain": "ARCHITECTURE",
         "subIntentId": null,
         "createdAt": "2026-11-05T20:04:38.859Z",
-        "completedAt": "2026-11-05T20:22:59.705Z",
-        "commitSha": null,
-        "txId": null
+        "completedAt": "2026-11-05T20:31:30.039Z",
+        "commitSha": "ecc948124f36bf06ba22cee4302e9dff69701b00",
+        "txId": "tx-2026-11-05T20-22-59-705Z-oxrt"
       },
       {
         "id": "change:epoch-8-of-8-1-000-event-8-voice-polyphonic-cc-s",
         "title": "Epoch 8 of 8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release Polish (Target: src/stress_bench.rs; Related: src/main.rs, README.md). Implement the 1,000-event 8-voice polyphonic note + 9-lane CC sweep stress benchmark in src/stress_bench.rs verifying zero dropped notes, 8-voice polyphony budget compliance, zero stuck voices on panic(), and strict safeSweepRange enforcement on CCs 29/36/79/80/104/110. Add non-blocking CLI flags (--verify-hardware, --dry-stress, --export-shared-schemas, --synth, --midi-in, --midi-out, --channel, --preset, --headless-server, --port) in src/main.rs, document the complete 5-synth architecture, 74-CC/NRPN/SysEx map, and konduktiva-peak live-coding API in README.md, and verify zero compiler warnings across all crates and Node.js packages. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-008.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
         "description": "Epoch 8 of 8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release Polish (Target: src/stress_bench.rs; Related: src/main.rs, README.md). Implement the 1,000-event 8-voice polyphonic note + 9-lane CC sweep stress benchmark in src/stress_bench.rs verifying zero dropped notes, 8-voice polyphony budget compliance, zero stuck voices on panic(), and strict safeSweepRange enforcement on CCs 29/36/79/80/104/110. Add non-blocking CLI flags (--verify-hardware, --dry-stress, --export-shared-schemas, --synth, --midi-in, --midi-out, --channel, --preset, --headless-server, --port) in src/main.rs, document the complete 5-synth architecture, 74-CC/NRPN/SysEx map, and konduktiva-peak live-coding API in README.md, and verify zero compiler warnings across all crates and Node.js packages. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-008.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
         "prompt": "Epoch 8 of 8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release Polish (Target: src/stress_bench.rs; Related: src/main.rs, README.md). Implement the 1,000-event 8-voice polyphonic note + 9-lane CC sweep stress benchmark in src/stress_bench.rs verifying zero dropped notes, 8-voice polyphony budget compliance, zero stuck voices on panic(), and strict safeSweepRange enforcement on CCs 29/36/79/80/104/110. Add non-blocking CLI flags (--verify-hardware, --dry-stress, --export-shared-schemas, --synth, --midi-in, --midi-out, --channel, --preset, --headless-server, --port) in src/main.rs, document the complete 5-synth architecture, 74-CC/NRPN/SysEx map, and konduktiva-peak live-coding API in README.md, and verify zero compiler warnings across all crates and Node.js packages. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-008.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
-        "status": "QUEUED",
+        "status": "IMPLEMENTED",
         "category": "FEATURE",
         "domain": "ARCHITECTURE",
         "subIntentId": null,
         "createdAt": "2026-11-05T20:22:59.680Z",
-        "completedAt": null,
+        "completedAt": "2026-11-05T20:31:30.187Z",
         "commitSha": null,
         "txId": null
       },
@@ -1969,6 +2036,20 @@
         "subIntentId": null,
         "createdAt": "2026-11-05T20:22:59.625Z",
         "completedAt": "2026-11-05T20:22:59.705Z",
+        "commitSha": "ecc948124f36bf06ba22cee4302e9dff69701b00",
+        "txId": null
+      },
+      {
+        "id": "change-1793910690103-4xsd",
+        "title": "Epoch 8 of 8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release",
+        "description": "Epoch 8 of 8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release Polish (Target: src/stress_bench.rs; Related: src/main.rs, README.md). Implement the 1,000-event 8-voice polyphonic note + 9-lane CC sweep stress benchmark in src/stress_bench.rs verifying zero dropped notes, 8-voice polyphony budget compliance, zero stuck voices on panic(), and strict safeSweepRange enforcement on CCs 29/36/79/80/104/110. Add non-blocking CLI flags (--verify-hardware, --dry-stress, --export-shared-schemas, --synth, --midi-in, --midi-out, --channel, --preset, --headless-server, --port) in src/main.rs, document the complete 5-synth architecture, 74-CC/NRPN/SysEx map, and konduktiva-peak live-coding API in README.md, and verify zero compiler warnings across all crates and Node.js packages. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-008.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+        "prompt": "Epoch 8 of 8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release Polish (Target: src/stress_bench.rs; Related: src/main.rs, README.md). Implement the 1,000-event 8-voice polyphonic note + 9-lane CC sweep stress benchmark in src/stress_bench.rs verifying zero dropped notes, 8-voice polyphony budget compliance, zero stuck voices on panic(), and strict safeSweepRange enforcement on CCs 29/36/79/80/104/110. Add non-blocking CLI flags (--verify-hardware, --dry-stress, --export-shared-schemas, --synth, --midi-in, --midi-out, --channel, --preset, --headless-server, --port) in src/main.rs, document the complete 5-synth architecture, 74-CC/NRPN/SysEx map, and konduktiva-peak live-coding API in README.md, and verify zero compiler warnings across all crates and Node.js packages. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-008.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+        "status": "IMPLEMENTED",
+        "category": "FEATURE",
+        "domain": "RESOURCE_ALLOCATION",
+        "subIntentId": null,
+        "createdAt": "2026-11-05T20:31:30.103Z",
+        "completedAt": "2026-11-05T20:31:30.187Z",
         "commitSha": null,
         "txId": null
       }
@@ -2333,10 +2414,12 @@
           "relationToMainIntent": "Advances Main Intent [Novation Peak 8-Voice Polyphonic Hybrid Synthesizer Manager, Patch Librarian & Konduktiva Companion → ARCHITECTURE]: Provides verified demo patches, Konduktiva JavaScript live-coding integration, CLI launch scripts, and complete HTML documentation",
           "formalSpecification": "Maintain diverse, working visual demo patches with Konduktiva live-coding drivers, standalone launch scripts, and complete HTML/README documentation.",
           "inferredRequirements": [
-            "Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktivabridge.rs; Related: js/konduktiva-peak"
+            "Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktivabridge.rs; Related: js/konduktiva-peak",
+            "Epoch 8 of 8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release"
           ],
           "derivedFromPrompts": [
-            "Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktiva_bridge.rs; Related: js/konduktiva-peak, tests/cross_synth_parity.rs). Integrate js/konduktiva-peak (createPeakKit(K), sweepCC, dualSweepCC, rhythmPresets, noteVoice, ccLane, createPeakPlayers, runStressTest, safeSweepRange, midi-cc-map.json) with js/shared-synth-sdk and Rust src/konduktiva_bridge.rs + GUI Konduktiva live-coding tab displaying the 8 canonical Peak players (bass, chords, lead, arp, ccCutoff, ccReso, ccMod, ccFx), density graphs (peakHold, peakBuild), and live CC lane telemetry. Add cross-language integration tests in tests/cross_synth_parity.rs and js/konduktiva-peak/test/run.js verifying byte-identical CC/NRPN/SysEx, safeSweepRange clamping, OSC, and preset roundtrips between Rust and Node.js. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-007.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf."
+            "Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktiva_bridge.rs; Related: js/konduktiva-peak, tests/cross_synth_parity.rs). Integrate js/konduktiva-peak (createPeakKit(K), sweepCC, dualSweepCC, rhythmPresets, noteVoice, ccLane, createPeakPlayers, runStressTest, safeSweepRange, midi-cc-map.json) with js/shared-synth-sdk and Rust src/konduktiva_bridge.rs + GUI Konduktiva live-coding tab displaying the 8 canonical Peak players (bass, chords, lead, arp, ccCutoff, ccReso, ccMod, ccFx), density graphs (peakHold, peakBuild), and live CC lane telemetry. Add cross-language integration tests in tests/cross_synth_parity.rs and js/konduktiva-peak/test/run.js verifying byte-identical CC/NRPN/SysEx, safeSweepRange clamping, OSC, and preset roundtrips between Rust and Node.js. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-007.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+            "Epoch 8 of 8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release Polish (Target: src/stress_bench.rs; Related: src/main.rs, README.md). Implement the 1,000-event 8-voice polyphonic note + 9-lane CC sweep stress benchmark in src/stress_bench.rs verifying zero dropped notes, 8-voice polyphony budget compliance, zero stuck voices on panic(), and strict safeSweepRange enforcement on CCs 29/36/79/80/104/110. Add non-blocking CLI flags (--verify-hardware, --dry-stress, --export-shared-schemas, --synth, --midi-in, --midi-out, --channel, --preset, --headless-server, --port) in src/main.rs, document the complete 5-synth architecture, 74-CC/NRPN/SysEx map, and konduktiva-peak live-coding API in README.md, and verify zero compiler warnings across all crates and Node.js packages. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-008.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf."
           ],
           "targetEntities": [
             "entity:novation-peak-pigs:synth-core",
@@ -2372,6 +2455,10 @@
         {
           "feedback": "Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktiva_bridge.rs; Related: js/konduktiva-peak, tests/cross_synth_parity.rs). Integrate js/konduktiva-peak (createPeakKit(K), sweepCC, dualSweepCC, rhythmPresets, noteVoice, ccLane, createPeakPlayers, runStressTest, safeSweepRange, midi-cc-map.json) with js/shared-synth-sdk and Rust src/konduktiva_bridge.rs + GUI Konduktiva live-coding tab displaying the 8 canonical Peak players (bass, chords, lead, arp, ccCutoff, ccReso, ccMod, ccFx), density graphs (peakHold, peakBuild), and live CC lane telemetry. Add cross-language integration tests in tests/cross_synth_parity.rs and js/konduktiva-peak/test/run.js verifying byte-identical CC/NRPN/SysEx, safeSweepRange clamping, OSC, and preset roundtrips between Rust and Node.js. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-007.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
           "timestamp": "2026-11-05T20:22:59.631Z"
+        },
+        {
+          "feedback": "Epoch 8 of 8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release Polish (Target: src/stress_bench.rs; Related: src/main.rs, README.md). Implement the 1,000-event 8-voice polyphonic note + 9-lane CC sweep stress benchmark in src/stress_bench.rs verifying zero dropped notes, 8-voice polyphony budget compliance, zero stuck voices on panic(), and strict safeSweepRange enforcement on CCs 29/36/79/80/104/110. Add non-blocking CLI flags (--verify-hardware, --dry-stress, --export-shared-schemas, --synth, --midi-in, --midi-out, --channel, --preset, --headless-server, --port) in src/main.rs, document the complete 5-synth architecture, 74-CC/NRPN/SysEx map, and konduktiva-peak live-coding API in README.md, and verify zero compiler warnings across all crates and Node.js packages. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-008.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+          "timestamp": "2026-11-05T20:31:30.109Z"
         }
       ],
       "activeRoadmap": [
@@ -2380,7 +2467,7 @@
           "name": "Phase 1: Ingestion & Environment Alignment",
           "status": "READY",
           "deliverables": [
-            "Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktivabridge.rs; Related: js/konduktiva-peak"
+            "Epoch 8 of 8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release"
           ],
           "suggestions": [
             "Validate configuration schemas against target environments",
@@ -2392,7 +2479,7 @@
           "name": "Phase 2: Local Core Mutation & Feature Implementation",
           "status": "PENDING",
           "deliverables": [
-            "Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktivabridge.rs; Related: js/konduktiva-peak"
+            "Epoch 8 of 8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release"
           ],
           "suggestions": [
             "Preserve modular boundary interfaces without circular couplings",
@@ -2479,6 +2566,23 @@
         "txId": "tx-2026-11-05T20-04-38-891Z-srvi",
         "archivedAt": "2026-11-05T20:22:59.559Z",
         "completedAt": "2026-11-05T20:22:59.558Z"
+      },
+      {
+        "id": "change:epoch-7-of-8-konduktiva-peak-live-coding-integra",
+        "codeId": "CHANGE",
+        "subIntentId": null,
+        "subIntentCodeId": null,
+        "subIntentName": null,
+        "domain": "ARCHITECTURE",
+        "kind": "CHANGE",
+        "title": "Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktiva_bridge.rs; Related: js/konduktiva-peak, tests/cross_synth_parity.rs). Integrate js/konduktiva-peak (createPeakKit(K), sweepCC, dualSweepCC, rhythmPresets, noteVoice, ccLane, createPeakPlayers, runStressTest, safeSweepRange, midi-cc-map.json) with js/shared-synth-sdk and Rust src/konduktiva_bridge.rs + GUI Konduktiva live-coding tab displaying the 8 canonical Peak players (bass, chords, lead, arp, ccCutoff, ccReso, ccMod, ccFx), density graphs (peakHold, peakBuild), and live CC lane telemetry. Add cross-language integration tests in tests/cross_synth_parity.rs and js/konduktiva-peak/test/run.js verifying byte-identical CC/NRPN/SysEx, safeSweepRange clamping, OSC, and preset roundtrips between Rust and Node.js. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-007.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+        "text": "Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktiva_bridge.rs; Related: js/konduktiva-peak, tests/cross_synth_parity.rs). Integrate js/konduktiva-peak (createPeakKit(K), sweepCC, dualSweepCC, rhythmPresets, noteVoice, ccLane, createPeakPlayers, runStressTest, safeSweepRange, midi-cc-map.json) with js/shared-synth-sdk and Rust src/konduktiva_bridge.rs + GUI Konduktiva live-coding tab displaying the 8 canonical Peak players (bass, chords, lead, arp, ccCutoff, ccReso, ccMod, ccFx), density graphs (peakHold, peakBuild), and live CC lane telemetry. Add cross-language integration tests in tests/cross_synth_parity.rs and js/konduktiva-peak/test/run.js verifying byte-identical CC/NRPN/SysEx, safeSweepRange clamping, OSC, and preset roundtrips between Rust and Node.js. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-007.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+        "taskPrompt": "Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktiva_bridge.rs; Related: js/konduktiva-peak, tests/cross_synth_parity.rs). Integrate js/konduktiva-peak (createPeakKit(K), sweepCC, dualSweepCC, rhythmPresets, noteVoice, ccLane, createPeakPlayers, runStressTest, safeSweepRange, midi-cc-map.json) with js/shared-synth-sdk and Rust src/konduktiva_bridge.rs + GUI Konduktiva live-coding tab displaying the 8 canonical Peak players (bass, chords, lead, arp, ccCutoff, ccReso, ccMod, ccFx), density graphs (peakHold, peakBuild), and live CC lane telemetry. Add cross-language integration tests in tests/cross_synth_parity.rs and js/konduktiva-peak/test/run.js verifying byte-identical CC/NRPN/SysEx, safeSweepRange clamping, OSC, and preset roundtrips between Rust and Node.js. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-007.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+        "status": "MET",
+        "commitSha": "ecc948124f36bf06ba22cee4302e9dff69701b00",
+        "txId": "tx-2026-11-05T20-22-59-705Z-oxrt",
+        "archivedAt": "2026-11-05T20:31:30.039Z",
+        "completedAt": "2026-11-05T20:31:30.039Z"
       }
     ],
     "intentsReviewed": false,
@@ -3860,7 +3964,7 @@
               "status": "IMPLEMENTED",
               "isQueued": false,
               "failedLastRun": false,
-              "commitSha": null
+              "commitSha": "ecc948124f36bf06ba22cee4302e9dff69701b00"
             },
             {
               "id": "task:I10:req-2",
@@ -3873,10 +3977,10 @@
               "index": 2,
               "title": "Requirement #2: Integrate js/konduktiva-peak (createPeakKit(K), sweepCC, dualSweepCC, rhythmPresets, noteVoice, ccLane, createPeakPlayers, runStressTest, safeSweepRange, midi-cc-map.json) with js/shared-synth-sdk and Rust src/konduktiva_bridge.rs + GUI Konduktiva live-coding tab displaying the 8 canonical Peak players (bass, chords, lead, arp, ccCutoff, ccReso, ccMod, ccFx), density graphs (peakHold, peakBuild), and live CC lane telemetry. Add cross-language integration tests in tests/cross_synth_parity.rs and js/konduktiva-peak/test/run.js verifying byte-identical CC/NRPN/SysEx, safeSweepRange clamping, OSC, and preset roundtrips between Rust and Node.js.",
               "taskPrompt": "Implement requirement #2 on [I10] (Epoch 7/8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity): Integrate js/konduktiva-peak (createPeakKit(K), sweepCC, dualSweepCC, rhythmPresets, noteVoice, ccLane, createPeakPlayers, runStressTest, safeSweepRange, midi-cc-map.json) with js/shared-synth-sdk and Rust src/konduktiva_bridge.rs + GUI Konduktiva live-coding tab displaying the 8 canonical Peak players (bass, chords, lead, arp, ccCutoff, ccReso, ccMod, ccFx), density graphs (peakHold, peakBuild), and live CC lane telemetry. Add cross-language integration tests in tests/cross_synth_parity.rs and js/konduktiva-peak/test/run.js verifying byte-identical CC/NRPN/SysEx, safeSweepRange clamping, OSC, and preset roundtrips between Rust and Node.js.",
-              "status": "IN_PROGRESS",
+              "status": "IMPLEMENTED",
               "isQueued": false,
               "failedLastRun": false,
-              "commitSha": null
+              "commitSha": "ecc948124f36bf06ba22cee4302e9dff69701b00"
             },
             {
               "id": "task:I10:synthesis",
@@ -3889,10 +3993,10 @@
               "index": 3,
               "title": "Synthesize capability: Epoch 7/8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity",
               "taskPrompt": "Epoch 7/8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity: Integrate js/konduktiva-peak (createPeakKit(K), sweepCC, dualSweepCC, rhythmPresets, noteVoice, ccLane, createPeakPlayers, runStressTest, safeSweepRange, midi-cc-map.json) with js/shared-synth-sdk and Rust src/konduktiva_bridge.rs + GUI Konduktiva live-coding tab displaying the 8 canonical Peak players (bass, chords, lead, arp, ccCutoff, ccReso, ccMod, ccFx), density graphs (peakHold, peakBuild), and live CC lane telemetry. Add cross-language integration tests in tests/cross_synth_parity.rs and js/konduktiva-peak/test/run.js verifying byte-identical CC/NRPN/SysEx, safeSweepRange clamping, OSC, and preset roundtrips between Rust and Node.js. (Requirements: Epoch 7/8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity; Integrate js/konduktiva-peak (createPeakKit(K), sweepCC, dualSweepCC, rhythmPresets, noteVoice, ccLane, createPeakPlayers, runStressTest, safeSweepRange, midi-cc-map.json) with js/shared-synth-sdk and Rust src/konduktiva_bridge.rs + GUI Konduktiva live-coding tab displaying the 8 canonical Peak players (bass, chords, lead, arp, ccCutoff, ccReso, ccMod, ccFx), density graphs (peakHold, peakBuild), and live CC lane telemetry. Add cross-language integration tests in tests/cross_synth_parity.rs and js/konduktiva-peak/test/run.js verifying byte-identical CC/NRPN/SysEx, safeSweepRange clamping, OSC, and preset roundtrips between Rust and Node.js.)",
-              "status": "OUTSTANDING",
+              "status": "IMPLEMENTED",
               "isQueued": false,
               "failedLastRun": false,
-              "commitSha": null
+              "commitSha": "ecc948124f36bf06ba22cee4302e9dff69701b00"
             }
           ],
           "suggestions": [
@@ -3910,7 +4014,7 @@
               "status": "IMPLEMENTED",
               "isQueued": false,
               "failedLastRun": false,
-              "commitSha": null
+              "commitSha": "ecc948124f36bf06ba22cee4302e9dff69701b00"
             },
             {
               "id": "task:I10:req-2",
@@ -3923,10 +4027,10 @@
               "index": 2,
               "title": "Requirement #2: Integrate js/konduktiva-peak (createPeakKit(K), sweepCC, dualSweepCC, rhythmPresets, noteVoice, ccLane, createPeakPlayers, runStressTest, safeSweepRange, midi-cc-map.json) with js/shared-synth-sdk and Rust src/konduktiva_bridge.rs + GUI Konduktiva live-coding tab displaying the 8 canonical Peak players (bass, chords, lead, arp, ccCutoff, ccReso, ccMod, ccFx), density graphs (peakHold, peakBuild), and live CC lane telemetry. Add cross-language integration tests in tests/cross_synth_parity.rs and js/konduktiva-peak/test/run.js verifying byte-identical CC/NRPN/SysEx, safeSweepRange clamping, OSC, and preset roundtrips between Rust and Node.js.",
               "taskPrompt": "Implement requirement #2 on [I10] (Epoch 7/8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity): Integrate js/konduktiva-peak (createPeakKit(K), sweepCC, dualSweepCC, rhythmPresets, noteVoice, ccLane, createPeakPlayers, runStressTest, safeSweepRange, midi-cc-map.json) with js/shared-synth-sdk and Rust src/konduktiva_bridge.rs + GUI Konduktiva live-coding tab displaying the 8 canonical Peak players (bass, chords, lead, arp, ccCutoff, ccReso, ccMod, ccFx), density graphs (peakHold, peakBuild), and live CC lane telemetry. Add cross-language integration tests in tests/cross_synth_parity.rs and js/konduktiva-peak/test/run.js verifying byte-identical CC/NRPN/SysEx, safeSweepRange clamping, OSC, and preset roundtrips between Rust and Node.js.",
-              "status": "IN_PROGRESS",
+              "status": "IMPLEMENTED",
               "isQueued": false,
               "failedLastRun": false,
-              "commitSha": null
+              "commitSha": "ecc948124f36bf06ba22cee4302e9dff69701b00"
             },
             {
               "id": "task:I10:synthesis",
@@ -3939,10 +4043,10 @@
               "index": 3,
               "title": "Synthesize capability: Epoch 7/8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity",
               "taskPrompt": "Epoch 7/8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity: Integrate js/konduktiva-peak (createPeakKit(K), sweepCC, dualSweepCC, rhythmPresets, noteVoice, ccLane, createPeakPlayers, runStressTest, safeSweepRange, midi-cc-map.json) with js/shared-synth-sdk and Rust src/konduktiva_bridge.rs + GUI Konduktiva live-coding tab displaying the 8 canonical Peak players (bass, chords, lead, arp, ccCutoff, ccReso, ccMod, ccFx), density graphs (peakHold, peakBuild), and live CC lane telemetry. Add cross-language integration tests in tests/cross_synth_parity.rs and js/konduktiva-peak/test/run.js verifying byte-identical CC/NRPN/SysEx, safeSweepRange clamping, OSC, and preset roundtrips between Rust and Node.js. (Requirements: Epoch 7/8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity; Integrate js/konduktiva-peak (createPeakKit(K), sweepCC, dualSweepCC, rhythmPresets, noteVoice, ccLane, createPeakPlayers, runStressTest, safeSweepRange, midi-cc-map.json) with js/shared-synth-sdk and Rust src/konduktiva_bridge.rs + GUI Konduktiva live-coding tab displaying the 8 canonical Peak players (bass, chords, lead, arp, ccCutoff, ccReso, ccMod, ccFx), density graphs (peakHold, peakBuild), and live CC lane telemetry. Add cross-language integration tests in tests/cross_synth_parity.rs and js/konduktiva-peak/test/run.js verifying byte-identical CC/NRPN/SysEx, safeSweepRange clamping, OSC, and preset roundtrips between Rust and Node.js.)",
-              "status": "OUTSTANDING",
+              "status": "IMPLEMENTED",
               "isQueued": false,
               "failedLastRun": false,
-              "commitSha": null
+              "commitSha": "ecc948124f36bf06ba22cee4302e9dff69701b00"
             }
           ],
           "hasQueuedTasks": false,
@@ -3952,7 +4056,7 @@
               "codeId": "I10.1",
               "text": "Epoch 7/8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity",
               "status": "IMPLEMENTED",
-              "commitSha": null,
+              "commitSha": "ecc948124f36bf06ba22cee4302e9dff69701b00",
               "timestamp": "2026-11-05T20:22:59.705Z",
               "txId": "tx-2026-11-05T20-22-59-705Z-oxrt",
               "failedLastRun": false
@@ -3961,22 +4065,22 @@
               "index": 2,
               "codeId": "I10.2",
               "text": "Integrate js/konduktiva-peak (createPeakKit(K), sweepCC, dualSweepCC, rhythmPresets, noteVoice, ccLane, createPeakPlayers, runStressTest, safeSweepRange, midi-cc-map.json) with js/shared-synth-sdk and Rust src/konduktiva_bridge.rs + GUI Konduktiva live-coding tab displaying the 8 canonical Peak players (bass, chords, lead, arp, ccCutoff, ccReso, ccMod, ccFx), density graphs (peakHold, peakBuild), and live CC lane telemetry. Add cross-language integration tests in tests/cross_synth_parity.rs and js/konduktiva-peak/test/run.js verifying byte-identical CC/NRPN/SysEx, safeSweepRange clamping, OSC, and preset roundtrips between Rust and Node.js.",
-              "status": "IN_PROGRESS",
-              "commitSha": null,
-              "timestamp": null,
-              "txId": null,
+              "status": "IMPLEMENTED",
+              "commitSha": "ecc948124f36bf06ba22cee4302e9dff69701b00",
+              "timestamp": "2026-11-05T20:22:59.705Z",
+              "txId": "tx-2026-11-05T20-22-59-705Z-oxrt",
               "failedLastRun": false
             }
           ],
-          "implementationStatus": "IN_PROGRESS",
-          "implementedCount": 1,
-          "inProgressCount": 1,
+          "implementationStatus": "IMPLEMENTED",
+          "implementedCount": 2,
+          "inProgressCount": 0,
           "queuedCount": 0,
           "outstandingCount": 0,
           "failedCount": 0,
           "totalRequirements": 2,
-          "completionPct": 50,
-          "latestCommitSha": null,
+          "completionPct": 100,
+          "latestCommitSha": "ecc948124f36bf06ba22cee4302e9dff69701b00",
           "latestVerifiedAt": "2026-11-05T20:22:59.705Z"
         },
         {
@@ -4038,8 +4142,8 @@
               "index": 2,
               "title": "Requirement #2: Implement the 1,000-event 8-voice polyphonic note + 9-lane CC sweep stress benchmark in src/stress_bench.rs verifying zero dropped notes, 8-voice polyphony budget compliance, zero stuck voices on panic(), and strict safeSweepRange enforcement on CCs 29/36/79/80/104/110. Add non-blocking CLI flags (--verify-hardware, --dry-stress, --export-shared-schemas, --synth, --midi-in, --midi-out, --channel, --preset, --headless-server, --port) in src/main.rs, document the complete 5-synth architecture, 74-CC/NRPN/SysEx map, and konduktiva-peak live-coding API in README.md, and verify zero compiler warnings across all crates and Node.js packages.",
               "taskPrompt": "Implement requirement #2 on [I11] (Epoch 8/8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release): Implement the 1,000-event 8-voice polyphonic note + 9-lane CC sweep stress benchmark in src/stress_bench.rs verifying zero dropped notes, 8-voice polyphony budget compliance, zero stuck voices on panic(), and strict safeSweepRange enforcement on CCs 29/36/79/80/104/110. Add non-blocking CLI flags (--verify-hardware, --dry-stress, --export-shared-schemas, --synth, --midi-in, --midi-out, --channel, --preset, --headless-server, --port) in src/main.rs, document the complete 5-synth architecture, 74-CC/NRPN/SysEx map, and konduktiva-peak live-coding API in README.md, and verify zero compiler warnings across all crates and Node.js packages.",
-              "status": "QUEUED",
-              "isQueued": true,
+              "status": "IN_PROGRESS",
+              "isQueued": false,
               "failedLastRun": false,
               "commitSha": null
             },
@@ -4057,7 +4161,7 @@
               "status": "OUTSTANDING",
               "isQueued": false,
               "failedLastRun": false,
-              "commitSha": "04cc177ea15d9db616aaac4d00c7a3fe9f808e1e"
+              "commitSha": null
             }
           ],
           "suggestions": [
@@ -4088,8 +4192,8 @@
               "index": 2,
               "title": "Requirement #2: Implement the 1,000-event 8-voice polyphonic note + 9-lane CC sweep stress benchmark in src/stress_bench.rs verifying zero dropped notes, 8-voice polyphony budget compliance, zero stuck voices on panic(), and strict safeSweepRange enforcement on CCs 29/36/79/80/104/110. Add non-blocking CLI flags (--verify-hardware, --dry-stress, --export-shared-schemas, --synth, --midi-in, --midi-out, --channel, --preset, --headless-server, --port) in src/main.rs, document the complete 5-synth architecture, 74-CC/NRPN/SysEx map, and konduktiva-peak live-coding API in README.md, and verify zero compiler warnings across all crates and Node.js packages.",
               "taskPrompt": "Implement requirement #2 on [I11] (Epoch 8/8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release): Implement the 1,000-event 8-voice polyphonic note + 9-lane CC sweep stress benchmark in src/stress_bench.rs verifying zero dropped notes, 8-voice polyphony budget compliance, zero stuck voices on panic(), and strict safeSweepRange enforcement on CCs 29/36/79/80/104/110. Add non-blocking CLI flags (--verify-hardware, --dry-stress, --export-shared-schemas, --synth, --midi-in, --midi-out, --channel, --preset, --headless-server, --port) in src/main.rs, document the complete 5-synth architecture, 74-CC/NRPN/SysEx map, and konduktiva-peak live-coding API in README.md, and verify zero compiler warnings across all crates and Node.js packages.",
-              "status": "QUEUED",
-              "isQueued": true,
+              "status": "IN_PROGRESS",
+              "isQueued": false,
               "failedLastRun": false,
               "commitSha": null
             },
@@ -4107,10 +4211,10 @@
               "status": "OUTSTANDING",
               "isQueued": false,
               "failedLastRun": false,
-              "commitSha": "04cc177ea15d9db616aaac4d00c7a3fe9f808e1e"
+              "commitSha": null
             }
           ],
-          "hasQueuedTasks": true,
+          "hasQueuedTasks": false,
           "requirementsDetailed": [
             {
               "index": 1,
@@ -4118,31 +4222,31 @@
               "text": "Epoch 8/8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release",
               "status": "IMPLEMENTED",
               "commitSha": null,
-              "timestamp": "2026-11-05T20:22:59.705Z",
-              "txId": "tx-2026-11-05T20-22-59-705Z-oxrt",
+              "timestamp": "2026-11-05T20:31:30.187Z",
+              "txId": "tx-2026-11-05T20-31-30-187Z-p7o7",
               "failedLastRun": false
             },
             {
               "index": 2,
               "codeId": "I11.2",
               "text": "Implement the 1,000-event 8-voice polyphonic note + 9-lane CC sweep stress benchmark in src/stress_bench.rs verifying zero dropped notes, 8-voice polyphony budget compliance, zero stuck voices on panic(), and strict safeSweepRange enforcement on CCs 29/36/79/80/104/110. Add non-blocking CLI flags (--verify-hardware, --dry-stress, --export-shared-schemas, --synth, --midi-in, --midi-out, --channel, --preset, --headless-server, --port) in src/main.rs, document the complete 5-synth architecture, 74-CC/NRPN/SysEx map, and konduktiva-peak live-coding API in README.md, and verify zero compiler warnings across all crates and Node.js packages.",
-              "status": "QUEUED",
+              "status": "IN_PROGRESS",
               "commitSha": null,
               "timestamp": null,
               "txId": null,
               "failedLastRun": false
             }
           ],
-          "implementationStatus": "PARTIAL",
+          "implementationStatus": "IN_PROGRESS",
           "implementedCount": 1,
-          "inProgressCount": 0,
-          "queuedCount": 1,
+          "inProgressCount": 1,
+          "queuedCount": 0,
           "outstandingCount": 0,
           "failedCount": 0,
           "totalRequirements": 2,
           "completionPct": 50,
           "latestCommitSha": null,
-          "latestVerifiedAt": null
+          "latestVerifiedAt": "2026-11-05T20:31:30.187Z"
         },
         {
           "id": "subintent:keyboard-and-input-ergonomics",
@@ -4328,10 +4432,12 @@
           "relationToMainIntent": "Advances Main Intent [Novation Peak 8-Voice Polyphonic Hybrid Synthesizer Manager, Patch Librarian & Konduktiva Companion → ARCHITECTURE]: Provides verified demo patches, Konduktiva JavaScript live-coding integration, CLI launch scripts, and complete HTML documentation",
           "specification": "Maintain diverse, working visual demo patches with Konduktiva live-coding drivers, standalone launch scripts, and complete HTML/README documentation.",
           "inferredRequirements": [
-            "Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktivabridge.rs; Related: js/konduktiva-peak"
+            "Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktivabridge.rs; Related: js/konduktiva-peak",
+            "Epoch 8 of 8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release"
           ],
           "derivedFromPrompts": [
-            "Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktiva_bridge.rs; Related: js/konduktiva-peak, tests/cross_synth_parity.rs). Integrate js/konduktiva-peak (createPeakKit(K), sweepCC, dualSweepCC, rhythmPresets, noteVoice, ccLane, createPeakPlayers, runStressTest, safeSweepRange, midi-cc-map.json) with js/shared-synth-sdk and Rust src/konduktiva_bridge.rs + GUI Konduktiva live-coding tab displaying the 8 canonical Peak players (bass, chords, lead, arp, ccCutoff, ccReso, ccMod, ccFx), density graphs (peakHold, peakBuild), and live CC lane telemetry. Add cross-language integration tests in tests/cross_synth_parity.rs and js/konduktiva-peak/test/run.js verifying byte-identical CC/NRPN/SysEx, safeSweepRange clamping, OSC, and preset roundtrips between Rust and Node.js. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-007.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf."
+            "Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktiva_bridge.rs; Related: js/konduktiva-peak, tests/cross_synth_parity.rs). Integrate js/konduktiva-peak (createPeakKit(K), sweepCC, dualSweepCC, rhythmPresets, noteVoice, ccLane, createPeakPlayers, runStressTest, safeSweepRange, midi-cc-map.json) with js/shared-synth-sdk and Rust src/konduktiva_bridge.rs + GUI Konduktiva live-coding tab displaying the 8 canonical Peak players (bass, chords, lead, arp, ccCutoff, ccReso, ccMod, ccFx), density graphs (peakHold, peakBuild), and live CC lane telemetry. Add cross-language integration tests in tests/cross_synth_parity.rs and js/konduktiva-peak/test/run.js verifying byte-identical CC/NRPN/SysEx, safeSweepRange clamping, OSC, and preset roundtrips between Rust and Node.js. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-007.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+            "Epoch 8 of 8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release Polish (Target: src/stress_bench.rs; Related: src/main.rs, README.md). Implement the 1,000-event 8-voice polyphonic note + 9-lane CC sweep stress benchmark in src/stress_bench.rs verifying zero dropped notes, 8-voice polyphony budget compliance, zero stuck voices on panic(), and strict safeSweepRange enforcement on CCs 29/36/79/80/104/110. Add non-blocking CLI flags (--verify-hardware, --dry-stress, --export-shared-schemas, --synth, --midi-in, --midi-out, --channel, --preset, --headless-server, --port) in src/main.rs, document the complete 5-synth architecture, 74-CC/NRPN/SysEx map, and konduktiva-peak live-coding API in README.md, and verify zero compiler warnings across all crates and Node.js packages. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-008.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf."
           ],
           "targetEntities": [
             "entity:novation-peak-pigs:synth-core",
@@ -4355,6 +4461,22 @@
               "status": "IMPLEMENTED",
               "isQueued": false,
               "failedLastRun": false,
+              "commitSha": "ecc948124f36bf06ba22cee4302e9dff69701b00"
+            },
+            {
+              "id": "task:I13:req-2",
+              "codeId": "I13.2",
+              "subIntentId": "subintent:demos-livecoding-and-docs",
+              "subIntentCodeId": "I13",
+              "subIntentName": "Demo Patches, Konduktiva Live-Coding & HTML Documentation",
+              "domain": "ARCHITECTURE",
+              "kind": "REQUIREMENT",
+              "index": 2,
+              "title": "Requirement #2: Epoch 8 of 8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release",
+              "taskPrompt": "Implement requirement #2 on [I13] (Demo Patches, Konduktiva Live-Coding & HTML Documentation): Epoch 8 of 8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release",
+              "status": "IN_PROGRESS",
+              "isQueued": false,
+              "failedLastRun": false,
               "commitSha": null
             },
             {
@@ -4365,13 +4487,13 @@
               "subIntentName": "Demo Patches, Konduktiva Live-Coding & HTML Documentation",
               "domain": "ARCHITECTURE",
               "kind": "SYNTHESIS",
-              "index": 2,
+              "index": 3,
               "title": "Synthesize capability: Demo Patches, Konduktiva Live-Coding & HTML Documentation",
-              "taskPrompt": "Demo Patches, Konduktiva Live-Coding & HTML Documentation: Maintain diverse, working visual demo patches with Konduktiva live-coding drivers, standalone launch scripts, and complete HTML/README documentation. (Requirements: Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktivabridge.rs; Related: js/konduktiva-peak)",
-              "status": "IMPLEMENTED",
+              "taskPrompt": "Demo Patches, Konduktiva Live-Coding & HTML Documentation: Maintain diverse, working visual demo patches with Konduktiva live-coding drivers, standalone launch scripts, and complete HTML/README documentation. (Requirements: Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktivabridge.rs; Related: js/konduktiva-peak; Epoch 8 of 8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release)",
+              "status": "OUTSTANDING",
               "isQueued": false,
               "failedLastRun": false,
-              "commitSha": null
+              "commitSha": "ecc948124f36bf06ba22cee4302e9dff69701b00"
             }
           ],
           "suggestions": [
@@ -4389,6 +4511,22 @@
               "status": "IMPLEMENTED",
               "isQueued": false,
               "failedLastRun": false,
+              "commitSha": "ecc948124f36bf06ba22cee4302e9dff69701b00"
+            },
+            {
+              "id": "task:I13:req-2",
+              "codeId": "I13.2",
+              "subIntentId": "subintent:demos-livecoding-and-docs",
+              "subIntentCodeId": "I13",
+              "subIntentName": "Demo Patches, Konduktiva Live-Coding & HTML Documentation",
+              "domain": "ARCHITECTURE",
+              "kind": "REQUIREMENT",
+              "index": 2,
+              "title": "Requirement #2: Epoch 8 of 8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release",
+              "taskPrompt": "Implement requirement #2 on [I13] (Demo Patches, Konduktiva Live-Coding & HTML Documentation): Epoch 8 of 8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release",
+              "status": "IN_PROGRESS",
+              "isQueued": false,
+              "failedLastRun": false,
               "commitSha": null
             },
             {
@@ -4399,13 +4537,13 @@
               "subIntentName": "Demo Patches, Konduktiva Live-Coding & HTML Documentation",
               "domain": "ARCHITECTURE",
               "kind": "SYNTHESIS",
-              "index": 2,
+              "index": 3,
               "title": "Synthesize capability: Demo Patches, Konduktiva Live-Coding & HTML Documentation",
-              "taskPrompt": "Demo Patches, Konduktiva Live-Coding & HTML Documentation: Maintain diverse, working visual demo patches with Konduktiva live-coding drivers, standalone launch scripts, and complete HTML/README documentation. (Requirements: Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktivabridge.rs; Related: js/konduktiva-peak)",
-              "status": "IMPLEMENTED",
+              "taskPrompt": "Demo Patches, Konduktiva Live-Coding & HTML Documentation: Maintain diverse, working visual demo patches with Konduktiva live-coding drivers, standalone launch scripts, and complete HTML/README documentation. (Requirements: Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktivabridge.rs; Related: js/konduktiva-peak; Epoch 8 of 8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release)",
+              "status": "OUTSTANDING",
               "isQueued": false,
               "failedLastRun": false,
-              "commitSha": null
+              "commitSha": "ecc948124f36bf06ba22cee4302e9dff69701b00"
             }
           ],
           "hasQueuedTasks": false,
@@ -4415,21 +4553,31 @@
               "codeId": "I13.1",
               "text": "Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktivabridge.rs; Related: js/konduktiva-peak",
               "status": "IMPLEMENTED",
-              "commitSha": null,
+              "commitSha": "ecc948124f36bf06ba22cee4302e9dff69701b00",
               "timestamp": "2026-11-05T20:22:59.705Z",
               "txId": "tx-2026-11-05T20-22-59-705Z-oxrt",
               "failedLastRun": false
+            },
+            {
+              "index": 2,
+              "codeId": "I13.2",
+              "text": "Epoch 8 of 8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release",
+              "status": "IN_PROGRESS",
+              "commitSha": null,
+              "timestamp": null,
+              "txId": null,
+              "failedLastRun": false
             }
           ],
-          "implementationStatus": "IMPLEMENTED",
+          "implementationStatus": "IN_PROGRESS",
           "implementedCount": 1,
-          "inProgressCount": 0,
+          "inProgressCount": 1,
           "queuedCount": 0,
           "outstandingCount": 0,
           "failedCount": 0,
-          "totalRequirements": 1,
-          "completionPct": 100,
-          "latestCommitSha": null,
+          "totalRequirements": 2,
+          "completionPct": 50,
+          "latestCommitSha": "ecc948124f36bf06ba22cee4302e9dff69701b00",
           "latestVerifiedAt": "2026-11-05T20:22:59.705Z"
         }
       ],
@@ -4646,17 +4794,17 @@
         },
         {
           "id": "change-tx-tx-2026-11-05T20",
-          "title": "Epoch 6 of 8: Two-Bowls / YAAE Native egui Desktop GUI (NovationPeakApp) — Oscillators/Wavetable, SVF Filter, Envelopes/LFOs/16-Slot Mod Matrix, FX/Animate Bar & Headless Geometry Auditor (Target: src/app.rs; Related: src/gui.rs, crates/synth-ui-theme). Extend crates/synth-ui-theme with NovationPeakOxfordBlue / NovationPeakAmber accent tokens and custom vector widgets (5-wave wavetable interpolator display, SVF LP/BP/HP filter & drive response curve, 3x ADSR envelope plotter, 16-slot mod matrix grid, and Animate 1/2 performance pads). Build the complete eframe::App desktop GUI in src/app.rs and src/gui.rs embedding synth_core::CommandHistory directly for global Undo/Redo (Ctrl+Z/Ctrl+Y), top hardware status bar (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0, explicit Live MIDI Arm toggle defaulting to safe virtual loopback, Panic button), Librarian/A-B Diff/Randomizer modals, single-key shortcut gating when text inputs are focused, and a headless egui::Context::run layout geometry auditor verifying zero overlapping rects at 1280x800 and 1920x1080. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-006.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
-          "description": "Epoch 6 of 8: Two-Bowls / YAAE Native egui Desktop GUI (NovationPeakApp) — Oscillators/Wavetable, SVF Filter, Envelopes/LFOs/16-Slot Mod Matrix, FX/Animate Bar & Headless Geometry Auditor (Target: src/app.rs; Related: src/gui.rs, crates/synth-ui-theme). Extend crates/synth-ui-theme with NovationPeakOxfordBlue / NovationPeakAmber accent tokens and custom vector widgets (5-wave wavetable interpolator display, SVF LP/BP/HP filter & drive response curve, 3x ADSR envelope plotter, 16-slot mod matrix grid, and Animate 1/2 performance pads). Build the complete eframe::App desktop GUI in src/app.rs and src/gui.rs embedding synth_core::CommandHistory directly for global Undo/Redo (Ctrl+Z/Ctrl+Y), top hardware status bar (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0, explicit Live MIDI Arm toggle defaulting to safe virtual loopback, Panic button), Librarian/A-B Diff/Randomizer modals, single-key shortcut gating when text inputs are focused, and a headless egui::Context::run layout geometry auditor verifying zero overlapping rects at 1280x800 and 1920x1080. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-006.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
-          "prompt": "Epoch 6 of 8: Two-Bowls / YAAE Native egui Desktop GUI (NovationPeakApp) — Oscillators/Wavetable, SVF Filter, Envelopes/LFOs/16-Slot Mod Matrix, FX/Animate Bar & Headless Geometry Auditor (Target: src/app.rs; Related: src/gui.rs, crates/synth-ui-theme). Extend crates/synth-ui-theme with NovationPeakOxfordBlue / NovationPeakAmber accent tokens and custom vector widgets (5-wave wavetable interpolator display, SVF LP/BP/HP filter & drive response curve, 3x ADSR envelope plotter, 16-slot mod matrix grid, and Animate 1/2 performance pads). Build the complete eframe::App desktop GUI in src/app.rs and src/gui.rs embedding synth_core::CommandHistory directly for global Undo/Redo (Ctrl+Z/Ctrl+Y), top hardware status bar (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0, explicit Live MIDI Arm toggle defaulting to safe virtual loopback, Panic button), Librarian/A-B Diff/Randomizer modals, single-key shortcut gating when text inputs are focused, and a headless egui::Context::run layout geometry auditor verifying zero overlapping rects at 1280x800 and 1920x1080. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-006.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+          "title": "Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktiva_bridge.rs; Related: js/konduktiva-peak, tests/cross_synth_parity.rs). Integrate js/konduktiva-peak (createPeakKit(K), sweepCC, dualSweepCC, rhythmPresets, noteVoice, ccLane, createPeakPlayers, runStressTest, safeSweepRange, midi-cc-map.json) with js/shared-synth-sdk and Rust src/konduktiva_bridge.rs + GUI Konduktiva live-coding tab displaying the 8 canonical Peak players (bass, chords, lead, arp, ccCutoff, ccReso, ccMod, ccFx), density graphs (peakHold, peakBuild), and live CC lane telemetry. Add cross-language integration tests in tests/cross_synth_parity.rs and js/konduktiva-peak/test/run.js verifying byte-identical CC/NRPN/SysEx, safeSweepRange clamping, OSC, and preset roundtrips between Rust and Node.js. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-007.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+          "description": "Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktiva_bridge.rs; Related: js/konduktiva-peak, tests/cross_synth_parity.rs). Integrate js/konduktiva-peak (createPeakKit(K), sweepCC, dualSweepCC, rhythmPresets, noteVoice, ccLane, createPeakPlayers, runStressTest, safeSweepRange, midi-cc-map.json) with js/shared-synth-sdk and Rust src/konduktiva_bridge.rs + GUI Konduktiva live-coding tab displaying the 8 canonical Peak players (bass, chords, lead, arp, ccCutoff, ccReso, ccMod, ccFx), density graphs (peakHold, peakBuild), and live CC lane telemetry. Add cross-language integration tests in tests/cross_synth_parity.rs and js/konduktiva-peak/test/run.js verifying byte-identical CC/NRPN/SysEx, safeSweepRange clamping, OSC, and preset roundtrips between Rust and Node.js. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-007.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+          "prompt": "Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktiva_bridge.rs; Related: js/konduktiva-peak, tests/cross_synth_parity.rs). Integrate js/konduktiva-peak (createPeakKit(K), sweepCC, dualSweepCC, rhythmPresets, noteVoice, ccLane, createPeakPlayers, runStressTest, safeSweepRange, midi-cc-map.json) with js/shared-synth-sdk and Rust src/konduktiva_bridge.rs + GUI Konduktiva live-coding tab displaying the 8 canonical Peak players (bass, chords, lead, arp, ccCutoff, ccReso, ccMod, ccFx), density graphs (peakHold, peakBuild), and live CC lane telemetry. Add cross-language integration tests in tests/cross_synth_parity.rs and js/konduktiva-peak/test/run.js verifying byte-identical CC/NRPN/SysEx, safeSweepRange clamping, OSC, and preset roundtrips between Rust and Node.js. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-007.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
           "status": "IMPLEMENTED",
           "category": "FEATURE",
           "domain": "ARCHITECTURE",
           "subIntentId": null,
-          "createdAt": "2026-11-05T20:04:38.891Z",
-          "completedAt": "2026-11-05T20:04:38.891Z",
-          "commitSha": "04cc177ea15d9db616aaac4d00c7a3fe9f808e1e",
-          "txId": "tx-2026-11-05T20-04-38-891Z-srvi"
+          "createdAt": "2026-11-05T20:22:59.705Z",
+          "completedAt": "2026-11-05T20:22:59.705Z",
+          "commitSha": "ecc948124f36bf06ba22cee4302e9dff69701b00",
+          "txId": "tx-2026-11-05T20-22-59-705Z-oxrt"
         },
         {
           "id": "change:epoch-7-of-8-konduktiva-peak-live-coding-integra",
@@ -4668,21 +4816,21 @@
           "domain": "ARCHITECTURE",
           "subIntentId": null,
           "createdAt": "2026-11-05T20:04:38.859Z",
-          "completedAt": "2026-11-05T20:22:59.705Z",
-          "commitSha": null,
-          "txId": null
+          "completedAt": "2026-11-05T20:31:30.039Z",
+          "commitSha": "ecc948124f36bf06ba22cee4302e9dff69701b00",
+          "txId": "tx-2026-11-05T20-22-59-705Z-oxrt"
         },
         {
           "id": "change:epoch-8-of-8-1-000-event-8-voice-polyphonic-cc-s",
           "title": "Epoch 8 of 8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release Polish (Target: src/stress_bench.rs; Related: src/main.rs, README.md). Implement the 1,000-event 8-voice polyphonic note + 9-lane CC sweep stress benchmark in src/stress_bench.rs verifying zero dropped notes, 8-voice polyphony budget compliance, zero stuck voices on panic(), and strict safeSweepRange enforcement on CCs 29/36/79/80/104/110. Add non-blocking CLI flags (--verify-hardware, --dry-stress, --export-shared-schemas, --synth, --midi-in, --midi-out, --channel, --preset, --headless-server, --port) in src/main.rs, document the complete 5-synth architecture, 74-CC/NRPN/SysEx map, and konduktiva-peak live-coding API in README.md, and verify zero compiler warnings across all crates and Node.js packages. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-008.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
           "description": "Epoch 8 of 8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release Polish (Target: src/stress_bench.rs; Related: src/main.rs, README.md). Implement the 1,000-event 8-voice polyphonic note + 9-lane CC sweep stress benchmark in src/stress_bench.rs verifying zero dropped notes, 8-voice polyphony budget compliance, zero stuck voices on panic(), and strict safeSweepRange enforcement on CCs 29/36/79/80/104/110. Add non-blocking CLI flags (--verify-hardware, --dry-stress, --export-shared-schemas, --synth, --midi-in, --midi-out, --channel, --preset, --headless-server, --port) in src/main.rs, document the complete 5-synth architecture, 74-CC/NRPN/SysEx map, and konduktiva-peak live-coding API in README.md, and verify zero compiler warnings across all crates and Node.js packages. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-008.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
           "prompt": "Epoch 8 of 8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release Polish (Target: src/stress_bench.rs; Related: src/main.rs, README.md). Implement the 1,000-event 8-voice polyphonic note + 9-lane CC sweep stress benchmark in src/stress_bench.rs verifying zero dropped notes, 8-voice polyphony budget compliance, zero stuck voices on panic(), and strict safeSweepRange enforcement on CCs 29/36/79/80/104/110. Add non-blocking CLI flags (--verify-hardware, --dry-stress, --export-shared-schemas, --synth, --midi-in, --midi-out, --channel, --preset, --headless-server, --port) in src/main.rs, document the complete 5-synth architecture, 74-CC/NRPN/SysEx map, and konduktiva-peak live-coding API in README.md, and verify zero compiler warnings across all crates and Node.js packages. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-008.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
-          "status": "QUEUED",
+          "status": "IMPLEMENTED",
           "category": "FEATURE",
           "domain": "ARCHITECTURE",
           "subIntentId": null,
           "createdAt": "2026-11-05T20:22:59.680Z",
-          "completedAt": null,
+          "completedAt": "2026-11-05T20:31:30.187Z",
           "commitSha": null,
           "txId": null
         },
@@ -4977,6 +5125,20 @@
           "subIntentId": null,
           "createdAt": "2026-11-05T20:22:59.625Z",
           "completedAt": "2026-11-05T20:22:59.705Z",
+          "commitSha": "ecc948124f36bf06ba22cee4302e9dff69701b00",
+          "txId": null
+        },
+        {
+          "id": "change-1793910690103-4xsd",
+          "title": "Epoch 8 of 8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release",
+          "description": "Epoch 8 of 8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release Polish (Target: src/stress_bench.rs; Related: src/main.rs, README.md). Implement the 1,000-event 8-voice polyphonic note + 9-lane CC sweep stress benchmark in src/stress_bench.rs verifying zero dropped notes, 8-voice polyphony budget compliance, zero stuck voices on panic(), and strict safeSweepRange enforcement on CCs 29/36/79/80/104/110. Add non-blocking CLI flags (--verify-hardware, --dry-stress, --export-shared-schemas, --synth, --midi-in, --midi-out, --channel, --preset, --headless-server, --port) in src/main.rs, document the complete 5-synth architecture, 74-CC/NRPN/SysEx map, and konduktiva-peak live-coding API in README.md, and verify zero compiler warnings across all crates and Node.js packages. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-008.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+          "prompt": "Epoch 8 of 8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release Polish (Target: src/stress_bench.rs; Related: src/main.rs, README.md). Implement the 1,000-event 8-voice polyphonic note + 9-lane CC sweep stress benchmark in src/stress_bench.rs verifying zero dropped notes, 8-voice polyphony budget compliance, zero stuck voices on panic(), and strict safeSweepRange enforcement on CCs 29/36/79/80/104/110. Add non-blocking CLI flags (--verify-hardware, --dry-stress, --export-shared-schemas, --synth, --midi-in, --midi-out, --channel, --preset, --headless-server, --port) in src/main.rs, document the complete 5-synth architecture, 74-CC/NRPN/SysEx map, and konduktiva-peak live-coding API in README.md, and verify zero compiler warnings across all crates and Node.js packages. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-008.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+          "status": "IMPLEMENTED",
+          "category": "FEATURE",
+          "domain": "RESOURCE_ALLOCATION",
+          "subIntentId": null,
+          "createdAt": "2026-11-05T20:31:30.103Z",
+          "completedAt": "2026-11-05T20:31:30.187Z",
           "commitSha": null,
           "txId": null
         }
@@ -5015,6 +5177,23 @@
           "txId": "tx-2026-11-05T20-04-38-891Z-srvi",
           "archivedAt": "2026-11-05T20:22:59.559Z",
           "completedAt": "2026-11-05T20:22:59.558Z"
+        },
+        {
+          "id": "change:epoch-7-of-8-konduktiva-peak-live-coding-integra",
+          "codeId": "CHANGE",
+          "subIntentId": null,
+          "subIntentCodeId": null,
+          "subIntentName": null,
+          "domain": "ARCHITECTURE",
+          "kind": "CHANGE",
+          "title": "Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktiva_bridge.rs; Related: js/konduktiva-peak, tests/cross_synth_parity.rs). Integrate js/konduktiva-peak (createPeakKit(K), sweepCC, dualSweepCC, rhythmPresets, noteVoice, ccLane, createPeakPlayers, runStressTest, safeSweepRange, midi-cc-map.json) with js/shared-synth-sdk and Rust src/konduktiva_bridge.rs + GUI Konduktiva live-coding tab displaying the 8 canonical Peak players (bass, chords, lead, arp, ccCutoff, ccReso, ccMod, ccFx), density graphs (peakHold, peakBuild), and live CC lane telemetry. Add cross-language integration tests in tests/cross_synth_parity.rs and js/konduktiva-peak/test/run.js verifying byte-identical CC/NRPN/SysEx, safeSweepRange clamping, OSC, and preset roundtrips between Rust and Node.js. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-007.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+          "text": "Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktiva_bridge.rs; Related: js/konduktiva-peak, tests/cross_synth_parity.rs). Integrate js/konduktiva-peak (createPeakKit(K), sweepCC, dualSweepCC, rhythmPresets, noteVoice, ccLane, createPeakPlayers, runStressTest, safeSweepRange, midi-cc-map.json) with js/shared-synth-sdk and Rust src/konduktiva_bridge.rs + GUI Konduktiva live-coding tab displaying the 8 canonical Peak players (bass, chords, lead, arp, ccCutoff, ccReso, ccMod, ccFx), density graphs (peakHold, peakBuild), and live CC lane telemetry. Add cross-language integration tests in tests/cross_synth_parity.rs and js/konduktiva-peak/test/run.js verifying byte-identical CC/NRPN/SysEx, safeSweepRange clamping, OSC, and preset roundtrips between Rust and Node.js. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-007.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+          "taskPrompt": "Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktiva_bridge.rs; Related: js/konduktiva-peak, tests/cross_synth_parity.rs). Integrate js/konduktiva-peak (createPeakKit(K), sweepCC, dualSweepCC, rhythmPresets, noteVoice, ccLane, createPeakPlayers, runStressTest, safeSweepRange, midi-cc-map.json) with js/shared-synth-sdk and Rust src/konduktiva_bridge.rs + GUI Konduktiva live-coding tab displaying the 8 canonical Peak players (bass, chords, lead, arp, ccCutoff, ccReso, ccMod, ccFx), density graphs (peakHold, peakBuild), and live CC lane telemetry. Add cross-language integration tests in tests/cross_synth_parity.rs and js/konduktiva-peak/test/run.js verifying byte-identical CC/NRPN/SysEx, safeSweepRange clamping, OSC, and preset roundtrips between Rust and Node.js. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-007.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+          "status": "MET",
+          "commitSha": "ecc948124f36bf06ba22cee4302e9dff69701b00",
+          "txId": "tx-2026-11-05T20-22-59-705Z-oxrt",
+          "archivedAt": "2026-11-05T20:31:30.039Z",
+          "completedAt": "2026-11-05T20:31:30.039Z"
         }
       ],
       "deletedSubIntents": [],
@@ -5204,7 +5383,7 @@
       "intentsReviewed": false,
       "reviewedAt": null,
       "reviewNote": null,
-      "lastUpdated": "2026-11-05T20:22:59.680Z"
+      "lastUpdated": "2026-11-05T20:31:30.160Z"
     },
     "intentRevisionLog": [
       {
@@ -6352,11 +6531,11 @@
       {
         "stepNumber": 8,
         "revisionId": "rev-008",
-        "timestamp": "2026-11-05T19:16:22.466Z",
+        "timestamp": "2026-11-05T20:31:30.109Z",
         "triggerType": "USER_CLI_PROMPT",
         "shiftKind": "REFINED_EXISTING_SUBINTENT",
-        "userPrompt": "Epoch 1 of 8: 5-Synth Ecosystem Profile (NovationPeakProfile) & Shared Rust/JS SDK Registration (Target: crates/synth-core; Related: js/shared-synth-sdk, js/konduktiva-peak). Extend crates/synth-core (src/profiles.rs and src/lib.rs) and js/shared-synth-sdk with NovationPeakProfile covering all 74 CCs from js/konduktiva-peak/midi-cc-map.json, +32 bipolar dual-CC pairs, 14-bit NRPN descriptors, 3 FPGA NCO oscillators (17 wavetables), mixer/ring-mod/noise, state-variable LP/BP/HP filter with pre/post drive, 3 ADSR envelopes, 2 tempo-synced LFOs, 16-slot mod matrix, Animate 1 & 2 holds, arpeggiator gate, and analogue distortion + chorus/delay/reverb FX. Register Novation Peak as the 5th synth in UnifiedEcosystemSchemaBundle alongside nkEditor, Hydrasynth, BS2/TD-3, and Nord Drum 2, and add comprehensive unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-001.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
-        "distilledRequirement": "Epoch 1 of 8: 5-Synth Ecosystem Profile (NovationPeakProfile) & Shared Rust/JS SDK Registration (Target: crates/synth-core; Related: js/shared-synth-sdk, js/konduktiva-peak)",
+        "userPrompt": "Epoch 8 of 8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release Polish (Target: src/stress_bench.rs; Related: src/main.rs, README.md). Implement the 1,000-event 8-voice polyphonic note + 9-lane CC sweep stress benchmark in src/stress_bench.rs verifying zero dropped notes, 8-voice polyphony budget compliance, zero stuck voices on panic(), and strict safeSweepRange enforcement on CCs 29/36/79/80/104/110. Add non-blocking CLI flags (--verify-hardware, --dry-stress, --export-shared-schemas, --synth, --midi-in, --midi-out, --channel, --preset, --headless-server, --port) in src/main.rs, document the complete 5-synth architecture, 74-CC/NRPN/SysEx map, and konduktiva-peak live-coding API in README.md, and verify zero compiler warnings across all crates and Node.js packages. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-008.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+        "distilledRequirement": "Epoch 8 of 8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release",
         "mainIntentSnapshot": {
           "title": "Novation Peak 8-Voice Polyphonic Hybrid Synthesizer Manager, Patch Librarian & Konduktiva Companion",
           "statement": "Full-featured Rust/egui native desktop synthesizer manager, patch editor, librarian, Korg nanoKONTROL2 controller, and Konduktiva live-coding companion for the Novation Peak 8-voice polyphonic hybrid synthesizer, extending the shared synth ecosystem (synth-core, synth-midi-osc, synth-ui-theme, shared-synth-sdk, konduktiva-peak) across 5 synthesizers.",
@@ -6390,7 +6569,7 @@
             },
             "delta": {
               "addedRequirements": [
-                "Epoch 1 of 8: 5-Synth Ecosystem Profile (NovationPeakProfile) & Shared Rust/JS SDK Registration (Target: crates/synth-core; Related: js/shared-synth-sdk, js/konduktiva-peak)"
+                "Epoch 8 of 8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release"
               ],
               "addedInvariants": [],
               "targetEntities": [
@@ -6403,7 +6582,7 @@
               "promptsCount": 2,
               "allRequirements": [
                 "Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktivabridge.rs; Related: js/konduktiva-peak",
-                "Epoch 1 of 8: 5-Synth Ecosystem Profile (NovationPeakProfile) & Shared Rust/JS SDK Registration (Target: crates/synth-core; Related: js/shared-synth-sdk, js/konduktiva-peak)"
+                "Epoch 8 of 8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release"
               ],
               "specification": "Maintain diverse, working visual demo patches with Konduktiva live-coding drivers, standalone launch scripts, and complete HTML/README documentation.",
               "summary": "Expanded \"Demo Patches, Konduktiva Live-Coding & HTML Documentation\" from 1 → 2 requirement(s) (1 → 2 prompts)."
@@ -6415,6 +6594,88 @@
           "subIntentsAfter": 20,
           "totalRequirementsBefore": 21,
           "totalRequirementsAfter": 22,
+          "domainsCoveredAfter": [
+            "ARCHITECTURE",
+            "DSP_AUDIO",
+            "DATA_LIBRARIAN",
+            "UI_LAYOUT",
+            "ECOSYSTEM_PARITY",
+            "VERIFICATION",
+            "ERGONOMICS",
+            "SYNTHESIS",
+            "PERSISTENCE",
+            "SEQUENCING_MIDI"
+          ]
+        }
+      },
+      {
+        "stepNumber": 9,
+        "revisionId": "rev-009",
+        "timestamp": "2026-11-05T19:16:22.466Z",
+        "triggerType": "USER_CLI_PROMPT",
+        "shiftKind": "REFINED_EXISTING_SUBINTENT",
+        "userPrompt": "Epoch 1 of 8: 5-Synth Ecosystem Profile (NovationPeakProfile) & Shared Rust/JS SDK Registration (Target: crates/synth-core; Related: js/shared-synth-sdk, js/konduktiva-peak). Extend crates/synth-core (src/profiles.rs and src/lib.rs) and js/shared-synth-sdk with NovationPeakProfile covering all 74 CCs from js/konduktiva-peak/midi-cc-map.json, +32 bipolar dual-CC pairs, 14-bit NRPN descriptors, 3 FPGA NCO oscillators (17 wavetables), mixer/ring-mod/noise, state-variable LP/BP/HP filter with pre/post drive, 3 ADSR envelopes, 2 tempo-synced LFOs, 16-slot mod matrix, Animate 1 & 2 holds, arpeggiator gate, and analogue distortion + chorus/delay/reverb FX. Register Novation Peak as the 5th synth in UnifiedEcosystemSchemaBundle alongside nkEditor, Hydrasynth, BS2/TD-3, and Nord Drum 2, and add comprehensive unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-001.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+        "distilledRequirement": "Epoch 1 of 8: 5-Synth Ecosystem Profile (NovationPeakProfile) & Shared Rust/JS SDK Registration (Target: crates/synth-core; Related: js/shared-synth-sdk, js/konduktiva-peak)",
+        "mainIntentSnapshot": {
+          "title": "Novation Peak 8-Voice Polyphonic Hybrid Synthesizer Manager, Patch Librarian & Konduktiva Companion",
+          "statement": "Full-featured Rust/egui native desktop synthesizer manager, patch editor, librarian, Korg nanoKONTROL2 controller, and Konduktiva live-coding companion for the Novation Peak 8-voice polyphonic hybrid synthesizer, extending the shared synth ecosystem (synth-core, synth-midi-osc, synth-ui-theme, shared-synth-sdk, konduktiva-peak) across 5 synthesizers.",
+          "primaryDomains": [
+            "SYNTHESIS",
+            "SEQUENCING_MIDI",
+            "NETWORKING_IPC",
+            "UI_LAYOUT",
+            "ERGONOMICS",
+            "PERSISTENCE",
+            "ARCHITECTURE"
+          ]
+        },
+        "shiftSummary": "Prompt #9 refined [ARCHITECTURE] \"Demo Patches, Konduktiva Live-Coding & HTML Documentation\" (+1 req): stored sub-intents: 20 → 20, stored requirements: 22 → 23.",
+        "mutations": [
+          {
+            "subIntentId": "subintent:demos-livecoding-and-docs",
+            "theme": "DEMOS_LIVECODING_AND_DOCS",
+            "domain": "ARCHITECTURE",
+            "name": "Demo Patches, Konduktiva Live-Coding & HTML Documentation",
+            "changeType": "EXPANDED_SUBINTENT",
+            "relationToMainIntent": "Advances Main Intent [Novation Peak 8-Voice Polyphonic Hybrid Synthesizer Manager, Patch Librarian & Konduktiva Companion → ARCHITECTURE]: Provides verified demo patches, Konduktiva JavaScript live-coding integration, CLI launch scripts, and complete HTML documentation",
+            "beforeState": {
+              "existed": true,
+              "requirementsCount": 2,
+              "promptsCount": 2,
+              "previousRequirements": [
+                "Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktivabridge.rs; Related: js/konduktiva-peak",
+                "Epoch 8 of 8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release"
+              ],
+              "summary": "Existed in [ARCHITECTURE] with 2 requirement(s) derived from 2 prior prompt(s)."
+            },
+            "delta": {
+              "addedRequirements": [
+                "Epoch 1 of 8: 5-Synth Ecosystem Profile (NovationPeakProfile) & Shared Rust/JS SDK Registration (Target: crates/synth-core; Related: js/shared-synth-sdk, js/konduktiva-peak)"
+              ],
+              "addedInvariants": [],
+              "targetEntities": [
+                "entity:novation-peak-pigs:synth-core",
+                "entity:novation-peak-pigs:synth-core-diff"
+              ]
+            },
+            "afterState": {
+              "requirementsCount": 3,
+              "promptsCount": 3,
+              "allRequirements": [
+                "Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktivabridge.rs; Related: js/konduktiva-peak",
+                "Epoch 8 of 8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release",
+                "Epoch 1 of 8: 5-Synth Ecosystem Profile (NovationPeakProfile) & Shared Rust/JS SDK Registration (Target: crates/synth-core; Related: js/shared-synth-sdk, js/konduktiva-peak)"
+              ],
+              "specification": "Maintain diverse, working visual demo patches with Konduktiva live-coding drivers, standalone launch scripts, and complete HTML/README documentation.",
+              "summary": "Expanded \"Demo Patches, Konduktiva Live-Coding & HTML Documentation\" from 2 → 3 requirement(s) (2 → 3 prompts)."
+            }
+          }
+        ],
+        "storedStateTotals": {
+          "subIntentsBefore": 20,
+          "subIntentsAfter": 20,
+          "totalRequirementsBefore": 22,
+          "totalRequirementsAfter": 23,
           "domainsCoveredAfter": [
             "ARCHITECTURE",
             "DSP_AUDIO",
@@ -7008,20 +7269,89 @@
         },
         "durationSeconds": 501.104146064,
         "networkRecovered": false,
+        "allPassed": true,
+        "commitSha": "ecc948124f36bf06ba22cee4302e9dff69701b00"
+      },
+      {
+        "id": "tx-2026-11-05T20-31-30-187Z-p7o7",
+        "initiatedBy": "FRONTIER_PLANNER",
+        "intentId": "intent:1793910690187",
+        "description": "Epoch 8 of 8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release Polish (Target: src/stress_bench.rs; Related: src/main.rs, README.md). Implement the 1,000-event 8-voice polyphonic note + 9-lane CC sweep stress benchmark in src/stress_bench.rs verifying zero dropped notes, 8-voice polyphony budget compliance, zero stuck voices on panic(), and strict safeSweepRange enforcement on CCs 29/36/79/80/104/110. Add non-blocking CLI flags (--verify-hardware, --dry-stress, --export-shared-schemas, --synth, --midi-in, --midi-out, --channel, --preset, --headless-server, --port) in src/main.rs, document the complete 5-synth architecture, 74-CC/NRPN/SysEx map, and konduktiva-peak live-coding API in README.md, and verify zero compiler warnings across all crates and Node.js packages. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-008.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+        "targetEntities": [],
+        "assignedTo": "gemini-3.8-flash-high (high)",
+        "diffArtifactUrl": null,
+        "verificationPipeline": {
+          "mutationCheck": {
+            "status": "PASS",
+            "meaning": "Code changes were saved to disk.",
+            "modifiedFiles": [
+              "src/hardware_verify.rs",
+              "src/lib.rs",
+              "src/main.rs",
+              "src/peak_synth.rs",
+              "README.md",
+              "src/stress_bench.rs"
+            ]
+          },
+          "syntaxCheck": {
+            "status": "PASS",
+            "durationMs": 2720,
+            "type": "rust-and-node"
+          },
+          "astInvariants": {
+            "status": "PASS",
+            "durationMs": 15,
+            "results": [
+              {
+                "id": "inv:clean-architecture",
+                "status": "PASS",
+                "durationMs": 5
+              },
+              {
+                "id": "inv:no-raw-panics",
+                "status": "PASS",
+                "durationMs": 5
+              },
+              {
+                "id": "inv:resource-bounds",
+                "status": "PASS",
+                "durationMs": 0
+              }
+            ],
+            "violations": [],
+            "firstFailing": null
+          },
+          "unitTests": {
+            "status": "PASS",
+            "durationMs": 3863,
+            "type": "rust-and-node",
+            "output": "test result: ok. 63 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s; test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s; test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s; test result: ok. 34 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s; test result: ok. 33 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s; test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s; test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s; test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s; test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s; test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s | 8/8 automated tests passed"
+          },
+          "budgetCheck": {
+            "status": "PASS",
+            "durationMs": 0
+          }
+        },
+        "retryCount": 0,
+        "resolved": true,
+        "timestamp": "2026-11-05T20:31:30.187Z",
+        "allocationProfile": "HIGH_REASONING_FLASH",
+        "tokenBudgetClass": "MEDIUM_HIGH_TOKEN",
+        "allocationRationale": "Architectural scope or high-complexity keywords detected; routing to high inference tier",
+        "tokenUsage": {
+          "input_tokens": 574951,
+          "output_tokens": 66682,
+          "total_tokens": 641633
+        },
+        "durationSeconds": 499.74067901,
+        "networkRecovered": false,
         "allPassed": true
       }
     ]
   },
   "runtimeQueue": {
     "paused": false,
-    "updatedAt": "2026-11-05T20:22:59.598Z",
-    "items": [
-      {
-        "text": "Epoch 8 of 8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release Polish (Target: src/stress_bench.rs; Related: src/main.rs, README.md). Implement the 1,000-event 8-voice polyphonic note + 9-lane CC sweep stress benchmark in src/stress_bench.rs verifying zero dropped notes, 8-voice polyphony budget compliance, zero stuck voices on panic(), and strict safeSweepRange enforcement on CCs 29/36/79/80/104/110. Add non-blocking CLI flags (--verify-hardware, --dry-stress, --export-shared-schemas, --synth, --midi-in, --midi-out, --channel, --preset, --headless-server, --port) in src/main.rs, document the complete 5-synth architecture, 74-CC/NRPN/SysEx map, and konduktiva-peak live-coding API in README.md, and verify zero compiler warnings across all crates and Node.js packages. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-008.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
-        "id": "q-1793906182424-7j3t",
-        "addedAt": "2026-11-05T19:16:22.424Z",
-        "targetProject": "/home/renick/antigravity/novation-peak-pigs"
-      }
-    ]
+    "updatedAt": "2026-11-05T20:31:30.077Z",
+    "items": []
   }
 }

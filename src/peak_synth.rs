@@ -1222,6 +1222,11 @@ impl PeakSynthEngine {
         }
     }
 
+    /// Immediately releases all 8 polyphonic voices and resets filters (emergency panic).
+    pub fn panic(&mut self) {
+        self.all_notes_off();
+    }
+
     // -------------------------------------------------------------------------
     // Audio Synthesis Evaluation
     // -------------------------------------------------------------------------

@@ -294,6 +294,38 @@ pub fn run_cli_verification(safety_mode: MidiSafetyMode) {
     print_verification_report(&report);
 }
 
+/// Exports all portable JSON schemas, device profiles, MIDI routers, and UI themes across
+/// the 5-synth ecosystem to the specified output directory.
+pub fn export_shared_schemas(out_dir: &std::path::Path) -> Result<Vec<std::path::PathBuf>, std::io::Error> {
+    std::fs::create_dir_all(out_dir)?;
+
+    // 1. Core schemas & all 5 synth profiles
+    synth_core::profiles::export_all_schemas(out_dir)?;
+
+    // 2. MIDI router schemas (DualMidiRouter & PeakMidiRouter)
+    synth_midi_osc::routing::export_midi_osc_schemas(out_dir)?;
+
+    // 3. UI Theme and Accent profiles schemas
+    synth_ui_theme::export_all_theme_schemas(out_dir)?;
+
+    // Collect all exported schema/profile json files
+    let mut files = Vec::new();
+    if let Ok(entries) = std::fs::read_dir(out_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_file() {
+                if let Some(ext) = path.extension() {
+                    if ext == "json" {
+                        files.push(path);
+                    }
+                }
+            }
+        }
+    }
+    files.sort();
+    Ok(files)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -360,5 +392,24 @@ mod tests {
         let formatted = format_report(&report);
         assert!(formatted.contains("Novation Peak Manager"));
         assert!(formatted.contains("Focusrite A.E Peak"));
+    }
+
+    #[test]
+    fn test_export_shared_schemas_integration() {
+        let temp_dir = std::env::temp_dir().join(format!("peak_schemas_test_{}", std::process::id()));
+        let files = export_shared_schemas(&temp_dir).expect("export schemas failed");
+        assert!(files.len() >= 15, "Expected at least 15 schemas/profiles exported");
+
+        let file_names: Vec<String> = files
+            .iter()
+            .filter_map(|p| p.file_name().and_then(|n| n.to_str()).map(String::from))
+            .collect();
+
+        assert!(file_names.iter().any(|f| f == "novation-peak.profile.json"));
+        assert!(file_names.iter().any(|f| f == "peak-midi-router.schema.json"));
+        assert!(file_names.iter().any(|f| f == "novation-peak.theme.json"));
+        assert!(file_names.iter().any(|f| f == "unified-ecosystem-bundle.json"));
+
+        let _ = std::fs::remove_dir_all(temp_dir);
     }
 }

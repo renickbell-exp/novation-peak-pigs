@@ -13,19 +13,22 @@ pub mod midi;
 pub mod peak_librarian;
 pub mod peak_mod_fx;
 pub mod peak_synth;
+pub mod stress_bench;
 
 pub use app::{
     GeometryAuditReport, HardwareStatusBarState, LayoutGeometryAuditor, NovationPeakApp,
 };
 pub use hardware_verify::{
-    format_report, print_verification_report, run_cli_verification, verify_hardware_from_paths,
-    verify_system_hardware, HardwareVerificationReport, VerifiedHardwareDevice,
+    export_shared_schemas, format_report, print_verification_report, run_cli_verification,
+    verify_hardware_from_paths, verify_system_hardware, HardwareVerificationReport,
+    VerifiedHardwareDevice,
 };
 pub use konduktiva_bridge::*;
 pub use midi::PeakMidiService;
 pub use peak_librarian::*;
 pub use peak_mod_fx::*;
 pub use peak_synth::*;
+pub use stress_bench::*;
 
 /// Returns the canonical synthesizer identifier for this application.
 pub fn synth_id() -> &'static str {
@@ -243,5 +246,32 @@ mod tests {
 
         let panic_events = bridge.panic();
         assert_eq!(panic_events.len(), 3);
+    }
+
+    #[test]
+    fn test_stress_bench_root_exports() {
+        let config = StressBenchmarkConfig {
+            total_events: 1000,
+            note_ratio: 0.40,
+            midstream_panic_at: Some(500),
+            exercise_voice_stealing: true,
+            seed: 0x9999_8888_7777_6666,
+        };
+        let report = run_stress_benchmark(&config);
+        assert!(report.passed);
+        assert_eq!(report.total_events, 1000);
+        assert_eq!(report.dropped_notes, 0);
+        assert!(report.max_active_voices <= 8);
+        assert_eq!(report.safety_violations, 0);
+        assert_eq!(report.voices_after_panic, 0);
+        assert!(report.format_report().contains("VERDICT                  : PASS"));
+    }
+
+    #[test]
+    fn test_export_shared_schemas_root_exports() {
+        let temp_dir = std::env::temp_dir().join(format!("peak_lib_schemas_{}", std::process::id()));
+        let files = export_shared_schemas(&temp_dir).expect("export schemas failed");
+        assert!(files.len() >= 15);
+        let _ = std::fs::remove_dir_all(temp_dir);
     }
 }
