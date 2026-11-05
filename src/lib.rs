@@ -8,6 +8,7 @@ pub use synth_core::profiles::{NovationPeakProfile, UnifiedEcosystemSchemaBundle
 pub mod app;
 pub mod gui;
 pub mod hardware_verify;
+pub mod konduktiva_bridge;
 pub mod midi;
 pub mod peak_librarian;
 pub mod peak_mod_fx;
@@ -20,6 +21,7 @@ pub use hardware_verify::{
     format_report, print_verification_report, run_cli_verification, verify_hardware_from_paths,
     verify_system_hardware, HardwareVerificationReport, VerifiedHardwareDevice,
 };
+pub use konduktiva_bridge::*;
 pub use midi::PeakMidiService;
 pub use peak_librarian::*;
 pub use peak_mod_fx::*;
@@ -222,5 +224,24 @@ mod tests {
 
         let anim = surface.process_midi(32, 127).expect("solo 1 animate 1");
         assert!(matches!(anim, NanoSurfaceAction::AnimateTrigger { index: 1, active: true, .. }));
+    }
+
+    #[test]
+    fn test_konduktiva_bridge_root_exports() {
+        let mut bridge = KonduktivaBridge::new();
+        assert_eq!(bridge.players.len(), 8);
+        assert_eq!(bridge.cc_telemetry.len(), 4);
+
+        bridge.start();
+        assert!(bridge.playing);
+
+        let events = bridge.step_beats(4.0);
+        assert!(!events.is_empty());
+
+        bridge.stop();
+        assert!(!bridge.playing);
+
+        let panic_events = bridge.panic();
+        assert_eq!(panic_events.len(), 3);
     }
 }

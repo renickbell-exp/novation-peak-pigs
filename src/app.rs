@@ -13,11 +13,12 @@ use synth_ui_theme::{
 
 use crate::gui::{
     is_text_input_active, render_diff_modal, render_effects_animate_panel,
-    render_envelopes_lfo_panel, render_filter_panel, render_librarian_modal,
-    render_mod_matrix_panel, render_oscillators_panel, render_randomizer_modal,
-    render_status_bar, render_tabs, MainTab, RandomizerUiMode,
+    render_envelopes_lfo_panel, render_filter_panel, render_konduktiva_panel,
+    render_librarian_modal, render_mod_matrix_panel, render_oscillators_panel,
+    render_randomizer_modal, render_status_bar, render_tabs, MainTab, RandomizerUiMode,
 };
 use crate::hardware_verify::verify_system_hardware;
+use crate::konduktiva_bridge::KonduktivaBridge;
 use crate::peak_librarian::{PeakLibrarian, PeakRandomizeSection, PeakSafeRandomizer};
 use crate::peak_synth::PeakSynthEngine;
 use crate::synth_midi_osc::routing::MidiSafetyMode;
@@ -90,6 +91,8 @@ pub struct NovationPeakApp {
     pub mod_matrix_widget: ModMatrixGridModel,
     /// Vector widget: Animate 1/2 performance pads.
     pub animate_pads: AnimatePadsModel,
+    /// Konduktiva live-coding companion bridge engine.
+    pub bridge: KonduktivaBridge,
 }
 
 impl Default for NovationPeakApp {
@@ -134,6 +137,7 @@ impl NovationPeakApp {
             adsr_widget: AdsrEnvelopePlotterModel::default(),
             mod_matrix_widget: ModMatrixGridModel::new_empty(),
             animate_pads: AnimatePadsModel::new(),
+            bridge: KonduktivaBridge::new(),
         };
 
         app.sync_widgets_from_engine();
@@ -173,6 +177,7 @@ impl NovationPeakApp {
     /// Immediately silences all voices and resets modulation.
     pub fn panic(&mut self) {
         self.engine.all_notes_off();
+        let _ = self.bridge.panic();
         self.animate_pads.animate1_active = false;
         self.animate_pads.animate1_hold = false;
         self.animate_pads.animate2_active = false;
@@ -249,7 +254,7 @@ impl NovationPeakApp {
             return;
         }
 
-        // Tab navigation shortcuts 1..=5
+        // Tab navigation shortcuts 1..=6
         if ctx.input(|i| i.key_pressed(Key::Num1)) {
             self.active_tab = MainTab::Oscillators;
         } else if ctx.input(|i| i.key_pressed(Key::Num2)) {
@@ -260,6 +265,8 @@ impl NovationPeakApp {
             self.active_tab = MainTab::ModMatrix;
         } else if ctx.input(|i| i.key_pressed(Key::Num5)) {
             self.active_tab = MainTab::Effects;
+        } else if ctx.input(|i| i.key_pressed(Key::Num6)) {
+            self.active_tab = MainTab::KonduktivaLive;
         }
 
         // Modal toggle shortcuts: P for Panic, L for Librarian, D for Diff, R for Randomizer
@@ -290,6 +297,31 @@ impl NovationPeakApp {
 
 impl eframe::App for NovationPeakApp {
     fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {
+        // Advance Konduktiva live-coding companion engine if running
+        if self.bridge.playing {
+            let dt = ctx.input(|i| i.stable_dt) as f64;
+            let events = self.bridge.step_seconds(dt);
+            for evt in events {
+                match evt {
+                    synth_midi_osc::routing::MidiPacket::NoteOn { note, velocity, .. } => {
+                        if velocity > 0 {
+                            self.engine.note_on(note, velocity);
+                        } else {
+                            self.engine.note_off(note);
+                        }
+                    }
+                    synth_midi_osc::routing::MidiPacket::NoteOff { note, .. } => {
+                        self.engine.note_off(note);
+                    }
+                    synth_midi_osc::routing::MidiPacket::ControlChange { cc, value, .. } => {
+                        let _ = self.engine.set_cc(cc, value);
+                    }
+                    _ => {}
+                }
+            }
+            ctx.request_repaint();
+        }
+
         self.theme.apply_to_context(ctx);
         self.handle_shortcuts(ctx);
 
@@ -309,6 +341,7 @@ impl eframe::App for NovationPeakApp {
                 MainTab::EnvelopesLfo => render_envelopes_lfo_panel(ui, self),
                 MainTab::ModMatrix => render_mod_matrix_panel(ui, self),
                 MainTab::Effects => render_effects_animate_panel(ui, self),
+                MainTab::KonduktivaLive => render_konduktiva_panel(ui, self),
             });
 
         // Modal Windows
@@ -460,5 +493,21 @@ mod tests {
         app.panic();
         assert!(!app.animate_pads.animate1_hold);
         assert!(!app.animate_pads.animate1_active);
+    }
+
+    #[test]
+    fn test_konduktiva_tab_layout_geometry_auditor() {
+        let mut app = NovationPeakApp::new();
+        app.active_tab = MainTab::KonduktivaLive;
+        let ctx = Context::default();
+        let mut raw_input = RawInput::default();
+        raw_input.screen_rect = Some(Rect::from_min_size(Pos2::ZERO, Vec2::new(1280.0, 800.0)));
+        let _ = ctx.run(raw_input, |ctx| {
+            CentralPanel::default().show(ctx, |ui| {
+                render_konduktiva_panel(ui, &mut app);
+            });
+        });
+        assert_eq!(app.bridge.players.len(), 8);
+        assert_eq!(app.bridge.cc_telemetry.len(), 4);
     }
 }

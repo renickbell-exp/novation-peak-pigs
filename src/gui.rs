@@ -14,6 +14,7 @@ use synth_ui_theme::{
 };
 
 use crate::app::NovationPeakApp;
+use crate::konduktiva_bridge::{DensityGraphMode, PlayerRole};
 use crate::peak_librarian::{morph_patches, PeakRandomizeSection};
 use crate::peak_synth::WAVETABLE_NAMES;
 
@@ -26,6 +27,7 @@ pub enum MainTab {
     EnvelopesLfo,
     ModMatrix,
     Effects,
+    KonduktivaLive,
 }
 
 impl MainTab {
@@ -37,6 +39,7 @@ impl MainTab {
             Self::EnvelopesLfo => "Envelopes & LFOs",
             Self::ModMatrix => "16-Slot Mod Matrix",
             Self::Effects => "FX & Animate Bar",
+            Self::KonduktivaLive => "Konduktiva Live",
         }
     }
 }
@@ -211,6 +214,7 @@ pub fn render_tabs(ui: &mut Ui, app: &mut NovationPeakApp) {
             MainTab::EnvelopesLfo,
             MainTab::ModMatrix,
             MainTab::Effects,
+            MainTab::KonduktivaLive,
         ];
 
         for (idx, tab) in tabs.iter().enumerate() {
@@ -793,6 +797,274 @@ pub fn render_effects_animate_panel(ui: &mut Ui, app: &mut NovationPeakApp) {
                     let pads_size = Vec2::new(ui.available_width().max(240.0), 180.0);
                     animate_pads_widget(ui, &mut app.animate_pads, pads_size, accent_color);
                 });
+            });
+        });
+    });
+}
+
+/// Renders the Konduktiva live-coding companion panel.
+pub fn render_konduktiva_panel(ui: &mut Ui, app: &mut NovationPeakApp) {
+    let accent_color = app.theme.resolved_accent_color();
+
+    ScrollArea::vertical().show(ui, |ui| {
+        // 1. Top Transport and Density Control Bar
+        ui.group(|ui| {
+            ui.horizontal(|ui| {
+                ui.heading("Konduktiva Live-Coding Companion");
+                ui.separator();
+
+                // Play / Pause Button
+                let is_playing = app.bridge.playing;
+                let play_btn_text = if is_playing {
+                    egui::RichText::new("STOP").color(Color32::from_rgb(255, 100, 100)).strong()
+                } else {
+                    egui::RichText::new("PLAY").color(Color32::from_rgb(80, 220, 120)).strong()
+                };
+
+                if ui.button(play_btn_text).clicked() {
+                    app.bridge.toggle_playback();
+                }
+
+                ui.separator();
+
+                // Tempo Slider
+                ui.label("BPM:");
+                ui.add(Slider::new(&mut app.bridge.bpm, 60.0..=240.0).text("BPM"));
+
+                ui.separator();
+
+                // Beat and Bar Readout
+                let beat = app.bridge.current_beat;
+                let bar = (beat / 4.0).floor() as u32 + 1;
+                let beat_in_bar = beat.rem_euclid(4.0) + 1.0;
+                ui.colored_label(
+                    accent_color,
+                    format!("Beat {:05.2} (Bar {}.{:01.0})", beat, bar, beat_in_bar),
+                );
+
+                if ui.button("Reset Playhead").clicked() {
+                    app.bridge.reset_playhead();
+                }
+
+                ui.separator();
+
+                // Panic Button
+                if ui.button(egui::RichText::new("PANIC").color(Color32::RED).strong()).clicked() {
+                    app.panic();
+                }
+            });
+
+            ui.add_space(4.0);
+
+            // Density Graph Selection
+            ui.horizontal(|ui| {
+                ui.label("Density Graph:");
+                let mode_hold = app.bridge.density_mode == DensityGraphMode::PeakHold;
+                if ui.selectable_label(mode_hold, DensityGraphMode::PeakHold.display_name()).clicked() {
+                    app.bridge.set_density_mode(DensityGraphMode::PeakHold);
+                }
+
+                let mode_build = app.bridge.density_mode == DensityGraphMode::PeakBuild;
+                if ui.selectable_label(mode_build, DensityGraphMode::PeakBuild.display_name()).clicked() {
+                    app.bridge.set_density_mode(DensityGraphMode::PeakBuild);
+                }
+
+                let mult = app.bridge.density_mode.rate_multiplier(app.bridge.current_beat);
+                ui.colored_label(
+                    Color32::from_rgb(255, 180, 0),
+                    format!("Active Density Multiplier: {:.2}x", mult),
+                );
+            });
+        });
+
+        ui.add_space(8.0);
+
+        // 2. Density Graph Canvas Visualizer
+        ui.group(|ui| {
+            ui.heading("Density Curve Visualizer (16-Beat Cycle)");
+            let canvas_width = ui.available_width().max(300.0);
+            let canvas_height = 70.0;
+            let (response, painter) = ui.allocate_painter(Vec2::new(canvas_width, canvas_height), egui::Sense::hover());
+            let rect = response.rect;
+
+            // Background
+            painter.rect_filled(rect, 4.0, Color32::from_rgb(18, 22, 28));
+
+            // Grid lines (every 4 beats = 1 bar)
+            for bar_idx in 1..4 {
+                let x = rect.left() + (bar_idx as f32 / 4.0) * rect.width();
+                painter.line_segment(
+                    [egui::pos2(x, rect.top()), egui::pos2(x, rect.bottom())],
+                    egui::Stroke::new(1.0, Color32::from_gray(40)),
+                );
+            }
+
+            // Curve points
+            let sample_count = 64;
+            let mut points = Vec::with_capacity(sample_count);
+            for i in 0..sample_count {
+                let frac = i as f32 / (sample_count - 1) as f32;
+                let b = frac as f64 * 16.0;
+                let mult = app.bridge.density_mode.rate_multiplier(b);
+                let norm = ((mult - 1.0) / 1.0) as f32;
+                let x = rect.left() + frac * rect.width();
+                let y = rect.bottom() - 8.0 - norm * (rect.height() - 16.0);
+                points.push(egui::pos2(x, y));
+            }
+
+            for window in points.windows(2) {
+                painter.line_segment(
+                    [window[0], window[1]],
+                    egui::Stroke::new(2.0, accent_color),
+                );
+            }
+
+            // Playhead Cursor
+            let current_pos_in_16 = (app.bridge.current_beat.rem_euclid(16.0) / 16.0) as f32;
+            let playhead_x = rect.left() + current_pos_in_16 * rect.width();
+            painter.line_segment(
+                [egui::pos2(playhead_x, rect.top()), egui::pos2(playhead_x, rect.bottom())],
+                egui::Stroke::new(2.0, Color32::from_rgb(255, 60, 60)),
+            );
+        });
+
+        ui.add_space(8.0);
+
+        // 3. 8 Canonical Peak Players
+        ui.columns(2, |columns| {
+            // Left: 4 Note Voices
+            columns[0].vertical(|ui| {
+                ui.group(|ui| {
+                    ui.heading("Polyphonic Note Voices (4 Players / 8 Voices)");
+                    ui.label("Monotimbral note players routed to Peak MIDI Channel 1.");
+                    ui.add_space(4.0);
+
+                    for player in app.bridge.players.iter_mut().filter(|p| p.role == PlayerRole::Note) {
+                        ui.horizontal(|ui| {
+                            let mut enabled = player.enabled;
+                            if ui.checkbox(&mut enabled, "").changed() {
+                                player.enabled = enabled;
+                            }
+
+                            let name_color = if player.enabled { accent_color } else { Color32::GRAY };
+                            ui.colored_label(name_color, egui::RichText::new(&player.name).strong());
+
+                            ui.label(format!("Oct:{}", player.octave));
+                            ui.label(format!("Rate:{:.1} onsets/beat", player.native_rate));
+                            ui.colored_label(Color32::from_gray(140), format!("Events: {}", player.event_count));
+                        });
+                        ui.separator();
+                    }
+                });
+            });
+
+            // Right: 4 CC Lanes
+            columns[1].vertical(|ui| {
+                ui.group(|ui| {
+                    ui.heading("CC Sweep Lanes (4 Continuous Controllers)");
+                    ui.label("Safe CC sweep generators with resonance and overdrive clamps.");
+                    ui.add_space(4.0);
+
+                    for player in app.bridge.players.iter_mut().filter(|p| p.role == PlayerRole::ControlChange) {
+                        ui.horizontal(|ui| {
+                            let mut enabled = player.enabled;
+                            if ui.checkbox(&mut enabled, "").changed() {
+                                player.enabled = enabled;
+                            }
+
+                            let name_color = if player.enabled { Color32::from_rgb(255, 180, 0) } else { Color32::GRAY };
+                            ui.colored_label(name_color, egui::RichText::new(&player.name).strong());
+
+                            ui.label(format!("Rate:{:.1} onsets/beat", player.native_rate));
+                            if let Some(ref sweep) = player.single_sweep {
+                                ui.label(format!("CC {} [{}..{}]", sweep.controller, sweep.lo, sweep.hi));
+                            } else if let Some(ref dual) = player.dual_sweep {
+                                ui.label(format!("CC {}/{}", dual.controller_a, dual.controller_b));
+                            }
+                            ui.colored_label(Color32::from_gray(140), format!("Events: {}", player.event_count));
+                        });
+                        ui.separator();
+                    }
+                });
+            });
+        });
+
+        ui.add_space(8.0);
+
+        // 4. Live CC Lane Telemetry & Sparkline Waveforms
+        ui.group(|ui| {
+            ui.heading("Live CC Lane Telemetry (Real-Time Oscilloscope & Safety Clamping)");
+            ui.add_space(4.0);
+
+            ui.columns(4, |columns| {
+                let telemetry_count = app.bridge.cc_telemetry.len();
+                for idx in 0..telemetry_count {
+                    let col_idx = idx % 4;
+                    let telem = &app.bridge.cc_telemetry[idx];
+
+                    columns[col_idx].vertical(|ui| {
+                        ui.group(|ui| {
+                            ui.colored_label(
+                                accent_color,
+                                egui::RichText::new(&telem.name).strong(),
+                            );
+
+                            let (val_label, safe_label) = if let Some(cb) = telem.controller_b {
+                                (
+                                    format!("A:{} (CC{}) | B:{} (CC{})", telem.current_a, telem.controller_a, telem.current_b.unwrap_or(0), cb),
+                                    format!("Safe: [{}..{}] / [{}..{}]", telem.safe_range_a.0, telem.safe_range_a.1, telem.safe_range_b.map(|r| r.0).unwrap_or(0), telem.safe_range_b.map(|r| r.1).unwrap_or(127)),
+                                )
+                            } else {
+                                (
+                                    format!("Val: {} (CC {})", telem.current_a, telem.controller_a),
+                                    format!("Safe Range: [{}..{}]", telem.safe_range_a.0, telem.safe_range_a.1),
+                                )
+                            };
+
+                            ui.label(val_label);
+                            ui.colored_label(Color32::from_rgb(60, 180, 80), safe_label);
+                            ui.label(format!("Min/Max: {}..{}", telem.min_seen_a, telem.max_seen_a));
+
+                            // Sparkline Waveform Canvas
+                            let spark_w = ui.available_width().max(80.0);
+                            let spark_h = 45.0;
+                            let (resp, painter) = ui.allocate_painter(Vec2::new(spark_w, spark_h), egui::Sense::hover());
+                            let s_rect = resp.rect;
+
+                            painter.rect_filled(s_rect, 2.0, Color32::from_rgb(12, 16, 20));
+
+                            // Draw history A sparkline
+                            if telem.history_a.len() >= 2 {
+                                let len = telem.history_a.len();
+                                let mut pts = Vec::with_capacity(len);
+                                for (i, &val) in telem.history_a.iter().enumerate() {
+                                    let x = s_rect.left() + (i as f32 / (len - 1) as f32) * s_rect.width();
+                                    let norm = val as f32 / 127.0;
+                                    let y = s_rect.bottom() - 2.0 - norm * (s_rect.height() - 4.0);
+                                    pts.push(egui::pos2(x, y));
+                                }
+                                for w in pts.windows(2) {
+                                    painter.line_segment([w[0], w[1]], egui::Stroke::new(1.5, accent_color));
+                                }
+                            }
+
+                            // Draw history B sparkline for dual sweep
+                            if telem.history_b.len() >= 2 {
+                                let len = telem.history_b.len();
+                                let mut pts = Vec::with_capacity(len);
+                                for (i, &val) in telem.history_b.iter().enumerate() {
+                                    let x = s_rect.left() + (i as f32 / (len - 1) as f32) * s_rect.width();
+                                    let norm = val as f32 / 127.0;
+                                    let y = s_rect.bottom() - 2.0 - norm * (s_rect.height() - 4.0);
+                                    pts.push(egui::pos2(x, y));
+                                }
+                                for w in pts.windows(2) {
+                                    painter.line_segment([w[0], w[1]], egui::Stroke::new(1.5, Color32::from_rgb(255, 180, 0)));
+                                }
+                            }
+                        });
+                    });
+                }
             });
         });
     });

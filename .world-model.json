@@ -2,7 +2,7 @@
   "meta": {
     "projectId": "novation-peak-manager",
     "version": "0.1.0",
-    "epoch": 7,
+    "epoch": 8,
     "runtimeEnvironment": {
       "platform": "linux",
       "target": "rust-and-node",
@@ -709,20 +709,21 @@
         "path": "src/lib.rs",
         "purpose": "Novation Peak 8-Voice Hybrid Synthesizer Manager, Librarian & Konduktiva Companion. Returns the canonical synthesizer identifier for this application.",
         "responsibilities": [
-          "Exports app, gui, hardware_verify, midi, peak_librarian, peak_mod_fx in src/lib.rs"
+          "Exports app, gui, hardware_verify, konduktiva_bridge, midi, peak_librarian in src/lib.rs"
         ],
         "exposedInterfaces": [
           "app",
           "gui",
           "hardware_verify",
+          "konduktiva_bridge",
           "midi",
-          "peak_librarian",
-          "peak_mod_fx"
+          "peak_librarian"
         ],
         "dependencies": [
           "entity:novation-peak-pigs:app",
           "entity:novation-peak-pigs:gui",
           "entity:novation-peak-pigs:hardware_verify",
+          "entity:novation-peak-pigs:konduktiva_bridge",
           "entity:novation-peak-pigs:midi",
           "entity:novation-peak-pigs:peak_librarian",
           "entity:novation-peak-pigs:peak_mod_fx",
@@ -733,17 +734,19 @@
           "L8: pub mod app;",
           "L9: pub mod gui;",
           "L10: pub mod hardware_verify;",
-          "L11: pub mod midi;",
-          "L12: pub mod peak_librarian;",
-          "L13: pub mod peak_mod_fx;",
-          "L14: pub mod peak_synth;",
-          "L29: pub fn synth_id() -> &'static str {",
-          "L38: fn test_synth_id_baseline() {",
-          "L43: fn test_novation_peak_profile_root_integration() {",
-          "L54: fn test_hardware_verify_and_midi_service_exported() {",
-          "L72: fn test_peak_synth_domain_engine_root_exports() {",
-          "L102: fn test_peak_mod_fx_engine_root_exports() {",
-          "L171: fn test_peak_librarian_domain_root_exports() {"
+          "L11: pub mod konduktiva_bridge;",
+          "L12: pub mod midi;",
+          "L13: pub mod peak_librarian;",
+          "L14: pub mod peak_mod_fx;",
+          "L15: pub mod peak_synth;",
+          "L31: pub fn synth_id() -> &'static str {",
+          "L40: fn test_synth_id_baseline() {",
+          "L45: fn test_novation_peak_profile_root_integration() {",
+          "L56: fn test_hardware_verify_and_midi_service_exported() {",
+          "L74: fn test_peak_synth_domain_engine_root_exports() {",
+          "L104: fn test_peak_mod_fx_engine_root_exports() {",
+          "L173: fn test_peak_librarian_domain_root_exports() {",
+          "L230: fn test_konduktiva_bridge_root_exports() {"
         ]
       },
       "entity:novation-peak-pigs:main": {
@@ -1105,36 +1108,37 @@
         "dependencies": [
           "entity:novation-peak-pigs:gui",
           "entity:novation-peak-pigs:hardware_verify",
+          "entity:novation-peak-pigs:konduktiva_bridge",
           "entity:novation-peak-pigs:peak_librarian",
           "entity:novation-peak-pigs:peak_synth"
         ],
         "blackboxConstraints": {},
         "structuralOutline": [
-          "L27: pub struct HardwareStatusBarState {",
-          "L33: impl Default for HardwareStatusBarState {",
-          "L34: fn default() -> Self {",
-          "L46: pub struct NovationPeakApp {",
-          "L95: impl Default for NovationPeakApp {",
-          "L96: fn default() -> Self {",
-          "L101: impl NovationPeakApp {",
-          "L104: pub fn new() -> Self {",
-          "L144: pub fn apply_param_change(&mut self, key: &str, new_val: f64) {",
-          "L152: pub fn undo(&mut self) -> bool {",
-          "L163: pub fn redo(&mut self) -> bool {",
-          "L174: pub fn panic(&mut self) {",
-          "L183: pub fn sync_widgets_from_engine(&mut self) {",
-          "L231: pub fn handle_shortcuts(&mut self, ctx: &Context) {",
-          "L291: impl eframe::App for NovationPeakApp {",
-          "L292: fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {",
-          "L327: pub struct GeometryAuditReport {",
-          "L336: pub struct LayoutGeometryAuditor;",
-          "L338: impl LayoutGeometryAuditor {",
-          "L341: pub fn audit_at_resolution(",
-          "L382: fn test_app_initialization_defaults() {",
-          "L394: fn test_app_undo_redo_via_history() {",
-          "L415: fn test_headless_geometry_auditor_1280x800() {",
-          "L424: fn test_headless_geometry_auditor_1920x1080() {",
-          "L433: fn test_shortcut_gating_when_text_focused() {"
+          "L28: pub struct HardwareStatusBarState {",
+          "L34: impl Default for HardwareStatusBarState {",
+          "L35: fn default() -> Self {",
+          "L47: pub struct NovationPeakApp {",
+          "L98: impl Default for NovationPeakApp {",
+          "L99: fn default() -> Self {",
+          "L104: impl NovationPeakApp {",
+          "L107: pub fn new() -> Self {",
+          "L148: pub fn apply_param_change(&mut self, key: &str, new_val: f64) {",
+          "L156: pub fn undo(&mut self) -> bool {",
+          "L167: pub fn redo(&mut self) -> bool {",
+          "L178: pub fn panic(&mut self) {",
+          "L188: pub fn sync_widgets_from_engine(&mut self) {",
+          "L236: pub fn handle_shortcuts(&mut self, ctx: &Context) {",
+          "L298: impl eframe::App for NovationPeakApp {",
+          "L299: fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {",
+          "L360: pub struct GeometryAuditReport {",
+          "L369: pub struct LayoutGeometryAuditor;",
+          "L371: impl LayoutGeometryAuditor {",
+          "L374: pub fn audit_at_resolution(",
+          "L415: fn test_app_initialization_defaults() {",
+          "L427: fn test_app_undo_redo_via_history() {",
+          "L448: fn test_headless_geometry_auditor_1280x800() {",
+          "L457: fn test_headless_geometry_auditor_1920x1080() {",
+          "L466: fn test_shortcut_gating_when_text_focused() {"
         ]
       },
       "entity:novation-peak-pigs:gui": {
@@ -1155,25 +1159,73 @@
         ],
         "dependencies": [
           "entity:novation-peak-pigs:app",
+          "entity:novation-peak-pigs:konduktiva_bridge",
           "entity:novation-peak-pigs:peak_librarian",
           "entity:novation-peak-pigs:peak_synth"
         ],
         "blackboxConstraints": {},
         "structuralOutline": [
-          "L22: pub enum MainTab {",
-          "L31: impl MainTab {",
-          "L46: pub enum RandomizerUiMode {",
-          "L58: pub fn is_text_input_active(ctx: &egui::Context) -> bool {",
-          "L63: pub fn render_status_bar(ui: &mut Ui, app: &mut NovationPeakApp) {",
-          "L206: pub fn render_tabs(ui: &mut Ui, app: &mut NovationPeakApp) {",
-          "L227: pub fn render_oscillators_panel(ui: &mut Ui, app: &mut NovationPeakApp) {",
-          "L415: pub fn render_filter_panel(ui: &mut Ui, app: &mut NovationPeakApp) {",
-          "L536: pub fn render_envelopes_lfo_panel(ui: &mut Ui, app: &mut NovationPeakApp) {",
-          "L672: pub fn render_mod_matrix_panel(ui: &mut Ui, app: &mut NovationPeakApp) {",
-          "L709: pub fn render_effects_animate_panel(ui: &mut Ui, app: &mut NovationPeakApp) {",
-          "L802: pub fn render_librarian_modal(ctx: &egui::Context, app: &mut NovationPeakApp) {",
-          "L868: pub fn render_diff_modal(ctx: &egui::Context, app: &mut NovationPeakApp) {",
-          "L945: pub fn render_randomizer_modal(ctx: &egui::Context, app: &mut NovationPeakApp) {"
+          "L23: pub enum MainTab {",
+          "L33: impl MainTab {",
+          "L49: pub enum RandomizerUiMode {",
+          "L61: pub fn is_text_input_active(ctx: &egui::Context) -> bool {",
+          "L66: pub fn render_status_bar(ui: &mut Ui, app: &mut NovationPeakApp) {",
+          "L209: pub fn render_tabs(ui: &mut Ui, app: &mut NovationPeakApp) {",
+          "L231: pub fn render_oscillators_panel(ui: &mut Ui, app: &mut NovationPeakApp) {",
+          "L419: pub fn render_filter_panel(ui: &mut Ui, app: &mut NovationPeakApp) {",
+          "L540: pub fn render_envelopes_lfo_panel(ui: &mut Ui, app: &mut NovationPeakApp) {",
+          "L676: pub fn render_mod_matrix_panel(ui: &mut Ui, app: &mut NovationPeakApp) {",
+          "L713: pub fn render_effects_animate_panel(ui: &mut Ui, app: &mut NovationPeakApp) {",
+          "L806: pub fn render_konduktiva_panel(ui: &mut Ui, app: &mut NovationPeakApp) {",
+          "L1074: pub fn render_librarian_modal(ctx: &egui::Context, app: &mut NovationPeakApp) {",
+          "L1140: pub fn render_diff_modal(ctx: &egui::Context, app: &mut NovationPeakApp) {",
+          "L1217: pub fn render_randomizer_modal(ctx: &egui::Context, app: &mut NovationPeakApp) {"
+        ]
+      },
+      "entity:novation-peak-pigs:konduktiva_bridge": {
+        "id": "entity:novation-peak-pigs:konduktiva_bridge",
+        "type": "MODULE",
+        "path": "src/konduktiva_bridge.rs",
+        "purpose": "`novation_peak_manager::konduktiva_bridge`: Konduktiva live-coding companion engine, 8-player polyphonic voice allocation and dual-CC sweep sequencer bridge, density graphs (`peakHold`, `peakBuild`), and live CC lane telemetry. Canonical player names in the exact order created by `konduktiva-peak`.",
+        "responsibilities": [
+          "Exports tri, clamp7, SweepCc, new, lookup, DualSweepCc in src/konduktiva_bridge.rs"
+        ],
+        "exposedInterfaces": [
+          "tri",
+          "clamp7",
+          "SweepCc",
+          "new",
+          "lookup",
+          "DualSweepCc"
+        ],
+        "dependencies": [],
+        "blackboxConstraints": {},
+        "structuralOutline": [
+          "L39: pub fn tri(step: usize, total_steps: usize) -> f64 {",
+          "L50: pub fn clamp7(v: f64) -> u8 {",
+          "L56: pub struct SweepCc {",
+          "L64: impl SweepCc {",
+          "L67: pub fn new(controller: u8, lo: u8, hi: u8, cycle_beats: f64, steps: usize) -> Self {",
+          "L80: pub fn lookup(&self, beat: f64) -> (u8, u8) {",
+          "L96: pub struct DualSweepCc {",
+          "L107: impl DualSweepCc {",
+          "L110: pub fn new(",
+          "L136: pub fn lookup(&self, beat: f64) -> ((u8, u8), (u8, u8)) {",
+          "L158: pub enum RhythmPreset {",
+          "L166: impl RhythmPreset {",
+          "L192: pub enum DensityGraphMode {",
+          "L200: impl DensityGraphMode {",
+          "L212: pub fn rate_multiplier(&self, beat: f64) -> f64 {",
+          "L232: pub enum PlayerRole {",
+          "L239: pub struct KonduktivaPlayer {",
+          "L260: impl KonduktivaPlayer {",
+          "L263: pub fn new_note_voice(",
+          "L293: pub fn new_cc_lane(",
+          "L320: pub fn new_dual_cc_lane(",
+          "L348: pub struct CcLaneTelemetry {",
+          "L364: impl CcLaneTelemetry {",
+          "L367: pub fn new_single(name: impl Into<String>, controller: u8) -> Self {",
+          "L388: pub fn new_dual(name: impl Into<String>, controller_a: u8, controller_b: u8) -> Self {"
         ]
       }
     },
@@ -1349,6 +1401,24 @@
       {
         "from": "entity:novation-peak-pigs:lib",
         "to": "entity:novation-peak-pigs:gui",
+        "relationType": "DEPENDS_ON",
+        "contract": "Internal module dependency"
+      },
+      {
+        "from": "entity:novation-peak-pigs:app",
+        "to": "entity:novation-peak-pigs:konduktiva_bridge",
+        "relationType": "DEPENDS_ON",
+        "contract": "Internal module dependency"
+      },
+      {
+        "from": "entity:novation-peak-pigs:gui",
+        "to": "entity:novation-peak-pigs:konduktiva_bridge",
+        "relationType": "DEPENDS_ON",
+        "contract": "Internal module dependency"
+      },
+      {
+        "from": "entity:novation-peak-pigs:lib",
+        "to": "entity:novation-peak-pigs:konduktiva_bridge",
         "relationType": "DEPENDS_ON",
         "contract": "Internal module dependency"
       }
@@ -1567,7 +1637,7 @@
         "txId": null
       },
       {
-        "id": "change:epoch-6-of-8-two-bowls-yaae-native-egui-desktop-",
+        "id": "change-tx-tx-2026-11-05T20",
         "title": "Epoch 6 of 8: Two-Bowls / YAAE Native egui Desktop GUI (NovationPeakApp) — Oscillators/Wavetable, SVF Filter, Envelopes/LFOs/16-Slot Mod Matrix, FX/Animate Bar & Headless Geometry Auditor (Target: src/app.rs; Related: src/gui.rs, crates/synth-ui-theme). Extend crates/synth-ui-theme with NovationPeakOxfordBlue / NovationPeakAmber accent tokens and custom vector widgets (5-wave wavetable interpolator display, SVF LP/BP/HP filter & drive response curve, 3x ADSR envelope plotter, 16-slot mod matrix grid, and Animate 1/2 performance pads). Build the complete eframe::App desktop GUI in src/app.rs and src/gui.rs embedding synth_core::CommandHistory directly for global Undo/Redo (Ctrl+Z/Ctrl+Y), top hardware status bar (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0, explicit Live MIDI Arm toggle defaulting to safe virtual loopback, Panic button), Librarian/A-B Diff/Randomizer modals, single-key shortcut gating when text inputs are focused, and a headless egui::Context::run layout geometry auditor verifying zero overlapping rects at 1280x800 and 1920x1080. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-006.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
         "description": "Epoch 6 of 8: Two-Bowls / YAAE Native egui Desktop GUI (NovationPeakApp) — Oscillators/Wavetable, SVF Filter, Envelopes/LFOs/16-Slot Mod Matrix, FX/Animate Bar & Headless Geometry Auditor (Target: src/app.rs; Related: src/gui.rs, crates/synth-ui-theme). Extend crates/synth-ui-theme with NovationPeakOxfordBlue / NovationPeakAmber accent tokens and custom vector widgets (5-wave wavetable interpolator display, SVF LP/BP/HP filter & drive response curve, 3x ADSR envelope plotter, 16-slot mod matrix grid, and Animate 1/2 performance pads). Build the complete eframe::App desktop GUI in src/app.rs and src/gui.rs embedding synth_core::CommandHistory directly for global Undo/Redo (Ctrl+Z/Ctrl+Y), top hardware status bar (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0, explicit Live MIDI Arm toggle defaulting to safe virtual loopback, Panic button), Librarian/A-B Diff/Randomizer modals, single-key shortcut gating when text inputs are focused, and a headless egui::Context::run layout geometry auditor verifying zero overlapping rects at 1280x800 and 1920x1080. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-006.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
         "prompt": "Epoch 6 of 8: Two-Bowls / YAAE Native egui Desktop GUI (NovationPeakApp) — Oscillators/Wavetable, SVF Filter, Envelopes/LFOs/16-Slot Mod Matrix, FX/Animate Bar & Headless Geometry Auditor (Target: src/app.rs; Related: src/gui.rs, crates/synth-ui-theme). Extend crates/synth-ui-theme with NovationPeakOxfordBlue / NovationPeakAmber accent tokens and custom vector widgets (5-wave wavetable interpolator display, SVF LP/BP/HP filter & drive response curve, 3x ADSR envelope plotter, 16-slot mod matrix grid, and Animate 1/2 performance pads). Build the complete eframe::App desktop GUI in src/app.rs and src/gui.rs embedding synth_core::CommandHistory directly for global Undo/Redo (Ctrl+Z/Ctrl+Y), top hardware status bar (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0, explicit Live MIDI Arm toggle defaulting to safe virtual loopback, Panic button), Librarian/A-B Diff/Randomizer modals, single-key shortcut gating when text inputs are focused, and a headless egui::Context::run layout geometry auditor verifying zero overlapping rects at 1280x800 and 1920x1080. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-006.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
@@ -1575,22 +1645,22 @@
         "category": "FEATURE",
         "domain": "ARCHITECTURE",
         "subIntentId": null,
-        "createdAt": "2026-11-05T19:59:14.151Z",
+        "createdAt": "2026-11-05T20:04:38.891Z",
         "completedAt": "2026-11-05T20:04:38.891Z",
-        "commitSha": null,
-        "txId": null
+        "commitSha": "04cc177ea15d9db616aaac4d00c7a3fe9f808e1e",
+        "txId": "tx-2026-11-05T20-04-38-891Z-srvi"
       },
       {
         "id": "change:epoch-7-of-8-konduktiva-peak-live-coding-integra",
         "title": "Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktiva_bridge.rs; Related: js/konduktiva-peak, tests/cross_synth_parity.rs). Integrate js/konduktiva-peak (createPeakKit(K), sweepCC, dualSweepCC, rhythmPresets, noteVoice, ccLane, createPeakPlayers, runStressTest, safeSweepRange, midi-cc-map.json) with js/shared-synth-sdk and Rust src/konduktiva_bridge.rs + GUI Konduktiva live-coding tab displaying the 8 canonical Peak players (bass, chords, lead, arp, ccCutoff, ccReso, ccMod, ccFx), density graphs (peakHold, peakBuild), and live CC lane telemetry. Add cross-language integration tests in tests/cross_synth_parity.rs and js/konduktiva-peak/test/run.js verifying byte-identical CC/NRPN/SysEx, safeSweepRange clamping, OSC, and preset roundtrips between Rust and Node.js. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-007.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
         "description": "Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktiva_bridge.rs; Related: js/konduktiva-peak, tests/cross_synth_parity.rs). Integrate js/konduktiva-peak (createPeakKit(K), sweepCC, dualSweepCC, rhythmPresets, noteVoice, ccLane, createPeakPlayers, runStressTest, safeSweepRange, midi-cc-map.json) with js/shared-synth-sdk and Rust src/konduktiva_bridge.rs + GUI Konduktiva live-coding tab displaying the 8 canonical Peak players (bass, chords, lead, arp, ccCutoff, ccReso, ccMod, ccFx), density graphs (peakHold, peakBuild), and live CC lane telemetry. Add cross-language integration tests in tests/cross_synth_parity.rs and js/konduktiva-peak/test/run.js verifying byte-identical CC/NRPN/SysEx, safeSweepRange clamping, OSC, and preset roundtrips between Rust and Node.js. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-007.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
         "prompt": "Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktiva_bridge.rs; Related: js/konduktiva-peak, tests/cross_synth_parity.rs). Integrate js/konduktiva-peak (createPeakKit(K), sweepCC, dualSweepCC, rhythmPresets, noteVoice, ccLane, createPeakPlayers, runStressTest, safeSweepRange, midi-cc-map.json) with js/shared-synth-sdk and Rust src/konduktiva_bridge.rs + GUI Konduktiva live-coding tab displaying the 8 canonical Peak players (bass, chords, lead, arp, ccCutoff, ccReso, ccMod, ccFx), density graphs (peakHold, peakBuild), and live CC lane telemetry. Add cross-language integration tests in tests/cross_synth_parity.rs and js/konduktiva-peak/test/run.js verifying byte-identical CC/NRPN/SysEx, safeSweepRange clamping, OSC, and preset roundtrips between Rust and Node.js. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-007.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
-        "status": "QUEUED",
+        "status": "IMPLEMENTED",
         "category": "FEATURE",
         "domain": "ARCHITECTURE",
         "subIntentId": null,
         "createdAt": "2026-11-05T20:04:38.859Z",
-        "completedAt": null,
+        "completedAt": "2026-11-05T20:22:59.705Z",
         "commitSha": null,
         "txId": null
       },
@@ -1603,7 +1673,7 @@
         "category": "FEATURE",
         "domain": "ARCHITECTURE",
         "subIntentId": null,
-        "createdAt": "2026-11-05T20:04:38.859Z",
+        "createdAt": "2026-11-05T20:22:59.680Z",
         "completedAt": null,
         "commitSha": null,
         "txId": null
@@ -1885,6 +1955,20 @@
         "subIntentId": null,
         "createdAt": "2026-11-05T20:04:38.801Z",
         "completedAt": "2026-11-05T20:04:38.891Z",
+        "commitSha": "04cc177ea15d9db616aaac4d00c7a3fe9f808e1e",
+        "txId": null
+      },
+      {
+        "id": "change-1793910179625-1r2a",
+        "title": "Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktivabridge.rs; Related: js/konduktiva-peak",
+        "description": "Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktiva_bridge.rs; Related: js/konduktiva-peak, tests/cross_synth_parity.rs). Integrate js/konduktiva-peak (createPeakKit(K), sweepCC, dualSweepCC, rhythmPresets, noteVoice, ccLane, createPeakPlayers, runStressTest, safeSweepRange, midi-cc-map.json) with js/shared-synth-sdk and Rust src/konduktiva_bridge.rs + GUI Konduktiva live-coding tab displaying the 8 canonical Peak players (bass, chords, lead, arp, ccCutoff, ccReso, ccMod, ccFx), density graphs (peakHold, peakBuild), and live CC lane telemetry. Add cross-language integration tests in tests/cross_synth_parity.rs and js/konduktiva-peak/test/run.js verifying byte-identical CC/NRPN/SysEx, safeSweepRange clamping, OSC, and preset roundtrips between Rust and Node.js. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-007.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+        "prompt": "Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktiva_bridge.rs; Related: js/konduktiva-peak, tests/cross_synth_parity.rs). Integrate js/konduktiva-peak (createPeakKit(K), sweepCC, dualSweepCC, rhythmPresets, noteVoice, ccLane, createPeakPlayers, runStressTest, safeSweepRange, midi-cc-map.json) with js/shared-synth-sdk and Rust src/konduktiva_bridge.rs + GUI Konduktiva live-coding tab displaying the 8 canonical Peak players (bass, chords, lead, arp, ccCutoff, ccReso, ccMod, ccFx), density graphs (peakHold, peakBuild), and live CC lane telemetry. Add cross-language integration tests in tests/cross_synth_parity.rs and js/konduktiva-peak/test/run.js verifying byte-identical CC/NRPN/SysEx, safeSweepRange clamping, OSC, and preset roundtrips between Rust and Node.js. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-007.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+        "status": "IMPLEMENTED",
+        "category": "PARITY",
+        "domain": "SEQUENCING_MIDI",
+        "subIntentId": null,
+        "createdAt": "2026-11-05T20:22:59.625Z",
+        "completedAt": "2026-11-05T20:22:59.705Z",
         "commitSha": null,
         "txId": null
       }
@@ -2234,6 +2318,30 @@
             "entity:novation-peak-pigs:synth-core",
             "entity:novation-peak-pigs:synth-core-diff"
           ]
+        },
+        {
+          "id": "subintent:demos-livecoding-and-docs",
+          "theme": "DEMOS_LIVECODING_AND_DOCS",
+          "domain": "ARCHITECTURE",
+          "generalIntent": "Demo Patches, Konduktiva Live-Coding & HTML Documentation",
+          "priority": "HIGH",
+          "rank": 13,
+          "manuallyModified": false,
+          "removedRequirements": [],
+          "requirementStatuses": {},
+          "statusOverride": null,
+          "relationToMainIntent": "Advances Main Intent [Novation Peak 8-Voice Polyphonic Hybrid Synthesizer Manager, Patch Librarian & Konduktiva Companion → ARCHITECTURE]: Provides verified demo patches, Konduktiva JavaScript live-coding integration, CLI launch scripts, and complete HTML documentation",
+          "formalSpecification": "Maintain diverse, working visual demo patches with Konduktiva live-coding drivers, standalone launch scripts, and complete HTML/README documentation.",
+          "inferredRequirements": [
+            "Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktivabridge.rs; Related: js/konduktiva-peak"
+          ],
+          "derivedFromPrompts": [
+            "Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktiva_bridge.rs; Related: js/konduktiva-peak, tests/cross_synth_parity.rs). Integrate js/konduktiva-peak (createPeakKit(K), sweepCC, dualSweepCC, rhythmPresets, noteVoice, ccLane, createPeakPlayers, runStressTest, safeSweepRange, midi-cc-map.json) with js/shared-synth-sdk and Rust src/konduktiva_bridge.rs + GUI Konduktiva live-coding tab displaying the 8 canonical Peak players (bass, chords, lead, arp, ccCutoff, ccReso, ccMod, ccFx), density graphs (peakHold, peakBuild), and live CC lane telemetry. Add cross-language integration tests in tests/cross_synth_parity.rs and js/konduktiva-peak/test/run.js verifying byte-identical CC/NRPN/SysEx, safeSweepRange clamping, OSC, and preset roundtrips between Rust and Node.js. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-007.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf."
+          ],
+          "targetEntities": [
+            "entity:novation-peak-pigs:synth-core",
+            "entity:novation-peak-pigs:synth-core-diff"
+          ]
         }
       ],
       "feedbackHistory": [
@@ -2260,6 +2368,10 @@
         {
           "feedback": "Epoch 6 of 8: Two-Bowls / YAAE Native egui Desktop GUI (NovationPeakApp) — Oscillators/Wavetable, SVF Filter, Envelopes/LFOs/16-Slot Mod Matrix, FX/Animate Bar & Headless Geometry Auditor (Target: src/app.rs; Related: src/gui.rs, crates/synth-ui-theme). Extend crates/synth-ui-theme with NovationPeakOxfordBlue / NovationPeakAmber accent tokens and custom vector widgets (5-wave wavetable interpolator display, SVF LP/BP/HP filter & drive response curve, 3x ADSR envelope plotter, 16-slot mod matrix grid, and Animate 1/2 performance pads). Build the complete eframe::App desktop GUI in src/app.rs and src/gui.rs embedding synth_core::CommandHistory directly for global Undo/Redo (Ctrl+Z/Ctrl+Y), top hardware status bar (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0, explicit Live MIDI Arm toggle defaulting to safe virtual loopback, Panic button), Librarian/A-B Diff/Randomizer modals, single-key shortcut gating when text inputs are focused, and a headless egui::Context::run layout geometry auditor verifying zero overlapping rects at 1280x800 and 1920x1080. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-006.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
           "timestamp": "2026-11-05T20:04:38.809Z"
+        },
+        {
+          "feedback": "Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktiva_bridge.rs; Related: js/konduktiva-peak, tests/cross_synth_parity.rs). Integrate js/konduktiva-peak (createPeakKit(K), sweepCC, dualSweepCC, rhythmPresets, noteVoice, ccLane, createPeakPlayers, runStressTest, safeSweepRange, midi-cc-map.json) with js/shared-synth-sdk and Rust src/konduktiva_bridge.rs + GUI Konduktiva live-coding tab displaying the 8 canonical Peak players (bass, chords, lead, arp, ccCutoff, ccReso, ccMod, ccFx), density graphs (peakHold, peakBuild), and live CC lane telemetry. Add cross-language integration tests in tests/cross_synth_parity.rs and js/konduktiva-peak/test/run.js verifying byte-identical CC/NRPN/SysEx, safeSweepRange clamping, OSC, and preset roundtrips between Rust and Node.js. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-007.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+          "timestamp": "2026-11-05T20:22:59.631Z"
         }
       ],
       "activeRoadmap": [
@@ -2268,7 +2380,7 @@
           "name": "Phase 1: Ingestion & Environment Alignment",
           "status": "READY",
           "deliverables": [
-            "Epoch 6 of 8: Two-Bowls / YAAE Native egui Desktop GUI (NovationPeakApp) — Oscillators/Wavetable, SVF Filter, Envelopes/LFOs/16-Slot Mod Matrix, FX/Animate Bar &"
+            "Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktivabridge.rs; Related: js/konduktiva-peak"
           ],
           "suggestions": [
             "Validate configuration schemas against target environments",
@@ -2280,7 +2392,7 @@
           "name": "Phase 2: Local Core Mutation & Feature Implementation",
           "status": "PENDING",
           "deliverables": [
-            "Epoch 6 of 8: Two-Bowls / YAAE Native egui Desktop GUI (NovationPeakApp) — Oscillators/Wavetable, SVF Filter, Envelopes/LFOs/16-Slot Mod Matrix, FX/Animate Bar &"
+            "Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktivabridge.rs; Related: js/konduktiva-peak"
           ],
           "suggestions": [
             "Preserve modular boundary interfaces without circular couplings",
@@ -2350,6 +2462,23 @@
         "txId": "tx-2026-11-05T19-37-19-147Z-p3yu",
         "archivedAt": "2026-11-05T19:46:47.659Z",
         "completedAt": "2026-11-05T19:46:47.659Z"
+      },
+      {
+        "id": "change:epoch-6-of-8-two-bowls-yaae-native-egui-desktop-",
+        "codeId": "CHANGE",
+        "subIntentId": null,
+        "subIntentCodeId": null,
+        "subIntentName": null,
+        "domain": "ARCHITECTURE",
+        "kind": "CHANGE",
+        "title": "Epoch 6 of 8: Two-Bowls / YAAE Native egui Desktop GUI (NovationPeakApp) — Oscillators/Wavetable, SVF Filter, Envelopes/LFOs/16-Slot Mod Matrix, FX/Animate Bar & Headless Geometry Auditor (Target: src/app.rs; Related: src/gui.rs, crates/synth-ui-theme). Extend crates/synth-ui-theme with NovationPeakOxfordBlue / NovationPeakAmber accent tokens and custom vector widgets (5-wave wavetable interpolator display, SVF LP/BP/HP filter & drive response curve, 3x ADSR envelope plotter, 16-slot mod matrix grid, and Animate 1/2 performance pads). Build the complete eframe::App desktop GUI in src/app.rs and src/gui.rs embedding synth_core::CommandHistory directly for global Undo/Redo (Ctrl+Z/Ctrl+Y), top hardware status bar (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0, explicit Live MIDI Arm toggle defaulting to safe virtual loopback, Panic button), Librarian/A-B Diff/Randomizer modals, single-key shortcut gating when text inputs are focused, and a headless egui::Context::run layout geometry auditor verifying zero overlapping rects at 1280x800 and 1920x1080. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-006.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+        "text": "Epoch 6 of 8: Two-Bowls / YAAE Native egui Desktop GUI (NovationPeakApp) — Oscillators/Wavetable, SVF Filter, Envelopes/LFOs/16-Slot Mod Matrix, FX/Animate Bar & Headless Geometry Auditor (Target: src/app.rs; Related: src/gui.rs, crates/synth-ui-theme). Extend crates/synth-ui-theme with NovationPeakOxfordBlue / NovationPeakAmber accent tokens and custom vector widgets (5-wave wavetable interpolator display, SVF LP/BP/HP filter & drive response curve, 3x ADSR envelope plotter, 16-slot mod matrix grid, and Animate 1/2 performance pads). Build the complete eframe::App desktop GUI in src/app.rs and src/gui.rs embedding synth_core::CommandHistory directly for global Undo/Redo (Ctrl+Z/Ctrl+Y), top hardware status bar (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0, explicit Live MIDI Arm toggle defaulting to safe virtual loopback, Panic button), Librarian/A-B Diff/Randomizer modals, single-key shortcut gating when text inputs are focused, and a headless egui::Context::run layout geometry auditor verifying zero overlapping rects at 1280x800 and 1920x1080. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-006.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+        "taskPrompt": "Epoch 6 of 8: Two-Bowls / YAAE Native egui Desktop GUI (NovationPeakApp) — Oscillators/Wavetable, SVF Filter, Envelopes/LFOs/16-Slot Mod Matrix, FX/Animate Bar & Headless Geometry Auditor (Target: src/app.rs; Related: src/gui.rs, crates/synth-ui-theme). Extend crates/synth-ui-theme with NovationPeakOxfordBlue / NovationPeakAmber accent tokens and custom vector widgets (5-wave wavetable interpolator display, SVF LP/BP/HP filter & drive response curve, 3x ADSR envelope plotter, 16-slot mod matrix grid, and Animate 1/2 performance pads). Build the complete eframe::App desktop GUI in src/app.rs and src/gui.rs embedding synth_core::CommandHistory directly for global Undo/Redo (Ctrl+Z/Ctrl+Y), top hardware status bar (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0, explicit Live MIDI Arm toggle defaulting to safe virtual loopback, Panic button), Librarian/A-B Diff/Randomizer modals, single-key shortcut gating when text inputs are focused, and a headless egui::Context::run layout geometry auditor verifying zero overlapping rects at 1280x800 and 1920x1080. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-006.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+        "status": "MET",
+        "commitSha": "04cc177ea15d9db616aaac4d00c7a3fe9f808e1e",
+        "txId": "tx-2026-11-05T20-04-38-891Z-srvi",
+        "archivedAt": "2026-11-05T20:22:59.559Z",
+        "completedAt": "2026-11-05T20:22:59.558Z"
       }
     ],
     "intentsReviewed": false,
@@ -3236,7 +3365,7 @@
               "status": "IMPLEMENTED",
               "isQueued": false,
               "failedLastRun": false,
-              "commitSha": null
+              "commitSha": "04cc177ea15d9db616aaac4d00c7a3fe9f808e1e"
             },
             {
               "id": "task:I7:req-2",
@@ -3268,7 +3397,7 @@
               "status": "IMPLEMENTED",
               "isQueued": false,
               "failedLastRun": false,
-              "commitSha": "b06a0c22669cacda0a6df3b7044f9a312b55d9ce"
+              "commitSha": "04cc177ea15d9db616aaac4d00c7a3fe9f808e1e"
             }
           ],
           "suggestions": [
@@ -3286,7 +3415,7 @@
               "status": "IMPLEMENTED",
               "isQueued": false,
               "failedLastRun": false,
-              "commitSha": null
+              "commitSha": "04cc177ea15d9db616aaac4d00c7a3fe9f808e1e"
             },
             {
               "id": "task:I7:req-2",
@@ -3318,7 +3447,7 @@
               "status": "IMPLEMENTED",
               "isQueued": false,
               "failedLastRun": false,
-              "commitSha": "b06a0c22669cacda0a6df3b7044f9a312b55d9ce"
+              "commitSha": "04cc177ea15d9db616aaac4d00c7a3fe9f808e1e"
             }
           ],
           "hasQueuedTasks": false,
@@ -3328,7 +3457,7 @@
               "codeId": "I7.1",
               "text": "Epoch 4/8: 3x ADSR Envelopes, Dual Tempo-Synced LFOs, 16-Slot Mod Matrix + 4-Slot FX Matrix, Animate 1/2 Macros, Arpeggiator &",
               "status": "IMPLEMENTED",
-              "commitSha": null,
+              "commitSha": "04cc177ea15d9db616aaac4d00c7a3fe9f808e1e",
               "timestamp": "2026-11-05T20:04:38.891Z",
               "txId": "tx-2026-11-05T20-04-38-891Z-srvi",
               "failedLastRun": false
@@ -3352,8 +3481,8 @@
           "failedCount": 0,
           "totalRequirements": 2,
           "completionPct": 100,
-          "latestCommitSha": "b06a0c22669cacda0a6df3b7044f9a312b55d9ce",
-          "latestVerifiedAt": "2026-11-05T19:54:59.401Z"
+          "latestCommitSha": "04cc177ea15d9db616aaac4d00c7a3fe9f808e1e",
+          "latestVerifiedAt": "2026-11-05T20:04:38.891Z"
         },
         {
           "id": "subintent:epoch-5-patch-librarian-crud-512-patch-bank-syse",
@@ -3566,7 +3695,7 @@
               "status": "IMPLEMENTED",
               "isQueued": false,
               "failedLastRun": false,
-              "commitSha": null
+              "commitSha": "04cc177ea15d9db616aaac4d00c7a3fe9f808e1e"
             },
             {
               "id": "task:I9:req-2",
@@ -3579,10 +3708,10 @@
               "index": 2,
               "title": "Requirement #2: Extend crates/synth-ui-theme with NovationPeakOxfordBlue / NovationPeakAmber accent tokens and custom vector widgets (5-wave wavetable interpolator display, SVF LP/BP/HP filter & drive response curve, 3x ADSR envelope plotter, 16-slot mod matrix grid, and Animate 1/2 performance pads). Build the complete eframe::App desktop GUI in src/app.rs and src/gui.rs embedding synth_core::CommandHistory directly for global Undo/Redo (Ctrl+Z/Ctrl+Y), top hardware status bar (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0, explicit Live MIDI Arm toggle defaulting to safe virtual loopback, Panic button), Librarian/A-B Diff/Randomizer modals, single-key shortcut gating when text inputs are focused, and a headless egui::Context::run layout geometry auditor verifying zero overlapping rects at 1280x800 and 1920x1080.",
               "taskPrompt": "Implement requirement #2 on [I9] (Epoch 6/8: Two-Bowls / YAAE Native egui Desktop GUI (NovationPeakApp) — Oscillators/Wavetable, SVF Filter, Envelopes/LFOs/16-Slot Mod Matrix, FX/Animate Bar &): Extend crates/synth-ui-theme with NovationPeakOxfordBlue / NovationPeakAmber accent tokens and custom vector widgets (5-wave wavetable interpolator display, SVF LP/BP/HP filter & drive response curve, 3x ADSR envelope plotter, 16-slot mod matrix grid, and Animate 1/2 performance pads). Build the complete eframe::App desktop GUI in src/app.rs and src/gui.rs embedding synth_core::CommandHistory directly for global Undo/Redo (Ctrl+Z/Ctrl+Y), top hardware status bar (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0, explicit Live MIDI Arm toggle defaulting to safe virtual loopback, Panic button), Librarian/A-B Diff/Randomizer modals, single-key shortcut gating when text inputs are focused, and a headless egui::Context::run layout geometry auditor verifying zero overlapping rects at 1280x800 and 1920x1080.",
-              "status": "IN_PROGRESS",
+              "status": "IMPLEMENTED",
               "isQueued": false,
               "failedLastRun": false,
-              "commitSha": null
+              "commitSha": "04cc177ea15d9db616aaac4d00c7a3fe9f808e1e"
             },
             {
               "id": "task:I9:synthesis",
@@ -3595,10 +3724,10 @@
               "index": 3,
               "title": "Synthesize capability: Epoch 6/8: Two-Bowls / YAAE Native egui Desktop GUI (NovationPeakApp) — Oscillators/Wavetable, SVF Filter, Envelopes/LFOs/16-Slot Mod Matrix, FX/Animate Bar &",
               "taskPrompt": "Epoch 6/8: Two-Bowls / YAAE Native egui Desktop GUI (NovationPeakApp) — Oscillators/Wavetable, SVF Filter, Envelopes/LFOs/16-Slot Mod Matrix, FX/Animate Bar &: Extend crates/synth-ui-theme with NovationPeakOxfordBlue / NovationPeakAmber accent tokens and custom vector widgets (5-wave wavetable interpolator display, SVF LP/BP/HP filter & drive response curve, 3x ADSR envelope plotter, 16-slot mod matrix grid, and Animate 1/2 performance pads). Build the complete eframe::App desktop GUI in src/app.rs and src/gui.rs embedding synth_core::CommandHistory directly for global Undo/Redo (Ctrl+Z/Ctrl+Y), top hardware status bar (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0, explicit Live MIDI Arm toggle defaulting to safe virtual loopback, Panic button), Librarian/A-B Diff/Randomizer modals, single-key shortcut gating when text inputs are focused, and a headless egui::Context::run layout geometry auditor verifying zero overlapping rects at 1280x800 and 1920x1080. (Requirements: Epoch 6/8: Two-Bowls / YAAE Native egui Desktop GUI (NovationPeakApp) — Oscillators/Wavetable, SVF Filter, Envelopes/LFOs/16-Slot Mod Matrix, FX/Animate Bar &; Extend crates/synth-ui-theme with NovationPeakOxfordBlue / NovationPeakAmber accent tokens and custom vector widgets (5-wave wavetable interpolator display, SVF LP/BP/HP filter & drive response curve, 3x ADSR envelope plotter, 16-slot mod matrix grid, and Animate 1/2 performance pads). Build the complete eframe::App desktop GUI in src/app.rs and src/gui.rs embedding synth_core::CommandHistory directly for global Undo/Redo (Ctrl+Z/Ctrl+Y), top hardware status bar (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0, explicit Live MIDI Arm toggle defaulting to safe virtual loopback, Panic button), Librarian/A-B Diff/Randomizer modals, single-key shortcut gating when text inputs are focused, and a headless egui::Context::run layout geometry auditor verifying zero overlapping rects at 1280x800 and 1920x1080.)",
-              "status": "OUTSTANDING",
+              "status": "IMPLEMENTED",
               "isQueued": false,
               "failedLastRun": false,
-              "commitSha": null
+              "commitSha": "04cc177ea15d9db616aaac4d00c7a3fe9f808e1e"
             }
           ],
           "suggestions": [
@@ -3616,7 +3745,7 @@
               "status": "IMPLEMENTED",
               "isQueued": false,
               "failedLastRun": false,
-              "commitSha": null
+              "commitSha": "04cc177ea15d9db616aaac4d00c7a3fe9f808e1e"
             },
             {
               "id": "task:I9:req-2",
@@ -3629,10 +3758,10 @@
               "index": 2,
               "title": "Requirement #2: Extend crates/synth-ui-theme with NovationPeakOxfordBlue / NovationPeakAmber accent tokens and custom vector widgets (5-wave wavetable interpolator display, SVF LP/BP/HP filter & drive response curve, 3x ADSR envelope plotter, 16-slot mod matrix grid, and Animate 1/2 performance pads). Build the complete eframe::App desktop GUI in src/app.rs and src/gui.rs embedding synth_core::CommandHistory directly for global Undo/Redo (Ctrl+Z/Ctrl+Y), top hardware status bar (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0, explicit Live MIDI Arm toggle defaulting to safe virtual loopback, Panic button), Librarian/A-B Diff/Randomizer modals, single-key shortcut gating when text inputs are focused, and a headless egui::Context::run layout geometry auditor verifying zero overlapping rects at 1280x800 and 1920x1080.",
               "taskPrompt": "Implement requirement #2 on [I9] (Epoch 6/8: Two-Bowls / YAAE Native egui Desktop GUI (NovationPeakApp) — Oscillators/Wavetable, SVF Filter, Envelopes/LFOs/16-Slot Mod Matrix, FX/Animate Bar &): Extend crates/synth-ui-theme with NovationPeakOxfordBlue / NovationPeakAmber accent tokens and custom vector widgets (5-wave wavetable interpolator display, SVF LP/BP/HP filter & drive response curve, 3x ADSR envelope plotter, 16-slot mod matrix grid, and Animate 1/2 performance pads). Build the complete eframe::App desktop GUI in src/app.rs and src/gui.rs embedding synth_core::CommandHistory directly for global Undo/Redo (Ctrl+Z/Ctrl+Y), top hardware status bar (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0, explicit Live MIDI Arm toggle defaulting to safe virtual loopback, Panic button), Librarian/A-B Diff/Randomizer modals, single-key shortcut gating when text inputs are focused, and a headless egui::Context::run layout geometry auditor verifying zero overlapping rects at 1280x800 and 1920x1080.",
-              "status": "IN_PROGRESS",
+              "status": "IMPLEMENTED",
               "isQueued": false,
               "failedLastRun": false,
-              "commitSha": null
+              "commitSha": "04cc177ea15d9db616aaac4d00c7a3fe9f808e1e"
             },
             {
               "id": "task:I9:synthesis",
@@ -3645,10 +3774,10 @@
               "index": 3,
               "title": "Synthesize capability: Epoch 6/8: Two-Bowls / YAAE Native egui Desktop GUI (NovationPeakApp) — Oscillators/Wavetable, SVF Filter, Envelopes/LFOs/16-Slot Mod Matrix, FX/Animate Bar &",
               "taskPrompt": "Epoch 6/8: Two-Bowls / YAAE Native egui Desktop GUI (NovationPeakApp) — Oscillators/Wavetable, SVF Filter, Envelopes/LFOs/16-Slot Mod Matrix, FX/Animate Bar &: Extend crates/synth-ui-theme with NovationPeakOxfordBlue / NovationPeakAmber accent tokens and custom vector widgets (5-wave wavetable interpolator display, SVF LP/BP/HP filter & drive response curve, 3x ADSR envelope plotter, 16-slot mod matrix grid, and Animate 1/2 performance pads). Build the complete eframe::App desktop GUI in src/app.rs and src/gui.rs embedding synth_core::CommandHistory directly for global Undo/Redo (Ctrl+Z/Ctrl+Y), top hardware status bar (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0, explicit Live MIDI Arm toggle defaulting to safe virtual loopback, Panic button), Librarian/A-B Diff/Randomizer modals, single-key shortcut gating when text inputs are focused, and a headless egui::Context::run layout geometry auditor verifying zero overlapping rects at 1280x800 and 1920x1080. (Requirements: Epoch 6/8: Two-Bowls / YAAE Native egui Desktop GUI (NovationPeakApp) — Oscillators/Wavetable, SVF Filter, Envelopes/LFOs/16-Slot Mod Matrix, FX/Animate Bar &; Extend crates/synth-ui-theme with NovationPeakOxfordBlue / NovationPeakAmber accent tokens and custom vector widgets (5-wave wavetable interpolator display, SVF LP/BP/HP filter & drive response curve, 3x ADSR envelope plotter, 16-slot mod matrix grid, and Animate 1/2 performance pads). Build the complete eframe::App desktop GUI in src/app.rs and src/gui.rs embedding synth_core::CommandHistory directly for global Undo/Redo (Ctrl+Z/Ctrl+Y), top hardware status bar (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0, explicit Live MIDI Arm toggle defaulting to safe virtual loopback, Panic button), Librarian/A-B Diff/Randomizer modals, single-key shortcut gating when text inputs are focused, and a headless egui::Context::run layout geometry auditor verifying zero overlapping rects at 1280x800 and 1920x1080.)",
-              "status": "OUTSTANDING",
+              "status": "IMPLEMENTED",
               "isQueued": false,
               "failedLastRun": false,
-              "commitSha": null
+              "commitSha": "04cc177ea15d9db616aaac4d00c7a3fe9f808e1e"
             }
           ],
           "hasQueuedTasks": false,
@@ -3658,7 +3787,7 @@
               "codeId": "I9.1",
               "text": "Epoch 6/8: Two-Bowls / YAAE Native egui Desktop GUI (NovationPeakApp) — Oscillators/Wavetable, SVF Filter, Envelopes/LFOs/16-Slot Mod Matrix, FX/Animate Bar &",
               "status": "IMPLEMENTED",
-              "commitSha": null,
+              "commitSha": "04cc177ea15d9db616aaac4d00c7a3fe9f808e1e",
               "timestamp": "2026-11-05T20:04:38.891Z",
               "txId": "tx-2026-11-05T20-04-38-891Z-srvi",
               "failedLastRun": false
@@ -3667,22 +3796,22 @@
               "index": 2,
               "codeId": "I9.2",
               "text": "Extend crates/synth-ui-theme with NovationPeakOxfordBlue / NovationPeakAmber accent tokens and custom vector widgets (5-wave wavetable interpolator display, SVF LP/BP/HP filter & drive response curve, 3x ADSR envelope plotter, 16-slot mod matrix grid, and Animate 1/2 performance pads). Build the complete eframe::App desktop GUI in src/app.rs and src/gui.rs embedding synth_core::CommandHistory directly for global Undo/Redo (Ctrl+Z/Ctrl+Y), top hardware status bar (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0, explicit Live MIDI Arm toggle defaulting to safe virtual loopback, Panic button), Librarian/A-B Diff/Randomizer modals, single-key shortcut gating when text inputs are focused, and a headless egui::Context::run layout geometry auditor verifying zero overlapping rects at 1280x800 and 1920x1080.",
-              "status": "IN_PROGRESS",
-              "commitSha": null,
-              "timestamp": null,
-              "txId": null,
+              "status": "IMPLEMENTED",
+              "commitSha": "04cc177ea15d9db616aaac4d00c7a3fe9f808e1e",
+              "timestamp": "2026-11-05T20:04:38.891Z",
+              "txId": "tx-2026-11-05T20-04-38-891Z-srvi",
               "failedLastRun": false
             }
           ],
-          "implementationStatus": "IN_PROGRESS",
-          "implementedCount": 1,
-          "inProgressCount": 1,
+          "implementationStatus": "IMPLEMENTED",
+          "implementedCount": 2,
+          "inProgressCount": 0,
           "queuedCount": 0,
           "outstandingCount": 0,
           "failedCount": 0,
           "totalRequirements": 2,
-          "completionPct": 50,
-          "latestCommitSha": null,
+          "completionPct": 100,
+          "latestCommitSha": "04cc177ea15d9db616aaac4d00c7a3fe9f808e1e",
           "latestVerifiedAt": "2026-11-05T20:04:38.891Z"
         },
         {
@@ -3744,8 +3873,8 @@
               "index": 2,
               "title": "Requirement #2: Integrate js/konduktiva-peak (createPeakKit(K), sweepCC, dualSweepCC, rhythmPresets, noteVoice, ccLane, createPeakPlayers, runStressTest, safeSweepRange, midi-cc-map.json) with js/shared-synth-sdk and Rust src/konduktiva_bridge.rs + GUI Konduktiva live-coding tab displaying the 8 canonical Peak players (bass, chords, lead, arp, ccCutoff, ccReso, ccMod, ccFx), density graphs (peakHold, peakBuild), and live CC lane telemetry. Add cross-language integration tests in tests/cross_synth_parity.rs and js/konduktiva-peak/test/run.js verifying byte-identical CC/NRPN/SysEx, safeSweepRange clamping, OSC, and preset roundtrips between Rust and Node.js.",
               "taskPrompt": "Implement requirement #2 on [I10] (Epoch 7/8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity): Integrate js/konduktiva-peak (createPeakKit(K), sweepCC, dualSweepCC, rhythmPresets, noteVoice, ccLane, createPeakPlayers, runStressTest, safeSweepRange, midi-cc-map.json) with js/shared-synth-sdk and Rust src/konduktiva_bridge.rs + GUI Konduktiva live-coding tab displaying the 8 canonical Peak players (bass, chords, lead, arp, ccCutoff, ccReso, ccMod, ccFx), density graphs (peakHold, peakBuild), and live CC lane telemetry. Add cross-language integration tests in tests/cross_synth_parity.rs and js/konduktiva-peak/test/run.js verifying byte-identical CC/NRPN/SysEx, safeSweepRange clamping, OSC, and preset roundtrips between Rust and Node.js.",
-              "status": "QUEUED",
-              "isQueued": true,
+              "status": "IN_PROGRESS",
+              "isQueued": false,
               "failedLastRun": false,
               "commitSha": null
             },
@@ -3763,7 +3892,7 @@
               "status": "OUTSTANDING",
               "isQueued": false,
               "failedLastRun": false,
-              "commitSha": "78fbbe108cb16e2dbb6f2743075fea3f2e272de2"
+              "commitSha": null
             }
           ],
           "suggestions": [
@@ -3794,8 +3923,8 @@
               "index": 2,
               "title": "Requirement #2: Integrate js/konduktiva-peak (createPeakKit(K), sweepCC, dualSweepCC, rhythmPresets, noteVoice, ccLane, createPeakPlayers, runStressTest, safeSweepRange, midi-cc-map.json) with js/shared-synth-sdk and Rust src/konduktiva_bridge.rs + GUI Konduktiva live-coding tab displaying the 8 canonical Peak players (bass, chords, lead, arp, ccCutoff, ccReso, ccMod, ccFx), density graphs (peakHold, peakBuild), and live CC lane telemetry. Add cross-language integration tests in tests/cross_synth_parity.rs and js/konduktiva-peak/test/run.js verifying byte-identical CC/NRPN/SysEx, safeSweepRange clamping, OSC, and preset roundtrips between Rust and Node.js.",
               "taskPrompt": "Implement requirement #2 on [I10] (Epoch 7/8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity): Integrate js/konduktiva-peak (createPeakKit(K), sweepCC, dualSweepCC, rhythmPresets, noteVoice, ccLane, createPeakPlayers, runStressTest, safeSweepRange, midi-cc-map.json) with js/shared-synth-sdk and Rust src/konduktiva_bridge.rs + GUI Konduktiva live-coding tab displaying the 8 canonical Peak players (bass, chords, lead, arp, ccCutoff, ccReso, ccMod, ccFx), density graphs (peakHold, peakBuild), and live CC lane telemetry. Add cross-language integration tests in tests/cross_synth_parity.rs and js/konduktiva-peak/test/run.js verifying byte-identical CC/NRPN/SysEx, safeSweepRange clamping, OSC, and preset roundtrips between Rust and Node.js.",
-              "status": "QUEUED",
-              "isQueued": true,
+              "status": "IN_PROGRESS",
+              "isQueued": false,
               "failedLastRun": false,
               "commitSha": null
             },
@@ -3813,10 +3942,10 @@
               "status": "OUTSTANDING",
               "isQueued": false,
               "failedLastRun": false,
-              "commitSha": "78fbbe108cb16e2dbb6f2743075fea3f2e272de2"
+              "commitSha": null
             }
           ],
-          "hasQueuedTasks": true,
+          "hasQueuedTasks": false,
           "requirementsDetailed": [
             {
               "index": 1,
@@ -3824,31 +3953,31 @@
               "text": "Epoch 7/8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity",
               "status": "IMPLEMENTED",
               "commitSha": null,
-              "timestamp": "2026-11-05T20:04:38.891Z",
-              "txId": "tx-2026-11-05T20-04-38-891Z-srvi",
+              "timestamp": "2026-11-05T20:22:59.705Z",
+              "txId": "tx-2026-11-05T20-22-59-705Z-oxrt",
               "failedLastRun": false
             },
             {
               "index": 2,
               "codeId": "I10.2",
               "text": "Integrate js/konduktiva-peak (createPeakKit(K), sweepCC, dualSweepCC, rhythmPresets, noteVoice, ccLane, createPeakPlayers, runStressTest, safeSweepRange, midi-cc-map.json) with js/shared-synth-sdk and Rust src/konduktiva_bridge.rs + GUI Konduktiva live-coding tab displaying the 8 canonical Peak players (bass, chords, lead, arp, ccCutoff, ccReso, ccMod, ccFx), density graphs (peakHold, peakBuild), and live CC lane telemetry. Add cross-language integration tests in tests/cross_synth_parity.rs and js/konduktiva-peak/test/run.js verifying byte-identical CC/NRPN/SysEx, safeSweepRange clamping, OSC, and preset roundtrips between Rust and Node.js.",
-              "status": "QUEUED",
+              "status": "IN_PROGRESS",
               "commitSha": null,
               "timestamp": null,
               "txId": null,
               "failedLastRun": false
             }
           ],
-          "implementationStatus": "PARTIAL",
+          "implementationStatus": "IN_PROGRESS",
           "implementedCount": 1,
-          "inProgressCount": 0,
-          "queuedCount": 1,
+          "inProgressCount": 1,
+          "queuedCount": 0,
           "outstandingCount": 0,
           "failedCount": 0,
           "totalRequirements": 2,
           "completionPct": 50,
           "latestCommitSha": null,
-          "latestVerifiedAt": null
+          "latestVerifiedAt": "2026-11-05T20:22:59.705Z"
         },
         {
           "id": "subintent:epoch-8-1-000-event-8-voice-polyphonic-cc-sweep-",
@@ -3928,7 +4057,7 @@
               "status": "OUTSTANDING",
               "isQueued": false,
               "failedLastRun": false,
-              "commitSha": "78fbbe108cb16e2dbb6f2743075fea3f2e272de2"
+              "commitSha": "04cc177ea15d9db616aaac4d00c7a3fe9f808e1e"
             }
           ],
           "suggestions": [
@@ -3978,7 +4107,7 @@
               "status": "OUTSTANDING",
               "isQueued": false,
               "failedLastRun": false,
-              "commitSha": "78fbbe108cb16e2dbb6f2743075fea3f2e272de2"
+              "commitSha": "04cc177ea15d9db616aaac4d00c7a3fe9f808e1e"
             }
           ],
           "hasQueuedTasks": true,
@@ -3989,8 +4118,8 @@
               "text": "Epoch 8/8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release",
               "status": "IMPLEMENTED",
               "commitSha": null,
-              "timestamp": "2026-11-05T20:04:38.891Z",
-              "txId": "tx-2026-11-05T20-04-38-891Z-srvi",
+              "timestamp": "2026-11-05T20:22:59.705Z",
+              "txId": "tx-2026-11-05T20-22-59-705Z-oxrt",
               "failedLastRun": false
             },
             {
@@ -4075,10 +4204,10 @@
               "index": 2,
               "title": "Requirement #2: Epoch 6 of 8: Two-Bowls / YAAE Native egui Desktop GUI (NovationPeakApp) — Oscillators/Wavetable, SVF Filter, Envelopes/LFOs/16-Slot Mod Matrix, FX/Animate Bar &",
               "taskPrompt": "Implement requirement #2 on [I12] (Keyboard Shortcuts & Modal Input Ergonomics): Epoch 6 of 8: Two-Bowls / YAAE Native egui Desktop GUI (NovationPeakApp) — Oscillators/Wavetable, SVF Filter, Envelopes/LFOs/16-Slot Mod Matrix, FX/Animate Bar &",
-              "status": "IN_PROGRESS",
+              "status": "IMPLEMENTED",
               "isQueued": false,
               "failedLastRun": false,
-              "commitSha": null
+              "commitSha": "04cc177ea15d9db616aaac4d00c7a3fe9f808e1e"
             },
             {
               "id": "task:I12:synthesis",
@@ -4091,7 +4220,7 @@
               "index": 3,
               "title": "Synthesize capability: Keyboard Shortcuts & Modal Input Ergonomics",
               "taskPrompt": "Keyboard Shortcuts & Modal Input Ergonomics: Support fast keyboard shortcuts and navigation while isolating modal text/search input fields so typing or editing never triggers unintended global actions. (Requirements: Epoch 2 of 8: Non-Invasive ALSA Hardware Discovery (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0), Safety Clamping, NRPN/Dual-CC Router & Bidirectional; Epoch 6 of 8: Two-Bowls / YAAE Native egui Desktop GUI (NovationPeakApp) — Oscillators/Wavetable, SVF Filter, Envelopes/LFOs/16-Slot Mod Matrix, FX/Animate Bar &)",
-              "status": "OUTSTANDING",
+              "status": "IMPLEMENTED",
               "isQueued": false,
               "failedLastRun": false,
               "commitSha": "09100e92a92df96bf3bfc3764e29c55a19685327"
@@ -4125,10 +4254,10 @@
               "index": 2,
               "title": "Requirement #2: Epoch 6 of 8: Two-Bowls / YAAE Native egui Desktop GUI (NovationPeakApp) — Oscillators/Wavetable, SVF Filter, Envelopes/LFOs/16-Slot Mod Matrix, FX/Animate Bar &",
               "taskPrompt": "Implement requirement #2 on [I12] (Keyboard Shortcuts & Modal Input Ergonomics): Epoch 6 of 8: Two-Bowls / YAAE Native egui Desktop GUI (NovationPeakApp) — Oscillators/Wavetable, SVF Filter, Envelopes/LFOs/16-Slot Mod Matrix, FX/Animate Bar &",
-              "status": "IN_PROGRESS",
+              "status": "IMPLEMENTED",
               "isQueued": false,
               "failedLastRun": false,
-              "commitSha": null
+              "commitSha": "04cc177ea15d9db616aaac4d00c7a3fe9f808e1e"
             },
             {
               "id": "task:I12:synthesis",
@@ -4141,7 +4270,7 @@
               "index": 3,
               "title": "Synthesize capability: Keyboard Shortcuts & Modal Input Ergonomics",
               "taskPrompt": "Keyboard Shortcuts & Modal Input Ergonomics: Support fast keyboard shortcuts and navigation while isolating modal text/search input fields so typing or editing never triggers unintended global actions. (Requirements: Epoch 2 of 8: Non-Invasive ALSA Hardware Discovery (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0), Safety Clamping, NRPN/Dual-CC Router & Bidirectional; Epoch 6 of 8: Two-Bowls / YAAE Native egui Desktop GUI (NovationPeakApp) — Oscillators/Wavetable, SVF Filter, Envelopes/LFOs/16-Slot Mod Matrix, FX/Animate Bar &)",
-              "status": "OUTSTANDING",
+              "status": "IMPLEMENTED",
               "isQueued": false,
               "failedLastRun": false,
               "commitSha": "09100e92a92df96bf3bfc3764e29c55a19685327"
@@ -4163,23 +4292,145 @@
               "index": 2,
               "codeId": "I12.2",
               "text": "Epoch 6 of 8: Two-Bowls / YAAE Native egui Desktop GUI (NovationPeakApp) — Oscillators/Wavetable, SVF Filter, Envelopes/LFOs/16-Slot Mod Matrix, FX/Animate Bar &",
-              "status": "IN_PROGRESS",
-              "commitSha": null,
-              "timestamp": null,
-              "txId": null,
+              "status": "IMPLEMENTED",
+              "commitSha": "04cc177ea15d9db616aaac4d00c7a3fe9f808e1e",
+              "timestamp": "2026-11-05T20:04:38.891Z",
+              "txId": "tx-2026-11-05T20-04-38-891Z-srvi",
               "failedLastRun": false
             }
           ],
-          "implementationStatus": "IN_PROGRESS",
-          "implementedCount": 1,
-          "inProgressCount": 1,
+          "implementationStatus": "IMPLEMENTED",
+          "implementedCount": 2,
+          "inProgressCount": 0,
           "queuedCount": 0,
           "outstandingCount": 0,
           "failedCount": 0,
           "totalRequirements": 2,
-          "completionPct": 50,
+          "completionPct": 100,
           "latestCommitSha": "09100e92a92df96bf3bfc3764e29c55a19685327",
           "latestVerifiedAt": "2026-11-05T19:37:19.147Z"
+        },
+        {
+          "id": "subintent:demos-livecoding-and-docs",
+          "theme": "DEMOS_LIVECODING_AND_DOCS",
+          "domain": "ARCHITECTURE",
+          "name": "Demo Patches, Konduktiva Live-Coding & HTML Documentation",
+          "shortSummary": "Demo Patches, Konduktiva Live-Coding & HTML Documentation",
+          "fullIntent": "Maintain diverse, working visual demo patches with Konduktiva live-coding drivers, standalone launch scripts, and complete HTML/README documentation.",
+          "geminiSummarized": false,
+          "priority": "HIGH",
+          "rank": 13,
+          "manuallyModified": false,
+          "removedRequirements": [],
+          "requirementStatuses": {},
+          "statusOverride": null,
+          "parentIntent": "Novation Peak 8-Voice Polyphonic Hybrid Synthesizer Manager, Patch Librarian & Konduktiva Companion",
+          "relationToMainIntent": "Advances Main Intent [Novation Peak 8-Voice Polyphonic Hybrid Synthesizer Manager, Patch Librarian & Konduktiva Companion → ARCHITECTURE]: Provides verified demo patches, Konduktiva JavaScript live-coding integration, CLI launch scripts, and complete HTML documentation",
+          "specification": "Maintain diverse, working visual demo patches with Konduktiva live-coding drivers, standalone launch scripts, and complete HTML/README documentation.",
+          "inferredRequirements": [
+            "Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktivabridge.rs; Related: js/konduktiva-peak"
+          ],
+          "derivedFromPrompts": [
+            "Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktiva_bridge.rs; Related: js/konduktiva-peak, tests/cross_synth_parity.rs). Integrate js/konduktiva-peak (createPeakKit(K), sweepCC, dualSweepCC, rhythmPresets, noteVoice, ccLane, createPeakPlayers, runStressTest, safeSweepRange, midi-cc-map.json) with js/shared-synth-sdk and Rust src/konduktiva_bridge.rs + GUI Konduktiva live-coding tab displaying the 8 canonical Peak players (bass, chords, lead, arp, ccCutoff, ccReso, ccMod, ccFx), density graphs (peakHold, peakBuild), and live CC lane telemetry. Add cross-language integration tests in tests/cross_synth_parity.rs and js/konduktiva-peak/test/run.js verifying byte-identical CC/NRPN/SysEx, safeSweepRange clamping, OSC, and preset roundtrips between Rust and Node.js. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-007.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf."
+          ],
+          "targetEntities": [
+            "entity:novation-peak-pigs:synth-core",
+            "entity:novation-peak-pigs:synth-core-diff"
+          ],
+          "invariants": [],
+          "childIntents": [],
+          "codeId": "I13",
+          "suggestedTasks": [
+            {
+              "id": "task:I13:req-1",
+              "codeId": "I13.1",
+              "subIntentId": "subintent:demos-livecoding-and-docs",
+              "subIntentCodeId": "I13",
+              "subIntentName": "Demo Patches, Konduktiva Live-Coding & HTML Documentation",
+              "domain": "ARCHITECTURE",
+              "kind": "REQUIREMENT",
+              "index": 1,
+              "title": "Requirement #1: Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktivabridge.rs; Related: js/konduktiva-peak",
+              "taskPrompt": "Implement requirement #1 on [I13] (Demo Patches, Konduktiva Live-Coding & HTML Documentation): Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktivabridge.rs; Related: js/konduktiva-peak",
+              "status": "IMPLEMENTED",
+              "isQueued": false,
+              "failedLastRun": false,
+              "commitSha": null
+            },
+            {
+              "id": "task:I13:synthesis",
+              "codeId": "I13.synthesis",
+              "subIntentId": "subintent:demos-livecoding-and-docs",
+              "subIntentCodeId": "I13",
+              "subIntentName": "Demo Patches, Konduktiva Live-Coding & HTML Documentation",
+              "domain": "ARCHITECTURE",
+              "kind": "SYNTHESIS",
+              "index": 2,
+              "title": "Synthesize capability: Demo Patches, Konduktiva Live-Coding & HTML Documentation",
+              "taskPrompt": "Demo Patches, Konduktiva Live-Coding & HTML Documentation: Maintain diverse, working visual demo patches with Konduktiva live-coding drivers, standalone launch scripts, and complete HTML/README documentation. (Requirements: Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktivabridge.rs; Related: js/konduktiva-peak)",
+              "status": "IMPLEMENTED",
+              "isQueued": false,
+              "failedLastRun": false,
+              "commitSha": null
+            }
+          ],
+          "suggestions": [
+            {
+              "id": "task:I13:req-1",
+              "codeId": "I13.1",
+              "subIntentId": "subintent:demos-livecoding-and-docs",
+              "subIntentCodeId": "I13",
+              "subIntentName": "Demo Patches, Konduktiva Live-Coding & HTML Documentation",
+              "domain": "ARCHITECTURE",
+              "kind": "REQUIREMENT",
+              "index": 1,
+              "title": "Requirement #1: Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktivabridge.rs; Related: js/konduktiva-peak",
+              "taskPrompt": "Implement requirement #1 on [I13] (Demo Patches, Konduktiva Live-Coding & HTML Documentation): Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktivabridge.rs; Related: js/konduktiva-peak",
+              "status": "IMPLEMENTED",
+              "isQueued": false,
+              "failedLastRun": false,
+              "commitSha": null
+            },
+            {
+              "id": "task:I13:synthesis",
+              "codeId": "I13.synthesis",
+              "subIntentId": "subintent:demos-livecoding-and-docs",
+              "subIntentCodeId": "I13",
+              "subIntentName": "Demo Patches, Konduktiva Live-Coding & HTML Documentation",
+              "domain": "ARCHITECTURE",
+              "kind": "SYNTHESIS",
+              "index": 2,
+              "title": "Synthesize capability: Demo Patches, Konduktiva Live-Coding & HTML Documentation",
+              "taskPrompt": "Demo Patches, Konduktiva Live-Coding & HTML Documentation: Maintain diverse, working visual demo patches with Konduktiva live-coding drivers, standalone launch scripts, and complete HTML/README documentation. (Requirements: Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktivabridge.rs; Related: js/konduktiva-peak)",
+              "status": "IMPLEMENTED",
+              "isQueued": false,
+              "failedLastRun": false,
+              "commitSha": null
+            }
+          ],
+          "hasQueuedTasks": false,
+          "requirementsDetailed": [
+            {
+              "index": 1,
+              "codeId": "I13.1",
+              "text": "Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktivabridge.rs; Related: js/konduktiva-peak",
+              "status": "IMPLEMENTED",
+              "commitSha": null,
+              "timestamp": "2026-11-05T20:22:59.705Z",
+              "txId": "tx-2026-11-05T20-22-59-705Z-oxrt",
+              "failedLastRun": false
+            }
+          ],
+          "implementationStatus": "IMPLEMENTED",
+          "implementedCount": 1,
+          "inProgressCount": 0,
+          "queuedCount": 0,
+          "outstandingCount": 0,
+          "failedCount": 0,
+          "totalRequirements": 1,
+          "completionPct": 100,
+          "latestCommitSha": null,
+          "latestVerifiedAt": "2026-11-05T20:22:59.705Z"
         }
       ],
       "changes": [
@@ -4394,7 +4645,7 @@
           "txId": null
         },
         {
-          "id": "change:epoch-6-of-8-two-bowls-yaae-native-egui-desktop-",
+          "id": "change-tx-tx-2026-11-05T20",
           "title": "Epoch 6 of 8: Two-Bowls / YAAE Native egui Desktop GUI (NovationPeakApp) — Oscillators/Wavetable, SVF Filter, Envelopes/LFOs/16-Slot Mod Matrix, FX/Animate Bar & Headless Geometry Auditor (Target: src/app.rs; Related: src/gui.rs, crates/synth-ui-theme). Extend crates/synth-ui-theme with NovationPeakOxfordBlue / NovationPeakAmber accent tokens and custom vector widgets (5-wave wavetable interpolator display, SVF LP/BP/HP filter & drive response curve, 3x ADSR envelope plotter, 16-slot mod matrix grid, and Animate 1/2 performance pads). Build the complete eframe::App desktop GUI in src/app.rs and src/gui.rs embedding synth_core::CommandHistory directly for global Undo/Redo (Ctrl+Z/Ctrl+Y), top hardware status bar (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0, explicit Live MIDI Arm toggle defaulting to safe virtual loopback, Panic button), Librarian/A-B Diff/Randomizer modals, single-key shortcut gating when text inputs are focused, and a headless egui::Context::run layout geometry auditor verifying zero overlapping rects at 1280x800 and 1920x1080. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-006.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
           "description": "Epoch 6 of 8: Two-Bowls / YAAE Native egui Desktop GUI (NovationPeakApp) — Oscillators/Wavetable, SVF Filter, Envelopes/LFOs/16-Slot Mod Matrix, FX/Animate Bar & Headless Geometry Auditor (Target: src/app.rs; Related: src/gui.rs, crates/synth-ui-theme). Extend crates/synth-ui-theme with NovationPeakOxfordBlue / NovationPeakAmber accent tokens and custom vector widgets (5-wave wavetable interpolator display, SVF LP/BP/HP filter & drive response curve, 3x ADSR envelope plotter, 16-slot mod matrix grid, and Animate 1/2 performance pads). Build the complete eframe::App desktop GUI in src/app.rs and src/gui.rs embedding synth_core::CommandHistory directly for global Undo/Redo (Ctrl+Z/Ctrl+Y), top hardware status bar (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0, explicit Live MIDI Arm toggle defaulting to safe virtual loopback, Panic button), Librarian/A-B Diff/Randomizer modals, single-key shortcut gating when text inputs are focused, and a headless egui::Context::run layout geometry auditor verifying zero overlapping rects at 1280x800 and 1920x1080. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-006.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
           "prompt": "Epoch 6 of 8: Two-Bowls / YAAE Native egui Desktop GUI (NovationPeakApp) — Oscillators/Wavetable, SVF Filter, Envelopes/LFOs/16-Slot Mod Matrix, FX/Animate Bar & Headless Geometry Auditor (Target: src/app.rs; Related: src/gui.rs, crates/synth-ui-theme). Extend crates/synth-ui-theme with NovationPeakOxfordBlue / NovationPeakAmber accent tokens and custom vector widgets (5-wave wavetable interpolator display, SVF LP/BP/HP filter & drive response curve, 3x ADSR envelope plotter, 16-slot mod matrix grid, and Animate 1/2 performance pads). Build the complete eframe::App desktop GUI in src/app.rs and src/gui.rs embedding synth_core::CommandHistory directly for global Undo/Redo (Ctrl+Z/Ctrl+Y), top hardware status bar (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0, explicit Live MIDI Arm toggle defaulting to safe virtual loopback, Panic button), Librarian/A-B Diff/Randomizer modals, single-key shortcut gating when text inputs are focused, and a headless egui::Context::run layout geometry auditor verifying zero overlapping rects at 1280x800 and 1920x1080. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-006.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
@@ -4402,22 +4653,22 @@
           "category": "FEATURE",
           "domain": "ARCHITECTURE",
           "subIntentId": null,
-          "createdAt": "2026-11-05T19:59:14.151Z",
+          "createdAt": "2026-11-05T20:04:38.891Z",
           "completedAt": "2026-11-05T20:04:38.891Z",
-          "commitSha": null,
-          "txId": null
+          "commitSha": "04cc177ea15d9db616aaac4d00c7a3fe9f808e1e",
+          "txId": "tx-2026-11-05T20-04-38-891Z-srvi"
         },
         {
           "id": "change:epoch-7-of-8-konduktiva-peak-live-coding-integra",
           "title": "Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktiva_bridge.rs; Related: js/konduktiva-peak, tests/cross_synth_parity.rs). Integrate js/konduktiva-peak (createPeakKit(K), sweepCC, dualSweepCC, rhythmPresets, noteVoice, ccLane, createPeakPlayers, runStressTest, safeSweepRange, midi-cc-map.json) with js/shared-synth-sdk and Rust src/konduktiva_bridge.rs + GUI Konduktiva live-coding tab displaying the 8 canonical Peak players (bass, chords, lead, arp, ccCutoff, ccReso, ccMod, ccFx), density graphs (peakHold, peakBuild), and live CC lane telemetry. Add cross-language integration tests in tests/cross_synth_parity.rs and js/konduktiva-peak/test/run.js verifying byte-identical CC/NRPN/SysEx, safeSweepRange clamping, OSC, and preset roundtrips between Rust and Node.js. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-007.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
           "description": "Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktiva_bridge.rs; Related: js/konduktiva-peak, tests/cross_synth_parity.rs). Integrate js/konduktiva-peak (createPeakKit(K), sweepCC, dualSweepCC, rhythmPresets, noteVoice, ccLane, createPeakPlayers, runStressTest, safeSweepRange, midi-cc-map.json) with js/shared-synth-sdk and Rust src/konduktiva_bridge.rs + GUI Konduktiva live-coding tab displaying the 8 canonical Peak players (bass, chords, lead, arp, ccCutoff, ccReso, ccMod, ccFx), density graphs (peakHold, peakBuild), and live CC lane telemetry. Add cross-language integration tests in tests/cross_synth_parity.rs and js/konduktiva-peak/test/run.js verifying byte-identical CC/NRPN/SysEx, safeSweepRange clamping, OSC, and preset roundtrips between Rust and Node.js. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-007.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
           "prompt": "Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktiva_bridge.rs; Related: js/konduktiva-peak, tests/cross_synth_parity.rs). Integrate js/konduktiva-peak (createPeakKit(K), sweepCC, dualSweepCC, rhythmPresets, noteVoice, ccLane, createPeakPlayers, runStressTest, safeSweepRange, midi-cc-map.json) with js/shared-synth-sdk and Rust src/konduktiva_bridge.rs + GUI Konduktiva live-coding tab displaying the 8 canonical Peak players (bass, chords, lead, arp, ccCutoff, ccReso, ccMod, ccFx), density graphs (peakHold, peakBuild), and live CC lane telemetry. Add cross-language integration tests in tests/cross_synth_parity.rs and js/konduktiva-peak/test/run.js verifying byte-identical CC/NRPN/SysEx, safeSweepRange clamping, OSC, and preset roundtrips between Rust and Node.js. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-007.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
-          "status": "QUEUED",
+          "status": "IMPLEMENTED",
           "category": "FEATURE",
           "domain": "ARCHITECTURE",
           "subIntentId": null,
           "createdAt": "2026-11-05T20:04:38.859Z",
-          "completedAt": null,
+          "completedAt": "2026-11-05T20:22:59.705Z",
           "commitSha": null,
           "txId": null
         },
@@ -4430,7 +4681,7 @@
           "category": "FEATURE",
           "domain": "ARCHITECTURE",
           "subIntentId": null,
-          "createdAt": "2026-11-05T20:04:38.859Z",
+          "createdAt": "2026-11-05T20:22:59.680Z",
           "completedAt": null,
           "commitSha": null,
           "txId": null
@@ -4712,6 +4963,20 @@
           "subIntentId": null,
           "createdAt": "2026-11-05T20:04:38.801Z",
           "completedAt": "2026-11-05T20:04:38.891Z",
+          "commitSha": "04cc177ea15d9db616aaac4d00c7a3fe9f808e1e",
+          "txId": null
+        },
+        {
+          "id": "change-1793910179625-1r2a",
+          "title": "Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktivabridge.rs; Related: js/konduktiva-peak",
+          "description": "Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktiva_bridge.rs; Related: js/konduktiva-peak, tests/cross_synth_parity.rs). Integrate js/konduktiva-peak (createPeakKit(K), sweepCC, dualSweepCC, rhythmPresets, noteVoice, ccLane, createPeakPlayers, runStressTest, safeSweepRange, midi-cc-map.json) with js/shared-synth-sdk and Rust src/konduktiva_bridge.rs + GUI Konduktiva live-coding tab displaying the 8 canonical Peak players (bass, chords, lead, arp, ccCutoff, ccReso, ccMod, ccFx), density graphs (peakHold, peakBuild), and live CC lane telemetry. Add cross-language integration tests in tests/cross_synth_parity.rs and js/konduktiva-peak/test/run.js verifying byte-identical CC/NRPN/SysEx, safeSweepRange clamping, OSC, and preset roundtrips between Rust and Node.js. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-007.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+          "prompt": "Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktiva_bridge.rs; Related: js/konduktiva-peak, tests/cross_synth_parity.rs). Integrate js/konduktiva-peak (createPeakKit(K), sweepCC, dualSweepCC, rhythmPresets, noteVoice, ccLane, createPeakPlayers, runStressTest, safeSweepRange, midi-cc-map.json) with js/shared-synth-sdk and Rust src/konduktiva_bridge.rs + GUI Konduktiva live-coding tab displaying the 8 canonical Peak players (bass, chords, lead, arp, ccCutoff, ccReso, ccMod, ccFx), density graphs (peakHold, peakBuild), and live CC lane telemetry. Add cross-language integration tests in tests/cross_synth_parity.rs and js/konduktiva-peak/test/run.js verifying byte-identical CC/NRPN/SysEx, safeSweepRange clamping, OSC, and preset roundtrips between Rust and Node.js. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-007.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+          "status": "IMPLEMENTED",
+          "category": "PARITY",
+          "domain": "SEQUENCING_MIDI",
+          "subIntentId": null,
+          "createdAt": "2026-11-05T20:22:59.625Z",
+          "completedAt": "2026-11-05T20:22:59.705Z",
           "commitSha": null,
           "txId": null
         }
@@ -4733,6 +4998,23 @@
           "txId": "tx-2026-11-05T19-37-19-147Z-p3yu",
           "archivedAt": "2026-11-05T19:46:47.659Z",
           "completedAt": "2026-11-05T19:46:47.659Z"
+        },
+        {
+          "id": "change:epoch-6-of-8-two-bowls-yaae-native-egui-desktop-",
+          "codeId": "CHANGE",
+          "subIntentId": null,
+          "subIntentCodeId": null,
+          "subIntentName": null,
+          "domain": "ARCHITECTURE",
+          "kind": "CHANGE",
+          "title": "Epoch 6 of 8: Two-Bowls / YAAE Native egui Desktop GUI (NovationPeakApp) — Oscillators/Wavetable, SVF Filter, Envelopes/LFOs/16-Slot Mod Matrix, FX/Animate Bar & Headless Geometry Auditor (Target: src/app.rs; Related: src/gui.rs, crates/synth-ui-theme). Extend crates/synth-ui-theme with NovationPeakOxfordBlue / NovationPeakAmber accent tokens and custom vector widgets (5-wave wavetable interpolator display, SVF LP/BP/HP filter & drive response curve, 3x ADSR envelope plotter, 16-slot mod matrix grid, and Animate 1/2 performance pads). Build the complete eframe::App desktop GUI in src/app.rs and src/gui.rs embedding synth_core::CommandHistory directly for global Undo/Redo (Ctrl+Z/Ctrl+Y), top hardware status bar (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0, explicit Live MIDI Arm toggle defaulting to safe virtual loopback, Panic button), Librarian/A-B Diff/Randomizer modals, single-key shortcut gating when text inputs are focused, and a headless egui::Context::run layout geometry auditor verifying zero overlapping rects at 1280x800 and 1920x1080. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-006.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+          "text": "Epoch 6 of 8: Two-Bowls / YAAE Native egui Desktop GUI (NovationPeakApp) — Oscillators/Wavetable, SVF Filter, Envelopes/LFOs/16-Slot Mod Matrix, FX/Animate Bar & Headless Geometry Auditor (Target: src/app.rs; Related: src/gui.rs, crates/synth-ui-theme). Extend crates/synth-ui-theme with NovationPeakOxfordBlue / NovationPeakAmber accent tokens and custom vector widgets (5-wave wavetable interpolator display, SVF LP/BP/HP filter & drive response curve, 3x ADSR envelope plotter, 16-slot mod matrix grid, and Animate 1/2 performance pads). Build the complete eframe::App desktop GUI in src/app.rs and src/gui.rs embedding synth_core::CommandHistory directly for global Undo/Redo (Ctrl+Z/Ctrl+Y), top hardware status bar (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0, explicit Live MIDI Arm toggle defaulting to safe virtual loopback, Panic button), Librarian/A-B Diff/Randomizer modals, single-key shortcut gating when text inputs are focused, and a headless egui::Context::run layout geometry auditor verifying zero overlapping rects at 1280x800 and 1920x1080. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-006.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+          "taskPrompt": "Epoch 6 of 8: Two-Bowls / YAAE Native egui Desktop GUI (NovationPeakApp) — Oscillators/Wavetable, SVF Filter, Envelopes/LFOs/16-Slot Mod Matrix, FX/Animate Bar & Headless Geometry Auditor (Target: src/app.rs; Related: src/gui.rs, crates/synth-ui-theme). Extend crates/synth-ui-theme with NovationPeakOxfordBlue / NovationPeakAmber accent tokens and custom vector widgets (5-wave wavetable interpolator display, SVF LP/BP/HP filter & drive response curve, 3x ADSR envelope plotter, 16-slot mod matrix grid, and Animate 1/2 performance pads). Build the complete eframe::App desktop GUI in src/app.rs and src/gui.rs embedding synth_core::CommandHistory directly for global Undo/Redo (Ctrl+Z/Ctrl+Y), top hardware status bar (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0, explicit Live MIDI Arm toggle defaulting to safe virtual loopback, Panic button), Librarian/A-B Diff/Randomizer modals, single-key shortcut gating when text inputs are focused, and a headless egui::Context::run layout geometry auditor verifying zero overlapping rects at 1280x800 and 1920x1080. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-006.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+          "status": "MET",
+          "commitSha": "04cc177ea15d9db616aaac4d00c7a3fe9f808e1e",
+          "txId": "tx-2026-11-05T20-04-38-891Z-srvi",
+          "archivedAt": "2026-11-05T20:22:59.559Z",
+          "completedAt": "2026-11-05T20:22:59.558Z"
         }
       ],
       "deletedSubIntents": [],
@@ -4922,7 +5204,7 @@
       "intentsReviewed": false,
       "reviewedAt": null,
       "reviewNote": null,
-      "lastUpdated": "2026-11-05T20:04:38.859Z"
+      "lastUpdated": "2026-11-05T20:22:59.680Z"
     },
     "intentRevisionLog": [
       {
@@ -5993,11 +6275,11 @@
       {
         "stepNumber": 7,
         "revisionId": "rev-007",
-        "timestamp": "2026-11-05T19:16:22.466Z",
+        "timestamp": "2026-11-05T20:22:59.631Z",
         "triggerType": "USER_CLI_PROMPT",
         "shiftKind": "CREATED_NEW_SUBINTENT",
-        "userPrompt": "Epoch 1 of 8: 5-Synth Ecosystem Profile (NovationPeakProfile) & Shared Rust/JS SDK Registration (Target: crates/synth-core; Related: js/shared-synth-sdk, js/konduktiva-peak). Extend crates/synth-core (src/profiles.rs and src/lib.rs) and js/shared-synth-sdk with NovationPeakProfile covering all 74 CCs from js/konduktiva-peak/midi-cc-map.json, +32 bipolar dual-CC pairs, 14-bit NRPN descriptors, 3 FPGA NCO oscillators (17 wavetables), mixer/ring-mod/noise, state-variable LP/BP/HP filter with pre/post drive, 3 ADSR envelopes, 2 tempo-synced LFOs, 16-slot mod matrix, Animate 1 & 2 holds, arpeggiator gate, and analogue distortion + chorus/delay/reverb FX. Register Novation Peak as the 5th synth in UnifiedEcosystemSchemaBundle alongside nkEditor, Hydrasynth, BS2/TD-3, and Nord Drum 2, and add comprehensive unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-001.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
-        "distilledRequirement": "Epoch 1 of 8: 5-Synth Ecosystem Profile (NovationPeakProfile) & Shared Rust/JS SDK Registration (Target: crates/synth-core; Related: js/shared-synth-sdk, js/konduktiva-peak)",
+        "userPrompt": "Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktiva_bridge.rs; Related: js/konduktiva-peak, tests/cross_synth_parity.rs). Integrate js/konduktiva-peak (createPeakKit(K), sweepCC, dualSweepCC, rhythmPresets, noteVoice, ccLane, createPeakPlayers, runStressTest, safeSweepRange, midi-cc-map.json) with js/shared-synth-sdk and Rust src/konduktiva_bridge.rs + GUI Konduktiva live-coding tab displaying the 8 canonical Peak players (bass, chords, lead, arp, ccCutoff, ccReso, ccMod, ccFx), density graphs (peakHold, peakBuild), and live CC lane telemetry. Add cross-language integration tests in tests/cross_synth_parity.rs and js/konduktiva-peak/test/run.js verifying byte-identical CC/NRPN/SysEx, safeSweepRange clamping, OSC, and preset roundtrips between Rust and Node.js. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-007.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+        "distilledRequirement": "Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktivabridge.rs; Related: js/konduktiva-peak",
         "mainIntentSnapshot": {
           "title": "Novation Peak 8-Voice Polyphonic Hybrid Synthesizer Manager, Patch Librarian & Konduktiva Companion",
           "statement": "Full-featured Rust/egui native desktop synthesizer manager, patch editor, librarian, Korg nanoKONTROL2 controller, and Konduktiva live-coding companion for the Novation Peak 8-voice polyphonic hybrid synthesizer, extending the shared synth ecosystem (synth-core, synth-midi-osc, synth-ui-theme, shared-synth-sdk, konduktiva-peak) across 5 synthesizers.",
@@ -6029,7 +6311,7 @@
             },
             "delta": {
               "addedRequirements": [
-                "Epoch 1 of 8: 5-Synth Ecosystem Profile (NovationPeakProfile) & Shared Rust/JS SDK Registration (Target: crates/synth-core; Related: js/shared-synth-sdk, js/konduktiva-peak)"
+                "Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktivabridge.rs; Related: js/konduktiva-peak"
               ],
               "addedInvariants": [],
               "targetEntities": [
@@ -6041,7 +6323,7 @@
               "requirementsCount": 1,
               "promptsCount": 1,
               "allRequirements": [
-                "Epoch 1 of 8: 5-Synth Ecosystem Profile (NovationPeakProfile) & Shared Rust/JS SDK Registration (Target: crates/synth-core; Related: js/shared-synth-sdk, js/konduktiva-peak)"
+                "Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktivabridge.rs; Related: js/konduktiva-peak"
               ],
               "specification": "Maintain diverse, working visual demo patches with Konduktiva live-coding drivers, standalone launch scripts, and complete HTML/README documentation.",
               "summary": "Created new [ARCHITECTURE] sub-intent \"Demo Patches, Konduktiva Live-Coding & HTML Documentation\" with 1 requirement(s)."
@@ -6053,6 +6335,86 @@
           "subIntentsAfter": 20,
           "totalRequirementsBefore": 20,
           "totalRequirementsAfter": 21,
+          "domainsCoveredAfter": [
+            "ARCHITECTURE",
+            "DSP_AUDIO",
+            "DATA_LIBRARIAN",
+            "UI_LAYOUT",
+            "ECOSYSTEM_PARITY",
+            "VERIFICATION",
+            "ERGONOMICS",
+            "SYNTHESIS",
+            "PERSISTENCE",
+            "SEQUENCING_MIDI"
+          ]
+        }
+      },
+      {
+        "stepNumber": 8,
+        "revisionId": "rev-008",
+        "timestamp": "2026-11-05T19:16:22.466Z",
+        "triggerType": "USER_CLI_PROMPT",
+        "shiftKind": "REFINED_EXISTING_SUBINTENT",
+        "userPrompt": "Epoch 1 of 8: 5-Synth Ecosystem Profile (NovationPeakProfile) & Shared Rust/JS SDK Registration (Target: crates/synth-core; Related: js/shared-synth-sdk, js/konduktiva-peak). Extend crates/synth-core (src/profiles.rs and src/lib.rs) and js/shared-synth-sdk with NovationPeakProfile covering all 74 CCs from js/konduktiva-peak/midi-cc-map.json, +32 bipolar dual-CC pairs, 14-bit NRPN descriptors, 3 FPGA NCO oscillators (17 wavetables), mixer/ring-mod/noise, state-variable LP/BP/HP filter with pre/post drive, 3 ADSR envelopes, 2 tempo-synced LFOs, 16-slot mod matrix, Animate 1 & 2 holds, arpeggiator gate, and analogue distortion + chorus/delay/reverb FX. Register Novation Peak as the 5th synth in UnifiedEcosystemSchemaBundle alongside nkEditor, Hydrasynth, BS2/TD-3, and Nord Drum 2, and add comprehensive unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-001.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+        "distilledRequirement": "Epoch 1 of 8: 5-Synth Ecosystem Profile (NovationPeakProfile) & Shared Rust/JS SDK Registration (Target: crates/synth-core; Related: js/shared-synth-sdk, js/konduktiva-peak)",
+        "mainIntentSnapshot": {
+          "title": "Novation Peak 8-Voice Polyphonic Hybrid Synthesizer Manager, Patch Librarian & Konduktiva Companion",
+          "statement": "Full-featured Rust/egui native desktop synthesizer manager, patch editor, librarian, Korg nanoKONTROL2 controller, and Konduktiva live-coding companion for the Novation Peak 8-voice polyphonic hybrid synthesizer, extending the shared synth ecosystem (synth-core, synth-midi-osc, synth-ui-theme, shared-synth-sdk, konduktiva-peak) across 5 synthesizers.",
+          "primaryDomains": [
+            "SYNTHESIS",
+            "SEQUENCING_MIDI",
+            "NETWORKING_IPC",
+            "UI_LAYOUT",
+            "ERGONOMICS",
+            "PERSISTENCE",
+            "ARCHITECTURE"
+          ]
+        },
+        "shiftSummary": "Prompt #8 refined [ARCHITECTURE] \"Demo Patches, Konduktiva Live-Coding & HTML Documentation\" (+1 req): stored sub-intents: 20 → 20, stored requirements: 21 → 22.",
+        "mutations": [
+          {
+            "subIntentId": "subintent:demos-livecoding-and-docs",
+            "theme": "DEMOS_LIVECODING_AND_DOCS",
+            "domain": "ARCHITECTURE",
+            "name": "Demo Patches, Konduktiva Live-Coding & HTML Documentation",
+            "changeType": "EXPANDED_SUBINTENT",
+            "relationToMainIntent": "Advances Main Intent [Novation Peak 8-Voice Polyphonic Hybrid Synthesizer Manager, Patch Librarian & Konduktiva Companion → ARCHITECTURE]: Provides verified demo patches, Konduktiva JavaScript live-coding integration, CLI launch scripts, and complete HTML documentation",
+            "beforeState": {
+              "existed": true,
+              "requirementsCount": 1,
+              "promptsCount": 1,
+              "previousRequirements": [
+                "Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktivabridge.rs; Related: js/konduktiva-peak"
+              ],
+              "summary": "Existed in [ARCHITECTURE] with 1 requirement(s) derived from 1 prior prompt(s)."
+            },
+            "delta": {
+              "addedRequirements": [
+                "Epoch 1 of 8: 5-Synth Ecosystem Profile (NovationPeakProfile) & Shared Rust/JS SDK Registration (Target: crates/synth-core; Related: js/shared-synth-sdk, js/konduktiva-peak)"
+              ],
+              "addedInvariants": [],
+              "targetEntities": [
+                "entity:novation-peak-pigs:synth-core",
+                "entity:novation-peak-pigs:synth-core-diff"
+              ]
+            },
+            "afterState": {
+              "requirementsCount": 2,
+              "promptsCount": 2,
+              "allRequirements": [
+                "Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktivabridge.rs; Related: js/konduktiva-peak",
+                "Epoch 1 of 8: 5-Synth Ecosystem Profile (NovationPeakProfile) & Shared Rust/JS SDK Registration (Target: crates/synth-core; Related: js/shared-synth-sdk, js/konduktiva-peak)"
+              ],
+              "specification": "Maintain diverse, working visual demo patches with Konduktiva live-coding drivers, standalone launch scripts, and complete HTML/README documentation.",
+              "summary": "Expanded \"Demo Patches, Konduktiva Live-Coding & HTML Documentation\" from 1 → 2 requirement(s) (1 → 2 prompts)."
+            }
+          }
+        ],
+        "storedStateTotals": {
+          "subIntentsBefore": 20,
+          "subIntentsAfter": 20,
+          "totalRequirementsBefore": 21,
+          "totalRequirementsAfter": 22,
           "domainsCoveredAfter": [
             "ARCHITECTURE",
             "DSP_AUDIO",
@@ -6568,20 +6930,92 @@
         },
         "durationSeconds": 1086.671153239,
         "networkRecovered": false,
+        "allPassed": true,
+        "commitSha": "04cc177ea15d9db616aaac4d00c7a3fe9f808e1e"
+      },
+      {
+        "id": "tx-2026-11-05T20-22-59-705Z-oxrt",
+        "initiatedBy": "FRONTIER_PLANNER",
+        "intentId": "intent:1793910179705",
+        "description": "Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktiva_bridge.rs; Related: js/konduktiva-peak, tests/cross_synth_parity.rs). Integrate js/konduktiva-peak (createPeakKit(K), sweepCC, dualSweepCC, rhythmPresets, noteVoice, ccLane, createPeakPlayers, runStressTest, safeSweepRange, midi-cc-map.json) with js/shared-synth-sdk and Rust src/konduktiva_bridge.rs + GUI Konduktiva live-coding tab displaying the 8 canonical Peak players (bass, chords, lead, arp, ccCutoff, ccReso, ccMod, ccFx), density graphs (peakHold, peakBuild), and live CC lane telemetry. Add cross-language integration tests in tests/cross_synth_parity.rs and js/konduktiva-peak/test/run.js verifying byte-identical CC/NRPN/SysEx, safeSweepRange clamping, OSC, and preset roundtrips between Rust and Node.js. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-007.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+        "targetEntities": [],
+        "assignedTo": "gemini-3.8-flash-high (high)",
+        "diffArtifactUrl": null,
+        "verificationPipeline": {
+          "mutationCheck": {
+            "status": "PASS",
+            "meaning": "Code changes were saved to disk.",
+            "modifiedFiles": [
+              "js/konduktiva-peak/test/run.js",
+              "src/app.rs",
+              "src/gui.rs",
+              "src/lib.rs",
+              "src/konduktiva_bridge.rs",
+              "tests/"
+            ]
+          },
+          "syntaxCheck": {
+            "status": "PASS",
+            "durationMs": 756,
+            "type": "rust-and-node"
+          },
+          "astInvariants": {
+            "status": "PASS",
+            "durationMs": 11,
+            "results": [
+              {
+                "id": "inv:clean-architecture",
+                "status": "PASS",
+                "durationMs": 3
+              },
+              {
+                "id": "inv:no-raw-panics",
+                "status": "PASS",
+                "durationMs": 3
+              },
+              {
+                "id": "inv:resource-bounds",
+                "status": "PASS",
+                "durationMs": 0
+              }
+            ],
+            "violations": [],
+            "firstFailing": null
+          },
+          "unitTests": {
+            "status": "PASS",
+            "durationMs": 3760,
+            "type": "rust-and-node",
+            "output": "test result: ok. 57 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s; test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s; test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s; test result: ok. 34 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s; test result: ok. 33 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s; test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s; test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s; test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s; test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s; test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s | 8/8 automated tests passed"
+          },
+          "budgetCheck": {
+            "status": "PASS",
+            "durationMs": 0
+          }
+        },
+        "retryCount": 0,
+        "resolved": true,
+        "timestamp": "2026-11-05T20:22:59.705Z",
+        "allocationProfile": "HIGH_REASONING_FLASH",
+        "tokenBudgetClass": "MEDIUM_HIGH_TOKEN",
+        "allocationRationale": "Architectural scope or high-complexity keywords detected; routing to high inference tier",
+        "tokenUsage": {
+          "input_tokens": 477690,
+          "output_tokens": 71551,
+          "thinking_tokens": 31982,
+          "cache_read_tokens": 10827342,
+          "total_tokens": 549241
+        },
+        "durationSeconds": 501.104146064,
+        "networkRecovered": false,
         "allPassed": true
       }
     ]
   },
   "runtimeQueue": {
     "paused": false,
-    "updatedAt": "2026-11-05T20:04:38.749Z",
+    "updatedAt": "2026-11-05T20:22:59.598Z",
     "items": [
-      {
-        "text": "Epoch 7 of 8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity (Target: src/konduktiva_bridge.rs; Related: js/konduktiva-peak, tests/cross_synth_parity.rs). Integrate js/konduktiva-peak (createPeakKit(K), sweepCC, dualSweepCC, rhythmPresets, noteVoice, ccLane, createPeakPlayers, runStressTest, safeSweepRange, midi-cc-map.json) with js/shared-synth-sdk and Rust src/konduktiva_bridge.rs + GUI Konduktiva live-coding tab displaying the 8 canonical Peak players (bass, chords, lead, arp, ccCutoff, ccReso, ccMod, ccFx), density graphs (peakHold, peakBuild), and live CC lane telemetry. Add cross-language integration tests in tests/cross_synth_parity.rs and js/konduktiva-peak/test/run.js verifying byte-identical CC/NRPN/SysEx, safeSweepRange clamping, OSC, and preset roundtrips between Rust and Node.js. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-007.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
-        "id": "q-1793906182427-gl63",
-        "addedAt": "2026-11-05T19:16:22.427Z",
-        "targetProject": "/home/renick/antigravity/novation-peak-pigs"
-      },
       {
         "text": "Epoch 8 of 8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release Polish (Target: src/stress_bench.rs; Related: src/main.rs, README.md). Implement the 1,000-event 8-voice polyphonic note + 9-lane CC sweep stress benchmark in src/stress_bench.rs verifying zero dropped notes, 8-voice polyphony budget compliance, zero stuck voices on panic(), and strict safeSweepRange enforcement on CCs 29/36/79/80/104/110. Add non-blocking CLI flags (--verify-hardware, --dry-stress, --export-shared-schemas, --synth, --midi-in, --midi-out, --channel, --preset, --headless-server, --port) in src/main.rs, document the complete 5-synth architecture, 74-CC/NRPN/SysEx map, and konduktiva-peak live-coding API in README.md, and verify zero compiler warnings across all crates and Node.js packages. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-008.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
         "id": "q-1793906182424-7j3t",
