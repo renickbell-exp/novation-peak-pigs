@@ -14,10 +14,14 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 
 pub use widgets::{
-    drum_pad_velocity_widget, resonant_spectrum_bar_widget, tone_noise_balance_slider,
-    voice_focus_badge, DrumPadVelocityModel, EnvelopeCurveModel, KeyOverlayBadgeModel,
-    ResonantSpectrumBarModel, RotaryKnobModel, SoftTakeoverOutcome, StepLedButtonModel,
-    StepLedState, ToneNoiseBalanceModel, ToneNoiseBalanceSliderModel, VoiceFocusBadgeModel,
+    adsr_envelope_plotter_widget, animate_pads_widget, drum_pad_velocity_widget,
+    mod_matrix_grid_widget, resonant_spectrum_bar_widget, svf_filter_response_widget,
+    tone_noise_balance_slider, voice_focus_badge, wavetable_interpolator_widget,
+    AdsrEnvelopePlotterModel, AnimatePadsModel, DrumPadVelocityModel, EnvelopeCurveModel,
+    KeyOverlayBadgeModel, ModMatrixGridModel, ModMatrixSlotItem, ResonantSpectrumBarModel,
+    RotaryKnobModel, SoftTakeoverOutcome, StepLedButtonModel, StepLedState, SvfFilterMode,
+    SvfFilterResponseModel, ToneNoiseBalanceModel, ToneNoiseBalanceSliderModel,
+    VoiceFocusBadgeModel, WavetableInterpolatorModel,
 };
 pub use yaae_theme::{
     theme_palette::{self, AccentPalette, FocusRingConfig},
@@ -32,6 +36,19 @@ pub const NORD_CRIMSON_PRIMARY: Color32 = Color32::from_rgb(0xE5, 0x25, 0x21);
 pub const NORD_AMBER_LED_HEX: &str = "#FFB300";
 /// Clavia Nord Drum 2 hardware high-contrast amber LED readout Color32.
 pub const NORD_AMBER_LED: Color32 = Color32::from_rgb(0xFF, 0xB3, 0x00);
+
+/// Novation Peak hardware illuminated cyan accent hex (#00D2BE).
+pub const NOVATION_CYAN_HEX: &str = "#00D2BE";
+/// Novation Peak hardware illuminated cyan accent Color32.
+pub const NOVATION_CYAN_PRIMARY: Color32 = Color32::from_rgb(0x00, 0xD2, 0xBE);
+/// Novation Peak Oxford Blue chassis accent hex (#002147).
+pub const NOVATION_PEAK_OXFORD_BLUE_HEX: &str = "#002147";
+/// Novation Peak Oxford Blue chassis accent Color32.
+pub const NOVATION_PEAK_OXFORD_BLUE_PRIMARY: Color32 = Color32::from_rgb(0x00, 0x21, 0x47);
+/// Novation Peak high-contrast amber LED readout hex (#FFB300).
+pub const NOVATION_PEAK_AMBER_HEX: &str = "#FFB300";
+/// Novation Peak high-contrast amber LED readout Color32.
+pub const NOVATION_PEAK_AMBER_PRIMARY: Color32 = Color32::from_rgb(0xFF, 0xB3, 0x00);
 
 /// The four canonical twoBowls background presets.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
@@ -120,8 +137,8 @@ impl fmt::Display for TwoBowlsBackground {
     }
 }
 
-/// The seven synthesizer and editor accent profiles shared across ASM Hydrasynth Editor,
-/// nkEditor, BS2/TD-3 Manager, and Nord Drum 2 Manager.
+/// The nine synthesizer and editor accent profiles shared across ASM Hydrasynth Editor,
+/// nkEditor, BS2/TD-3 Manager, Nord Drum 2 Manager, and Novation Peak Manager.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum SynthAccent {
@@ -141,10 +158,15 @@ pub enum SynthAccent {
     /// NordCrimson: Classic Clavia Nord drum crimson red chassis accent profile (#E52521)
     /// with high-contrast amber LED readout (#FFB300).
     NordCrimson,
+    /// NovationPeakOxfordBlue: Deep Oxford blue chassis profile (#002147)
+    /// with illuminated cyan readout and secondary accents (#00D2BE).
+    NovationPeakOxfordBlue,
+    /// NovationPeakAmber: Peak OLED amber display and LED accent profile (#FFB300).
+    NovationPeakAmber,
 }
 
 impl SynthAccent {
-    /// Returns all seven synthesizer accent profiles.
+    /// Returns all nine synthesizer accent profiles.
     #[must_use]
     pub const fn all() -> &'static [Self] {
         &[
@@ -155,6 +177,8 @@ impl SynthAccent {
             Self::BassStationBlue,
             Self::AcidYellowTD3,
             Self::NordCrimson,
+            Self::NovationPeakOxfordBlue,
+            Self::NovationPeakAmber,
         ]
     }
 
@@ -169,6 +193,8 @@ impl SynthAccent {
             Self::BassStationBlue => "Bass Station Blue",
             Self::AcidYellowTD3 => "Acid Yellow TD-3",
             Self::NordCrimson => "Nord Crimson",
+            Self::NovationPeakOxfordBlue => "Novation Peak Oxford Blue",
+            Self::NovationPeakAmber => "Novation Peak Amber",
         }
     }
 
@@ -183,6 +209,8 @@ impl SynthAccent {
             Self::BassStationBlue => "#0055A5",
             Self::AcidYellowTD3 => "#E6DB22",
             Self::NordCrimson => "#E52521",
+            Self::NovationPeakOxfordBlue => "#002147",
+            Self::NovationPeakAmber => "#FFB300",
         }
     }
 
@@ -197,6 +225,8 @@ impl SynthAccent {
             Self::BassStationBlue => [0x00, 0x55, 0xA5],
             Self::AcidYellowTD3 => [0xE6, 0xDB, 0x22],
             Self::NordCrimson => [0xE5, 0x25, 0x21],
+            Self::NovationPeakOxfordBlue => [0x00, 0x21, 0x47],
+            Self::NovationPeakAmber => [0xFF, 0xB3, 0x00],
         }
     }
 
@@ -218,6 +248,8 @@ impl SynthAccent {
             Self::BassStationBlue => Color32::from_rgb(0x00, 0x82, 0xD6),
             Self::AcidYellowTD3 => Color32::from_rgb(0xFF, 0x66, 0x00),
             Self::NordCrimson => Color32::from_rgb(0xFF, 0x5C, 0x5A),
+            Self::NovationPeakOxfordBlue => Color32::from_rgb(0x00, 0xD2, 0xBE),
+            Self::NovationPeakAmber => Color32::from_rgb(0xFF, 0x8C, 0x00),
         }
     }
 
@@ -232,6 +264,8 @@ impl SynthAccent {
             Self::BassStationBlue => "#00E5FF",
             Self::AcidYellowTD3 => "#FF3030",
             Self::NordCrimson => "#FFB300",
+            Self::NovationPeakOxfordBlue => "#00D2BE",
+            Self::NovationPeakAmber => "#FFB300",
         }
     }
 
@@ -246,6 +280,8 @@ impl SynthAccent {
             Self::BassStationBlue => [0x00, 0xE5, 0xFF],
             Self::AcidYellowTD3 => [0xFF, 0x30, 0x30],
             Self::NordCrimson => [0xFF, 0xB3, 0x00],
+            Self::NovationPeakOxfordBlue => [0x00, 0xD2, 0xBE],
+            Self::NovationPeakAmber => [0xFF, 0xB3, 0x00],
         }
     }
 
@@ -273,6 +309,19 @@ impl SynthAccent {
             "nord crimson" | "nordcrimson" | "nord_crimson" | "nord" | "nd2" | "crimson" => {
                 Some(Self::NordCrimson)
             }
+            "novation peak oxford blue"
+            | "novationpeakoxfordblue"
+            | "oxford blue"
+            | "oxfordblue"
+            | "oxford_blue"
+            | "peak oxford blue"
+            | "peak blue"
+            | "peak" => Some(Self::NovationPeakOxfordBlue),
+            "novation peak amber"
+            | "novationpeakamber"
+            | "peak amber"
+            | "amber"
+            | "peak_amber" => Some(Self::NovationPeakAmber),
             _ => None,
         }
     }
@@ -844,6 +893,13 @@ pub fn export_all_theme_schemas(dir: &std::path::Path) -> Result<(), std::io::Er
     if let Ok(json) = serde_json::to_string_pretty(&nd2_theme) {
         let _ = std::fs::write(dir.join("clavia-nord-drum-2.theme.json"), json);
     }
+    // 5. Novation Peak Theme (Novation Peak Oxford Blue + Dark Grey)
+    let peak_theme = ThemeConfig::new()
+        .with_accent(SynthAccent::NovationPeakOxfordBlue)
+        .with_background(TwoBowlsBackground::DarkGrey);
+    if let Ok(json) = serde_json::to_string_pretty(&peak_theme) {
+        let _ = std::fs::write(dir.join("novation-peak.theme.json"), json);
+    }
     Ok(())
 }
 
@@ -914,9 +970,9 @@ mod tests {
     }
 
     #[test]
-    fn all_seven_synth_accent_profiles() {
+    fn all_nine_synth_accent_profiles() {
         let accents = SynthAccent::all();
-        assert_eq!(accents.len(), 7);
+        assert_eq!(accents.len(), 9);
         assert_eq!(SynthAccent::Midnight.hex(), "#4169E1");
         assert_eq!(SynthAccent::Cyberpunk.hex(), "#FF007F");
         assert_eq!(SynthAccent::Arctic.hex(), "#00D2FF");
@@ -924,6 +980,8 @@ mod tests {
         assert_eq!(SynthAccent::BassStationBlue.hex(), "#0055A5");
         assert_eq!(SynthAccent::AcidYellowTD3.hex(), "#E6DB22");
         assert_eq!(SynthAccent::NordCrimson.hex(), "#E52521");
+        assert_eq!(SynthAccent::NovationPeakOxfordBlue.hex(), "#002147");
+        assert_eq!(SynthAccent::NovationPeakAmber.hex(), "#FFB300");
 
         assert_eq!(
             primary_color(SynthAccent::BassStationBlue),
@@ -936,6 +994,14 @@ mod tests {
         assert_eq!(
             primary_color(SynthAccent::NordCrimson),
             Color32::from_rgb(0xE5, 0x25, 0x21)
+        );
+        assert_eq!(
+            primary_color(SynthAccent::NovationPeakOxfordBlue),
+            Color32::from_rgb(0x00, 0x21, 0x47)
+        );
+        assert_eq!(
+            primary_color(SynthAccent::NovationPeakAmber),
+            Color32::from_rgb(0xFF, 0xB3, 0x00)
         );
 
         assert_eq!(
@@ -954,11 +1020,35 @@ mod tests {
             SynthAccent::from_name("nord crimson"),
             Some(SynthAccent::NordCrimson)
         );
+        assert_eq!(
+            SynthAccent::from_name("peak"),
+            Some(SynthAccent::NovationPeakOxfordBlue)
+        );
+        assert_eq!(
+            SynthAccent::from_name("peak amber"),
+            Some(SynthAccent::NovationPeakAmber)
+        );
 
         // Clavia Nord Drum 2 hardware accent and amber LED readout
         assert_eq!(SynthAccent::NordCrimson.readout_hex(), "#FFB300");
         assert_eq!(
             SynthAccent::NordCrimson.readout_color(),
+            Color32::from_rgb(0xFF, 0xB3, 0x00)
+        );
+
+        // Novation Peak hardware accents and cyan/amber readouts
+        assert_eq!(SynthAccent::NovationPeakOxfordBlue.readout_hex(), "#00D2BE");
+        assert_eq!(
+            SynthAccent::NovationPeakOxfordBlue.readout_color(),
+            Color32::from_rgb(0x00, 0xD2, 0xBE)
+        );
+        assert_eq!(
+            SynthAccent::NovationPeakOxfordBlue.secondary_color(),
+            Color32::from_rgb(0x00, 0xD2, 0xBE)
+        );
+        assert_eq!(SynthAccent::NovationPeakAmber.readout_hex(), "#FFB300");
+        assert_eq!(
+            SynthAccent::NovationPeakAmber.readout_color(),
             Color32::from_rgb(0xFF, 0xB3, 0x00)
         );
         assert_eq!(readout_color(SynthAccent::NordCrimson), NORD_AMBER_LED);
@@ -1108,6 +1198,7 @@ mod tests {
         assert!(temp_dir.join("nkeditor.theme.json").exists());
         assert!(temp_dir.join("bs2-td3.theme.json").exists());
         assert!(temp_dir.join("clavia-nord-drum-2.theme.json").exists());
+        assert!(temp_dir.join("novation-peak.theme.json").exists());
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }

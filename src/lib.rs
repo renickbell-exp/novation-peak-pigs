@@ -5,12 +5,17 @@ pub use synth_ui_theme;
 
 pub use synth_core::profiles::{NovationPeakProfile, UnifiedEcosystemSchemaBundle};
 
+pub mod app;
+pub mod gui;
 pub mod hardware_verify;
 pub mod midi;
 pub mod peak_librarian;
 pub mod peak_mod_fx;
 pub mod peak_synth;
 
+pub use app::{
+    GeometryAuditReport, HardwareStatusBarState, LayoutGeometryAuditor, NovationPeakApp,
+};
 pub use hardware_verify::{
     format_report, print_verification_report, run_cli_verification, verify_hardware_from_paths,
     verify_system_hardware, HardwareVerificationReport, VerifiedHardwareDevice,

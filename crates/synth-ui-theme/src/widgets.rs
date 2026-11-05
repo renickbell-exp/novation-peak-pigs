@@ -2268,6 +2268,1084 @@ pub fn voice_focus_badge(
     model.show(ui, accent_color, readout_color)
 }
 
+// ---------------------------------------------------------------------------
+// Novation Peak Custom Vector Widgets
+// ---------------------------------------------------------------------------
+
+/// Model for Novation Peak 5-wave wavetable interpolator display.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct WavetableInterpolatorModel {
+    /// Normalized interpolation position within the wavetable (0.0..=1.0).
+    pub position: f32,
+    /// Selected wavetable bank index (0..16, Novation Peak has 17 wavetables).
+    pub wavetable_index: usize,
+    /// Number of base waveforms interpolated across (Novation Peak standard is 5).
+    pub base_wave_count: usize,
+    /// Display resolution (number of polyline evaluation points).
+    pub num_points: usize,
+}
+
+impl Default for WavetableInterpolatorModel {
+    fn default() -> Self {
+        Self {
+            position: 0.0,
+            wavetable_index: 0,
+            base_wave_count: 5,
+            num_points: 64,
+        }
+    }
+}
+
+impl WavetableInterpolatorModel {
+    /// Creates a new wavetable interpolator display model.
+    #[must_use]
+    pub fn new(position: f32, wavetable_index: usize) -> Self {
+        Self {
+            position: position.clamp(0.0, 1.0),
+            wavetable_index: wavetable_index.min(16),
+            base_wave_count: 5,
+            num_points: 64,
+        }
+    }
+
+    /// Sets interpolation position in 0.0..=1.0.
+    #[must_use]
+    pub fn with_position(mut self, position: f32) -> Self {
+        self.position = position.clamp(0.0, 1.0);
+        self
+    }
+
+    /// Sets wavetable index (0..=16).
+    #[must_use]
+    pub fn with_wavetable_index(mut self, index: usize) -> Self {
+        self.wavetable_index = index.min(16);
+        self
+    }
+
+    /// Evaluates sample amplitude in -1.0..=1.0 for a given normalized phase (0.0..=1.0)
+    /// across the 5 fundamental base waveform shapes.
+    #[must_use]
+    pub fn evaluate_base_wave(phase: f32, wave_type: usize) -> f32 {
+        let p = phase.rem_euclid(1.0);
+        use std::f32::consts::PI;
+        match wave_type % 5 {
+            0 => (p * 2.0 * PI).sin(),
+            1 => 2.0 * (2.0 * (p - (p + 0.5).floor())).abs() - 1.0,
+            2 => 2.0 * (p - (p + 0.5).floor()),
+            3 => {
+                if p < 0.5 {
+                    1.0
+                } else {
+                    -1.0
+                }
+            }
+            _ => {
+                0.55 * (p * 2.0 * PI).sin()
+                    + 0.30 * (p * 6.0 * PI).sin()
+                    + 0.15 * (p * 10.0 * PI).sin()
+            }
+        }
+    }
+
+    /// Evaluates sample amplitude at `phase` linearly interpolated across the 5 waves.
+    #[must_use]
+    pub fn evaluate_interpolated(&self, phase: f32) -> f32 {
+        let scaled_pos = self.position * (self.base_wave_count - 1) as f32;
+        let idx = (scaled_pos.floor() as usize).min(self.base_wave_count - 2);
+        let frac = scaled_pos - idx as f32;
+
+        let samp_a = Self::evaluate_base_wave(phase, idx);
+        let samp_b = Self::evaluate_base_wave(phase, idx + 1);
+        samp_a * (1.0 - frac) + samp_b * frac
+    }
+
+    /// Generates vector points for the interpolated curve inside `rect`.
+    #[must_use]
+    pub fn generate_curve_points(&self, rect: Rect) -> Vec<Pos2> {
+        let count = self.num_points.max(16);
+        let mid_y = rect.center().y;
+        let half_h = (rect.height() * 0.45).max(1.0);
+
+        (0..=count)
+            .map(|i| {
+                let frac = i as f32 / count as f32;
+                let x = rect.left() + frac * rect.width();
+                let samp = self.evaluate_interpolated(frac);
+                let y = mid_y - samp * half_h;
+                Pos2::new(x, y)
+            })
+            .collect()
+    }
+
+    /// Generates ghost curves for all 5 underlying base waves.
+    #[must_use]
+    pub fn generate_ghost_waves(&self, rect: Rect) -> Vec<Vec<Pos2>> {
+        let count = (self.num_points / 2).max(16);
+        let mid_y = rect.center().y;
+        let half_h = (rect.height() * 0.40).max(1.0);
+
+        (0..self.base_wave_count)
+            .map(|wave_idx| {
+                (0..=count)
+                    .map(|i| {
+                        let frac = i as f32 / count as f32;
+                        let x = rect.left() + frac * rect.width();
+                        let samp = Self::evaluate_base_wave(frac, wave_idx);
+                        let y = mid_y - samp * half_h;
+                        Pos2::new(x, y)
+                    })
+                    .collect()
+            })
+            .collect()
+    }
+
+    /// Paints the wavetable interpolator into painter.
+    pub fn paint(&self, painter: &Painter, rect: Rect, accent_color: Color32, bg_color: Color32) {
+        painter.rect_filled(rect, Rounding::ZERO, bg_color);
+        painter.rect_stroke(rect, Rounding::ZERO, Stroke::new(1.0, Color32::from_gray(60)));
+
+        let ghost_waves = self.generate_ghost_waves(rect);
+        for pts in ghost_waves {
+            if pts.len() >= 2 {
+                painter.add(Shape::line(pts, Stroke::new(1.0, Color32::from_white_alpha(30))));
+            }
+        }
+
+        let mid_y = rect.center().y;
+        painter.line_segment(
+            [Pos2::new(rect.left(), mid_y), Pos2::new(rect.right(), mid_y)],
+            Stroke::new(1.0, Color32::from_white_alpha(40)),
+        );
+
+        let curve_pts = self.generate_curve_points(rect);
+        if curve_pts.len() >= 2 {
+            painter.add(Shape::line(curve_pts, Stroke::new(2.0, accent_color)));
+        }
+
+        let text = format!("WT #{} Pos: {:.0}%", self.wavetable_index + 1, self.position * 100.0);
+        painter.text(
+            Pos2::new(rect.left() + 6.0, rect.top() + 6.0),
+            Align2::LEFT_TOP,
+            text,
+            FontId::proportional(11.0),
+            Color32::from_gray(200),
+        );
+    }
+
+    /// Renders the wavetable interpolator widget in UI.
+    pub fn show(&self, ui: &mut Ui, size: Vec2, accent_color: Color32) -> Response {
+        let (rect, response) = ui.allocate_exact_size(size, Sense::hover());
+        if ui.is_rect_visible(rect) {
+            self.paint(ui.painter(), rect, accent_color, Color32::from_gray(18));
+        }
+        response
+    }
+}
+
+/// Standalone widget helper for wavetable interpolator.
+pub fn wavetable_interpolator_widget(
+    ui: &mut Ui,
+    model: &WavetableInterpolatorModel,
+    size: Vec2,
+    accent_color: Color32,
+) -> Response {
+    model.show(ui, size, accent_color)
+}
+
+/// State-Variable Filter (SVF) mode.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum SvfFilterMode {
+    LowPass12,
+    LowPass24,
+    BandPass,
+    HighPass,
+}
+
+impl Default for SvfFilterMode {
+    fn default() -> Self {
+        Self::LowPass24
+    }
+}
+
+impl SvfFilterMode {
+    #[must_use]
+    pub fn display_name(&self) -> &'static str {
+        match self {
+            Self::LowPass12 => "12dB LP",
+            Self::LowPass24 => "24dB LP",
+            Self::BandPass => "Band Pass",
+            Self::HighPass => "High Pass",
+        }
+    }
+}
+
+/// Headless model and vector painter for Novation Peak State-Variable Filter (SVF)
+/// frequency response and pre/post drive saturation curves.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SvfFilterResponseModel {
+    pub mode: SvfFilterMode,
+    pub cutoff_hz: f32,
+    pub resonance: f32,
+    pub pre_drive: f32,
+    pub post_drive: f32,
+}
+
+impl Default for SvfFilterResponseModel {
+    fn default() -> Self {
+        Self {
+            mode: SvfFilterMode::LowPass24,
+            cutoff_hz: 1000.0,
+            resonance: 0.2,
+            pre_drive: 0.0,
+            post_drive: 0.0,
+        }
+    }
+}
+
+impl SvfFilterResponseModel {
+    /// Creates a new SVF filter response model.
+    #[must_use]
+    pub fn new(cutoff_hz: f32, resonance: f32, mode: SvfFilterMode) -> Self {
+        Self {
+            mode,
+            cutoff_hz: cutoff_hz.clamp(20.0, 20000.0),
+            resonance: resonance.clamp(0.0, 1.0),
+            pre_drive: 0.0,
+            post_drive: 0.0,
+        }
+    }
+
+    /// Sets pre-filter and post-filter drive amounts (0.0..=1.0).
+    #[must_use]
+    pub fn with_drive(mut self, pre_drive: f32, post_drive: f32) -> Self {
+        self.pre_drive = pre_drive.clamp(0.0, 1.0);
+        self.post_drive = post_drive.clamp(0.0, 1.0);
+        self
+    }
+
+    /// Computes filter magnitude in decibels (dB) at a given frequency in Hz.
+    #[must_use]
+    pub fn magnitude_db_at(&self, freq_hz: f32) -> f32 {
+        let f = freq_hz.clamp(10.0, 40000.0);
+        let fc = self.cutoff_hz.clamp(20.0, 20000.0);
+        let ratio = f / fc;
+
+        let q = 0.707 + self.resonance * 11.3;
+        let denom_sq = (1.0 - ratio * ratio).powi(2) + (ratio / q).powi(2);
+        let denom = denom_sq.sqrt().max(1e-6);
+
+        let base_linear = match self.mode {
+            SvfFilterMode::LowPass12 => 1.0 / denom,
+            SvfFilterMode::LowPass24 => (1.0 / denom).powi(2),
+            SvfFilterMode::BandPass => (ratio / q) / denom,
+            SvfFilterMode::HighPass => (ratio * ratio) / denom,
+        };
+
+        let drive_boost = 1.0 + self.pre_drive * 1.5 + self.post_drive * 1.0;
+        let driven = base_linear * drive_boost;
+
+        20.0 * driven.log10()
+    }
+
+    /// Generates response curve points mapped into `rect` from `min_hz` to `max_hz`.
+    #[must_use]
+    pub fn generate_curve_points(
+        &self,
+        rect: Rect,
+        min_hz: f32,
+        max_hz: f32,
+        num_points: usize,
+    ) -> Vec<Pos2> {
+        let count = num_points.max(16);
+        let log_min = min_hz.ln();
+        let log_max = max_hz.ln();
+
+        let min_db = -48.0;
+        let max_db = 18.0;
+        let db_span = max_db - min_db;
+
+        (0..=count)
+            .map(|i| {
+                let frac = i as f32 / count as f32;
+                let log_freq = log_min + frac * (log_max - log_min);
+                let freq = log_freq.exp();
+                let db = self.magnitude_db_at(freq).clamp(min_db, max_db);
+
+                let x = rect.left() + frac * rect.width();
+                let y_norm = 1.0 - (db - min_db) / db_span;
+                let y = rect.top() + y_norm * rect.height();
+                Pos2::new(x, y)
+            })
+            .collect()
+    }
+
+    /// Paints the SVF response curve into painter.
+    pub fn paint(&self, painter: &Painter, rect: Rect, accent_color: Color32, bg_color: Color32) {
+        painter.rect_filled(rect, Rounding::ZERO, bg_color);
+        painter.rect_stroke(rect, Rounding::ZERO, Stroke::new(1.0, Color32::from_gray(60)));
+
+        let min_hz: f32 = 20.0;
+        let max_hz: f32 = 20000.0;
+        let log_min = min_hz.ln();
+        let log_max = max_hz.ln();
+
+        for marker_hz in [100.0_f32, 1000.0, 10000.0] {
+            let frac = (marker_hz.ln() - log_min) / (log_max - log_min);
+            let x = rect.left() + frac * rect.width();
+            painter.line_segment(
+                [Pos2::new(x, rect.top()), Pos2::new(x, rect.bottom())],
+                Stroke::new(1.0, Color32::from_white_alpha(20)),
+            );
+        }
+
+        let min_db = -48.0;
+        let max_db = 18.0;
+        let zero_db_y = rect.top() + (1.0 - (0.0 - min_db) / (max_db - min_db)) * rect.height();
+        painter.line_segment(
+            [Pos2::new(rect.left(), zero_db_y), Pos2::new(rect.right(), zero_db_y)],
+            Stroke::new(1.0, Color32::from_white_alpha(35)),
+        );
+
+        let pts = self.generate_curve_points(rect, min_hz, max_hz, 80);
+        if pts.len() >= 2 {
+            let mut poly = pts.clone();
+            poly.push(Pos2::new(rect.right(), rect.bottom()));
+            poly.push(Pos2::new(rect.left(), rect.bottom()));
+            painter.add(Shape::convex_polygon(
+                poly,
+                Color32::from_rgba_premultiplied(
+                    accent_color.r() / 6,
+                    accent_color.g() / 6,
+                    accent_color.b() / 6,
+                    40,
+                ),
+                Stroke::NONE,
+            ));
+            painter.add(Shape::line(pts, Stroke::new(2.0, accent_color)));
+        }
+
+        let label = format!(
+            "{} | Cutoff: {:.0}Hz | Res: {:.0}% | Pre-Drive: {:.0}% | Post-Drive: {:.0}%",
+            self.mode.display_name(),
+            self.cutoff_hz,
+            self.resonance * 100.0,
+            self.pre_drive * 100.0,
+            self.post_drive * 100.0
+        );
+        painter.text(
+            Pos2::new(rect.left() + 6.0, rect.top() + 6.0),
+            Align2::LEFT_TOP,
+            label,
+            FontId::proportional(11.0),
+            Color32::from_gray(210),
+        );
+    }
+
+    /// Renders the SVF response widget in UI.
+    pub fn show(&self, ui: &mut Ui, size: Vec2, accent_color: Color32) -> Response {
+        let (rect, response) = ui.allocate_exact_size(size, Sense::hover());
+        if ui.is_rect_visible(rect) {
+            self.paint(ui.painter(), rect, accent_color, Color32::from_gray(18));
+        }
+        response
+    }
+}
+
+/// Standalone widget helper for SVF filter response curve.
+pub fn svf_filter_response_widget(
+    ui: &mut Ui,
+    model: &SvfFilterResponseModel,
+    size: Vec2,
+    accent_color: Color32,
+) -> Response {
+    model.show(ui, size, accent_color)
+}
+
+/// Headless model and multi-curve vector painter for 3x Novation Peak ADSR envelopes
+/// (Amp Env, Mod Env 1, and Mod Env 2).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct AdsrEnvelopePlotterModel {
+    pub amp_env: EnvelopeCurveModel,
+    pub mod_env_1: EnvelopeCurveModel,
+    pub mod_env_2: EnvelopeCurveModel,
+    /// Currently focused envelope index (0 = Amp, 1 = Mod 1, 2 = Mod 2).
+    pub active_index: usize,
+}
+
+impl Default for AdsrEnvelopePlotterModel {
+    fn default() -> Self {
+        Self {
+            amp_env: EnvelopeCurveModel::new(0.05, 0.25, 0.70, 0.35),
+            mod_env_1: EnvelopeCurveModel::new(0.15, 0.40, 0.30, 0.50),
+            mod_env_2: EnvelopeCurveModel::new(0.01, 0.10, 0.00, 0.20),
+            active_index: 0,
+        }
+    }
+}
+
+impl AdsrEnvelopePlotterModel {
+    /// Creates a 3x ADSR envelope plotter model.
+    #[must_use]
+    pub fn new(
+        amp_env: EnvelopeCurveModel,
+        mod_env_1: EnvelopeCurveModel,
+        mod_env_2: EnvelopeCurveModel,
+    ) -> Self {
+        Self {
+            amp_env,
+            mod_env_1,
+            mod_env_2,
+            active_index: 0,
+        }
+    }
+
+    /// Sets the active envelope index (0..=2).
+    #[must_use]
+    pub fn with_active(mut self, index: usize) -> Self {
+        self.active_index = index.min(2);
+        self
+    }
+
+    /// Sets active envelope index.
+    pub fn set_active(&mut self, index: usize) {
+        self.active_index = index.min(2);
+    }
+
+    /// Returns reference to active envelope.
+    #[must_use]
+    pub fn active_env(&self) -> &EnvelopeCurveModel {
+        match self.active_index {
+            0 => &self.amp_env,
+            1 => &self.mod_env_1,
+            _ => &self.mod_env_2,
+        }
+    }
+
+    /// Returns mutable reference to active envelope.
+    pub fn active_env_mut(&mut self) -> &mut EnvelopeCurveModel {
+        match self.active_index {
+            0 => &mut self.amp_env,
+            1 => &mut self.mod_env_1,
+            _ => &mut self.mod_env_2,
+        }
+    }
+
+    /// Generates curve points for envelope `env_idx` mapped to `rect`.
+    #[must_use]
+    pub fn generate_envelope_points(
+        &self,
+        env_idx: usize,
+        rect: Rect,
+        num_points: usize,
+    ) -> Vec<Pos2> {
+        let env = match env_idx {
+            0 => &self.amp_env,
+            1 => &self.mod_env_1,
+            _ => &self.mod_env_2,
+        };
+        let count = num_points.max(16);
+        let top = rect.top() + 8.0;
+        let bottom = rect.bottom() - 8.0;
+        let height = bottom - top;
+
+        (0..=count)
+            .map(|i| {
+                let frac = i as f32 / count as f32;
+                let amp = env.evaluate_at(frac);
+                let x = rect.left() + frac * rect.width();
+                let y = bottom - amp * height;
+                Pos2::new(x, y)
+            })
+            .collect()
+    }
+
+    /// Paints the 3x ADSR curves into painter.
+    pub fn paint(&self, painter: &Painter, rect: Rect, colors: [Color32; 3], bg_color: Color32) {
+        painter.rect_filled(rect, Rounding::ZERO, bg_color);
+        painter.rect_stroke(rect, Rounding::ZERO, Stroke::new(1.0, Color32::from_gray(60)));
+
+        let names = ["Amp Env", "Mod Env 1", "Mod Env 2"];
+
+        for i in 0..3 {
+            let is_active = i == self.active_index;
+            let stroke_width = if is_active { 2.5 } else { 1.2 };
+            let color = if is_active {
+                colors[i]
+            } else {
+                Color32::from_rgba_premultiplied(
+                    colors[i].r() / 2,
+                    colors[i].g() / 2,
+                    colors[i].b() / 2,
+                    90,
+                )
+            };
+
+            let pts = self.generate_envelope_points(i, rect, 64);
+            if pts.len() >= 2 {
+                if is_active {
+                    let mut poly = pts.clone();
+                    poly.push(Pos2::new(rect.right(), rect.bottom() - 8.0));
+                    poly.push(Pos2::new(rect.left(), rect.bottom() - 8.0));
+                    painter.add(Shape::convex_polygon(
+                        poly,
+                        Color32::from_rgba_premultiplied(
+                            colors[i].r() / 6,
+                            colors[i].g() / 6,
+                            colors[i].b() / 6,
+                            40,
+                        ),
+                        Stroke::NONE,
+                    ));
+                }
+                painter.add(Shape::line(pts, Stroke::new(stroke_width, color)));
+            }
+        }
+
+        let mut x_offset = rect.left() + 6.0;
+        for i in 0..3 {
+            let is_active = i == self.active_index;
+            let text_color = if is_active {
+                colors[i]
+            } else {
+                Color32::from_gray(140)
+            };
+            let label = if is_active {
+                format!("[{}]", names[i])
+            } else {
+                names[i].to_string()
+            };
+            let text_pos = Pos2::new(x_offset, rect.top() + 6.0);
+            let galley = painter.layout_no_wrap(label, FontId::proportional(11.0), text_color);
+            x_offset += galley.size().x + 12.0;
+            painter.galley(text_pos, galley, text_color);
+        }
+    }
+
+    /// Renders the 3x ADSR envelope plotter in UI.
+    pub fn show(&mut self, ui: &mut Ui, size: Vec2, colors: [Color32; 3]) -> Response {
+        let (rect, response) = ui.allocate_exact_size(size, Sense::click());
+        if response.clicked() {
+            self.active_index = (self.active_index + 1) % 3;
+        }
+        if ui.is_rect_visible(rect) {
+            self.paint(ui.painter(), rect, colors, Color32::from_gray(18));
+        }
+        response
+    }
+}
+
+/// Standalone widget helper for 3x ADSR envelope plotter.
+pub fn adsr_envelope_plotter_widget(
+    ui: &mut Ui,
+    model: &mut AdsrEnvelopePlotterModel,
+    size: Vec2,
+    colors: [Color32; 3],
+) -> Response {
+    model.show(ui, size, colors)
+}
+
+/// Single row item in the Novation Peak 16-slot modulation matrix grid.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ModMatrixSlotItem {
+    pub slot_index: usize,
+    pub source_a: String,
+    pub source_b: String,
+    pub destination: String,
+    pub depth: f32,
+    pub active: bool,
+}
+
+impl ModMatrixSlotItem {
+    #[must_use]
+    pub fn new(slot_index: usize) -> Self {
+        Self {
+            slot_index,
+            source_a: "Off".to_string(),
+            source_b: "Direct".to_string(),
+            destination: "Off".to_string(),
+            depth: 0.0,
+            active: false,
+        }
+    }
+}
+
+/// Headless model and vector table/grid painter for Novation Peak 16-Slot Mod Matrix.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ModMatrixGridModel {
+    pub slots: Vec<ModMatrixSlotItem>,
+    pub selected_slot: Option<usize>,
+}
+
+impl Default for ModMatrixGridModel {
+    fn default() -> Self {
+        Self::new_empty()
+    }
+}
+
+impl ModMatrixGridModel {
+    /// Creates a 16-slot modulation matrix model initialized with empty slots.
+    #[must_use]
+    pub fn new_empty() -> Self {
+        let slots = (0..16).map(ModMatrixSlotItem::new).collect();
+        Self {
+            slots,
+            selected_slot: None,
+        }
+    }
+
+    /// Sets slot values fluently.
+    #[must_use]
+    pub fn with_slot(
+        mut self,
+        idx: usize,
+        src_a: impl Into<String>,
+        src_b: impl Into<String>,
+        dst: impl Into<String>,
+        depth: f32,
+    ) -> Self {
+        if idx < self.slots.len() {
+            self.slots[idx].source_a = src_a.into();
+            self.slots[idx].source_b = src_b.into();
+            self.slots[idx].destination = dst.into();
+            self.slots[idx].depth = depth.clamp(-64.0, 63.0);
+            self.slots[idx].active =
+                self.slots[idx].destination != "Off" && self.slots[idx].depth.abs() > 0.001;
+        }
+        self
+    }
+
+    /// Sets slot values in-place.
+    pub fn set_slot(
+        &mut self,
+        idx: usize,
+        src_a: impl Into<String>,
+        src_b: impl Into<String>,
+        dst: impl Into<String>,
+        depth: f32,
+    ) {
+        if idx < self.slots.len() {
+            self.slots[idx].source_a = src_a.into();
+            self.slots[idx].source_b = src_b.into();
+            self.slots[idx].destination = dst.into();
+            self.slots[idx].depth = depth.clamp(-64.0, 63.0);
+            self.slots[idx].active =
+                self.slots[idx].destination != "Off" && self.slots[idx].depth.abs() > 0.001;
+        }
+    }
+
+    #[must_use]
+    pub fn slot(&self, idx: usize) -> Option<&ModMatrixSlotItem> {
+        self.slots.get(idx)
+    }
+
+    pub fn slot_mut(&mut self, idx: usize) -> Option<&mut ModMatrixSlotItem> {
+        self.slots.get_mut(idx)
+    }
+
+    pub fn select_slot(&mut self, idx: Option<usize>) {
+        self.selected_slot = idx.map(|i| i.min(15));
+    }
+
+    /// Paints the 16-slot modulation matrix into painter.
+    pub fn paint(
+        &self,
+        painter: &Painter,
+        rect: Rect,
+        accent_color: Color32,
+        bg_color: Color32,
+    ) {
+        painter.rect_filled(rect, Rounding::ZERO, bg_color);
+        painter.rect_stroke(rect, Rounding::ZERO, Stroke::new(1.0, Color32::from_gray(60)));
+
+        let header_h = 24.0;
+        let row_h = (rect.height() - header_h) / 16.0;
+
+        let header_rect = Rect::from_min_size(rect.min, Vec2::new(rect.width(), header_h));
+        painter.rect_filled(header_rect, Rounding::ZERO, Color32::from_gray(28));
+        painter.line_segment(
+            [
+                Pos2::new(rect.left(), rect.top() + header_h),
+                Pos2::new(rect.right(), rect.top() + header_h),
+            ],
+            Stroke::new(1.0, Color32::from_gray(70)),
+        );
+
+        let col_widths = [
+            rect.width() * 0.08,
+            rect.width() * 0.24,
+            rect.width() * 0.24,
+            rect.width() * 0.28,
+            rect.width() * 0.16,
+        ];
+
+        let col_titles = ["Slot", "Source A", "Source B", "Destination", "Depth"];
+        let mut x_cur = rect.left();
+        for (i, title) in col_titles.iter().enumerate() {
+            painter.text(
+                Pos2::new(x_cur + 6.0, rect.top() + 5.0),
+                Align2::LEFT_TOP,
+                *title,
+                FontId::proportional(11.0),
+                Color32::from_gray(180),
+            );
+            x_cur += col_widths[i];
+        }
+
+        for i in 0..16 {
+            let row_y = rect.top() + header_h + i as f32 * row_h;
+            let row_rect = Rect::from_min_size(
+                Pos2::new(rect.left(), row_y),
+                Vec2::new(rect.width(), row_h),
+            );
+            let is_selected = self.selected_slot == Some(i);
+
+            if is_selected {
+                painter.rect_filled(
+                    row_rect,
+                    Rounding::ZERO,
+                    Color32::from_rgba_premultiplied(
+                        accent_color.r() / 4,
+                        accent_color.g() / 4,
+                        accent_color.b() / 4,
+                        60,
+                    ),
+                );
+            } else if i % 2 == 1 {
+                painter.rect_filled(row_rect, Rounding::ZERO, Color32::from_gray(22));
+            }
+
+            let slot = &self.slots[i];
+            let text_color = if slot.active {
+                Color32::from_gray(230)
+            } else {
+                Color32::from_gray(110)
+            };
+
+            let mut x_col = rect.left();
+            painter.text(
+                Pos2::new(x_col + 6.0, row_y + 3.0),
+                Align2::LEFT_TOP,
+                format!("{:02}", i + 1),
+                FontId::monospace(10.0),
+                if is_selected {
+                    accent_color
+                } else {
+                    Color32::from_gray(140)
+                },
+            );
+            x_col += col_widths[0];
+
+            painter.text(
+                Pos2::new(x_col + 6.0, row_y + 3.0),
+                Align2::LEFT_TOP,
+                &slot.source_a,
+                FontId::proportional(10.0),
+                text_color,
+            );
+            x_col += col_widths[1];
+
+            painter.text(
+                Pos2::new(x_col + 6.0, row_y + 3.0),
+                Align2::LEFT_TOP,
+                &slot.source_b,
+                FontId::proportional(10.0),
+                text_color,
+            );
+            x_col += col_widths[2];
+
+            painter.text(
+                Pos2::new(x_col + 6.0, row_y + 3.0),
+                Align2::LEFT_TOP,
+                &slot.destination,
+                FontId::proportional(10.0),
+                text_color,
+            );
+            x_col += col_widths[3];
+
+            let depth_str = format!("{:+03.0}", slot.depth);
+            let depth_color = if slot.depth > 0.0 {
+                accent_color
+            } else if slot.depth < 0.0 {
+                Color32::from_rgb(255, 120, 50)
+            } else {
+                Color32::from_gray(100)
+            };
+
+            painter.text(
+                Pos2::new(x_col + 4.0, row_y + 3.0),
+                Align2::LEFT_TOP,
+                depth_str,
+                FontId::monospace(10.0),
+                depth_color,
+            );
+
+            let bar_left = x_col + 40.0;
+            let bar_w = (col_widths[4] - 46.0).max(10.0);
+            let bar_mid = bar_left + bar_w * 0.5;
+            let bar_y = row_y + row_h * 0.5 - 2.0;
+
+            painter.line_segment(
+                [
+                    Pos2::new(bar_left, bar_y + 2.0),
+                    Pos2::new(bar_left + bar_w, bar_y + 2.0),
+                ],
+                Stroke::new(1.0, Color32::from_gray(50)),
+            );
+            if slot.depth.abs() > 0.1 {
+                let norm_depth = (slot.depth / 64.0).clamp(-1.0, 1.0);
+                let x_target = bar_mid + norm_depth * (bar_w * 0.5);
+                painter.line_segment(
+                    [
+                        Pos2::new(bar_mid, bar_y + 2.0),
+                        Pos2::new(x_target, bar_y + 2.0),
+                    ],
+                    Stroke::new(3.0, depth_color),
+                );
+            }
+        }
+    }
+
+    /// Renders the 16-slot modulation matrix in UI.
+    pub fn show(&mut self, ui: &mut Ui, size: Vec2, accent_color: Color32) -> Response {
+        let (rect, response) = ui.allocate_exact_size(size, Sense::click());
+        if response.clicked() {
+            if let Some(pos) = response.interact_pointer_pos() {
+                let header_h = 24.0;
+                let rel_y = pos.y - rect.top() - header_h;
+                if rel_y >= 0.0 {
+                    let row_h = (rect.height() - header_h) / 16.0;
+                    let clicked_slot = (rel_y / row_h).floor() as usize;
+                    if clicked_slot < 16 {
+                        self.selected_slot = Some(clicked_slot);
+                    }
+                }
+            }
+        }
+        if ui.is_rect_visible(rect) {
+            self.paint(ui.painter(), rect, accent_color, Color32::from_gray(16));
+        }
+        response
+    }
+}
+
+/// Standalone widget helper for 16-slot mod matrix grid.
+pub fn mod_matrix_grid_widget(
+    ui: &mut Ui,
+    model: &mut ModMatrixGridModel,
+    size: Vec2,
+    accent_color: Color32,
+) -> Response {
+    model.show(ui, size, accent_color)
+}
+
+/// Headless model and tactile vector painter for Novation Peak Animate 1 and 2 buttons/pads.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct AnimatePadsModel {
+    pub animate1_active: bool,
+    pub animate1_hold: bool,
+    pub animate2_active: bool,
+    pub animate2_hold: bool,
+}
+
+impl AnimatePadsModel {
+    /// Creates a new Animate pads model.
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn trigger_animate1(&mut self) {
+        self.animate1_active = true;
+    }
+
+    pub fn release_animate1(&mut self) {
+        if !self.animate1_hold {
+            self.animate1_active = false;
+        }
+    }
+
+    pub fn toggle_hold1(&mut self) {
+        self.animate1_hold = !self.animate1_hold;
+        if self.animate1_hold {
+            self.animate1_active = true;
+        } else {
+            self.animate1_active = false;
+        }
+    }
+
+    pub fn trigger_animate2(&mut self) {
+        self.animate2_active = true;
+    }
+
+    pub fn release_animate2(&mut self) {
+        if !self.animate2_hold {
+            self.animate2_active = false;
+        }
+    }
+
+    pub fn toggle_hold2(&mut self) {
+        self.animate2_hold = !self.animate2_hold;
+        if self.animate2_hold {
+            self.animate2_active = true;
+        } else {
+            self.animate2_active = false;
+        }
+    }
+
+    /// Computes layout rectangles: (pad_1, hold_1, pad_2, hold_2).
+    #[must_use]
+    pub fn compute_pad_rects(&self, total_rect: Rect) -> (Rect, Rect, Rect, Rect) {
+        let gap = 12.0;
+        let half_w = (total_rect.width() - gap) * 0.5;
+        let pad_h = total_rect.height() * 0.70;
+        let hold_h = total_rect.height() - pad_h - 4.0;
+
+        let col1_x = total_rect.left();
+        let col2_x = total_rect.left() + half_w + gap;
+
+        let pad1 = Rect::from_min_size(
+            Pos2::new(col1_x, total_rect.top()),
+            Vec2::new(half_w, pad_h),
+        );
+        let hold1 = Rect::from_min_size(
+            Pos2::new(col1_x, total_rect.top() + pad_h + 4.0),
+            Vec2::new(half_w, hold_h),
+        );
+
+        let pad2 = Rect::from_min_size(
+            Pos2::new(col2_x, total_rect.top()),
+            Vec2::new(half_w, pad_h),
+        );
+        let hold2 = Rect::from_min_size(
+            Pos2::new(col2_x, total_rect.top() + pad_h + 4.0),
+            Vec2::new(half_w, hold_h),
+        );
+
+        (pad1, hold1, pad2, hold2)
+    }
+
+    /// Paints the tactile Animate pads into painter.
+    pub fn paint(&self, painter: &Painter, total_rect: Rect, accent_color: Color32) {
+        let (pad1, hold1, pad2, hold2) = self.compute_pad_rects(total_rect);
+
+        let draw_pad = |rect: Rect, label: &str, active: bool, hold: bool| {
+            let bg = if active {
+                accent_color
+            } else {
+                Color32::from_gray(32)
+            };
+            let border_color = if active {
+                Color32::WHITE
+            } else if hold {
+                accent_color
+            } else {
+                Color32::from_gray(80)
+            };
+            let text_color = if active {
+                Color32::BLACK
+            } else {
+                Color32::WHITE
+            };
+
+            painter.rect_filled(rect, Rounding::ZERO, bg);
+            painter.rect_stroke(
+                rect,
+                Rounding::ZERO,
+                Stroke::new(if active { 2.5 } else { 1.5 }, border_color),
+            );
+
+            let center = rect.center();
+            painter.text(
+                center,
+                Align2::CENTER_CENTER,
+                label,
+                FontId::proportional(14.0),
+                text_color,
+            );
+        };
+
+        let draw_hold = |rect: Rect, hold: bool| {
+            let bg = if hold {
+                Color32::from_rgb(200, 140, 20)
+            } else {
+                Color32::from_gray(24)
+            };
+            let text_color = if hold {
+                Color32::BLACK
+            } else {
+                Color32::from_gray(160)
+            };
+
+            painter.rect_filled(rect, Rounding::ZERO, bg);
+            painter.rect_stroke(rect, Rounding::ZERO, Stroke::new(1.0, Color32::from_gray(70)));
+            painter.text(
+                rect.center(),
+                Align2::CENTER_CENTER,
+                if hold { "HOLD [ON]" } else { "HOLD" },
+                FontId::proportional(11.0),
+                text_color,
+            );
+        };
+
+        draw_pad(pad1, "ANIMATE 1", self.animate1_active, self.animate1_hold);
+        draw_hold(hold1, self.animate1_hold);
+
+        draw_pad(pad2, "ANIMATE 2", self.animate2_active, self.animate2_hold);
+        draw_hold(hold2, self.animate2_hold);
+    }
+
+    /// Renders the Animate pads in UI.
+    pub fn show(&mut self, ui: &mut Ui, size: Vec2, accent_color: Color32) -> Response {
+        let (total_rect, response) = ui.allocate_exact_size(size, Sense::click_and_drag());
+        let (pad1, hold1, pad2, hold2) = self.compute_pad_rects(total_rect);
+
+        if let Some(pos) = response.interact_pointer_pos() {
+            if response.clicked() || response.drag_started() {
+                if pad1.contains(pos) {
+                    if self.animate1_hold {
+                        self.toggle_hold1();
+                    } else {
+                        self.trigger_animate1();
+                    }
+                } else if hold1.contains(pos) {
+                    self.toggle_hold1();
+                } else if pad2.contains(pos) {
+                    if self.animate2_hold {
+                        self.toggle_hold2();
+                    } else {
+                        self.trigger_animate2();
+                    }
+                } else if hold2.contains(pos) {
+                    self.toggle_hold2();
+                }
+            } else if response.drag_stopped() {
+                if !self.animate1_hold {
+                    self.release_animate1();
+                }
+                if !self.animate2_hold {
+                    self.release_animate2();
+                }
+            }
+        }
+
+        if ui.is_rect_visible(total_rect) {
+            self.paint(ui.painter(), total_rect, accent_color);
+        }
+
+        response
+    }
+}
+
+/// Standalone widget helper for Animate 1/2 performance pads.
+pub fn animate_pads_widget(
+    ui: &mut Ui,
+    model: &mut AnimatePadsModel,
+    size: Vec2,
+    accent_color: Color32,
+) -> Response {
+    model.show(ui, size, accent_color)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2605,5 +3683,122 @@ mod tests {
         assert!(!badges[0].is_muted);
         badges[0].toggle_mute();
         assert!(badges[0].is_muted);
+    }
+
+    #[test]
+    fn wavetable_interpolator_evaluation_and_curves() {
+        let wt = WavetableInterpolatorModel::new(0.0, 3);
+        assert_eq!(wt.wavetable_index, 3);
+        assert_eq!(wt.position, 0.0);
+
+        // At position 0.0, wave matches sine wave (base wave 0)
+        let s0 = wt.evaluate_interpolated(0.25);
+        assert!((s0 - 1.0).abs() < 1e-3);
+
+        // Interpolate to 1.0 (complex wave)
+        let wt1 = wt.with_position(1.0);
+        assert_eq!(wt1.position, 1.0);
+
+        let rect = Rect::from_min_size(Pos2::new(0.0, 0.0), Vec2::new(200.0, 100.0));
+        let curve = wt1.generate_curve_points(rect);
+        assert_eq!(curve.len(), 65);
+        assert_eq!(curve[0].x, 0.0);
+        assert_eq!(curve[64].x, 200.0);
+
+        let ghosts = wt1.generate_ghost_waves(rect);
+        assert_eq!(ghosts.len(), 5);
+    }
+
+    #[test]
+    fn svf_filter_response_magnitude_and_modes() {
+        let svf_lp = SvfFilterResponseModel::new(1000.0, 0.5, SvfFilterMode::LowPass24);
+        assert_eq!(svf_lp.cutoff_hz, 1000.0);
+
+        // Low frequency magnitude is close to 0 dB
+        let db_low = svf_lp.magnitude_db_at(100.0);
+        assert!(db_low.abs() < 3.0);
+
+        // High frequency is strongly attenuated in 24dB LP
+        let db_high = svf_lp.magnitude_db_at(10000.0);
+        assert!(db_high < -30.0);
+
+        // Test HP mode
+        let svf_hp = SvfFilterResponseModel::new(1000.0, 0.2, SvfFilterMode::HighPass);
+        assert!(svf_hp.magnitude_db_at(100.0) < -20.0);
+        assert!(svf_hp.magnitude_db_at(10000.0).abs() < 3.0);
+
+        // Pre/post drive increases gain
+        let svf_driven = svf_lp.with_drive(0.8, 0.5);
+        assert!(svf_driven.magnitude_db_at(100.0) > db_low);
+
+        let rect = Rect::from_min_size(Pos2::new(0.0, 0.0), Vec2::new(300.0, 150.0));
+        let pts = svf_driven.generate_curve_points(rect, 20.0, 20000.0, 60);
+        assert_eq!(pts.len(), 61);
+    }
+
+    #[test]
+    fn adsr_envelope_plotter_active_selection_and_points() {
+        let mut plotter = AdsrEnvelopePlotterModel::default();
+        assert_eq!(plotter.active_index, 0);
+
+        plotter.set_active(1);
+        assert_eq!(plotter.active_index, 1);
+        assert_eq!(plotter.active_env().decay, 0.40);
+
+        let rect = Rect::from_min_size(Pos2::new(0.0, 0.0), Vec2::new(240.0, 120.0));
+        let pts = plotter.generate_envelope_points(0, rect, 32);
+        assert_eq!(pts.len(), 33);
+        assert_eq!(pts[0].x, 0.0);
+        assert_eq!(pts[32].x, 240.0);
+    }
+
+    #[test]
+    fn mod_matrix_grid_slot_mutation_and_selection() {
+        let mut grid = ModMatrixGridModel::new_empty();
+        assert_eq!(grid.slots.len(), 16);
+        assert_eq!(grid.selected_slot, None);
+
+        grid.set_slot(0, "Lfo1", "Direct", "FilterCutoff", 45.0);
+        assert!(grid.slots[0].active);
+        assert_eq!(grid.slots[0].source_a, "Lfo1");
+        assert_eq!(grid.slots[0].destination, "FilterCutoff");
+        assert_eq!(grid.slots[0].depth, 45.0);
+
+        grid.select_slot(Some(0));
+        assert_eq!(grid.selected_slot, Some(0));
+    }
+
+    #[test]
+    fn animate_pads_trigger_hold_and_layout() {
+        let mut pads = AnimatePadsModel::new();
+        assert!(!pads.animate1_active);
+        assert!(!pads.animate1_hold);
+
+        // Momentary trigger
+        pads.trigger_animate1();
+        assert!(pads.animate1_active);
+        pads.release_animate1();
+        assert!(!pads.animate1_active);
+
+        // Latching Hold
+        pads.toggle_hold1();
+        assert!(pads.animate1_hold);
+        assert!(pads.animate1_active);
+        pads.release_animate1(); // release does nothing while hold is on
+        assert!(pads.animate1_active);
+
+        // Hold toggle off
+        pads.toggle_hold1();
+        assert!(!pads.animate1_hold);
+        assert!(!pads.animate1_active);
+
+        // Rect layout geometry
+        let total = Rect::from_min_size(Pos2::new(0.0, 0.0), Vec2::new(200.0, 100.0));
+        let (p1, h1, p2, h2) = pads.compute_pad_rects(total);
+        assert!(total.contains_rect(p1));
+        assert!(total.contains_rect(h1));
+        assert!(total.contains_rect(p2));
+        assert!(total.contains_rect(h2));
+        assert!(!p1.intersects(p2));
     }
 }

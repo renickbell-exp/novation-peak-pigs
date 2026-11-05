@@ -49,11 +49,16 @@
           "summary": "Epoch 4 of 8: 3x ADSR Envelopes, Dual Tempo-Synced LFOs, 16-Slot Mod Matrix + 4-Slot FX Matrix, Animate 1/2 Macros, Arpeggiator & Master FX Chain (Target: src/peak_mod_fx.rs; Related: src/lib.rs, src/peak_synth.rs). Implement the complete Novation Peak modulation and effects engine in src/peak_mod_fx.rs and wire into src/lib.rs: 3 ADSR envelopes (Amp CC86-89, Mod 1 CC90-93, Mod 2 CC94/95/117/103 with deterministic ADSR curve generator), 2 LFOs (Rate CC30/31, Sync Rate CC81/84, Fade CC82/85, Range CC83, LFO->Pitch/Shape/Filter depths), 16-slot dual-source Modulation Matrix (Source A x Source B -> Destination with bipolar depth -64..+63) + 4-slot FX Mod Matrix, Animate 1 & 2 performance macro buttons (CC114/CC115) with live parameter offset preview, Arpeggiator gate/clock (CC116) & Glide (CC5/CC35), and Master FX chain (Analogue Distortion CC104, 3-mode Chorus CC105/107/118, Sync Delay CC108/109/110, 3-type Reverb CC112/113) with unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-004.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
           "passed": true,
           "timestamp": "2026-11-05T19:59:13.904Z"
+        },
+        {
+          "summary": "Epoch 6 of 8: Two-Bowls / YAAE Native egui Desktop GUI (NovationPeakApp) — Oscillators/Wavetable, SVF Filter, Envelopes/LFOs/16-Slot Mod Matrix, FX/Animate Bar & Headless Geometry Auditor (Target: src/app.rs; Related: src/gui.rs, crates/synth-ui-theme). Extend crates/synth-ui-theme with NovationPeakOxfordBlue / NovationPeakAmber accent tokens and custom vector widgets (5-wave wavetable interpolator display, SVF LP/BP/HP filter & drive response curve, 3x ADSR envelope plotter, 16-slot mod matrix grid, and Animate 1/2 performance pads). Build the complete eframe::App desktop GUI in src/app.rs and src/gui.rs embedding synth_core::CommandHistory directly for global Undo/Redo (Ctrl+Z/Ctrl+Y), top hardware status bar (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0, explicit Live MIDI Arm toggle defaulting to safe virtual loopback, Panic button), Librarian/A-B Diff/Randomizer modals, single-key shortcut gating when text inputs are focused, and a headless egui::Context::run layout geometry auditor verifying zero overlapping rects at 1280x800 and 1920x1080. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-006.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+          "passed": true,
+          "timestamp": "2026-11-05T20:22:59.395Z"
         }
       ],
       "stats": {
-        "attempted": 2,
-        "passed": 2
+        "attempted": 3,
+        "passed": 3
       }
     },
     "branch:tui-interaction": {

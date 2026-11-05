@@ -28,6 +28,7 @@ synth-core = { path = "crates/synth-core" }
 synth-midi-osc = { path = "crates/synth-midi-osc" }
 synth-ui-theme = { path = "crates/synth-ui-theme" }
 egui = "0.29"
+eframe = "0.29"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 chrono = { version = "0.4", features = ["serde"] }
