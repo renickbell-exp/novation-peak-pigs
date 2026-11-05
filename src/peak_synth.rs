@@ -1543,6 +1543,38 @@ pub fn create_default_peak_patch() -> SynthPatch {
     patch.set_param("mod_envelope_1_sustain", 0.0);
     patch.set_param("mod_envelope_1_release", 32.0);
 
+    patch.set_param("mod_envelope_2_attack", 0.0);
+    patch.set_param("mod_envelope_2_decay", 64.0);
+    patch.set_param("mod_envelope_2_sustain", 0.0);
+    patch.set_param("mod_envelope_2_release", 32.0);
+
+    // LFOs
+    patch.set_param("lfo_1_rate", 64.0);
+    patch.set_param("lfo_1_sync_rate", 0.0);
+    patch.set_param("lfo_1_fade", 0.0);
+    patch.set_param("lfo_2_rate", 64.0);
+    patch.set_param("lfo_2_sync_rate", 0.0);
+    patch.set_param("lfo_2_fade", 0.0);
+    patch.set_param("lfo_2_range", 0.0);
+
+    // Master FX Chain
+    patch.set_param("distortion_level", 0.0);
+    patch.set_param("chorus_level", 0.0);
+    patch.set_param("chorus_feedback", 0.0);
+    patch.set_param("chorus_rate", 64.0);
+    patch.set_param("delay_level", 0.0);
+    patch.set_param("delay_time", 64.0);
+    patch.set_param("delay_feedback", 0.0);
+    patch.set_param("reverb_level", 0.0);
+    patch.set_param("reverb_time", 64.0);
+
+    // Performance & Arp / Glide
+    patch.set_param("animate_1_hold", 0.0);
+    patch.set_param("animate_2_hold", 0.0);
+    patch.set_param("arp_clock_gate", 64.0);
+    patch.set_param("glide_time", 0.0);
+    patch.set_param("glide_on", 0.0);
+
     patch
 }
 

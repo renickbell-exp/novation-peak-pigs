@@ -7,6 +7,7 @@ pub use synth_core::profiles::{NovationPeakProfile, UnifiedEcosystemSchemaBundle
 
 pub mod hardware_verify;
 pub mod midi;
+pub mod peak_mod_fx;
 pub mod peak_synth;
 
 pub use hardware_verify::{
@@ -14,6 +15,7 @@ pub use hardware_verify::{
     verify_system_hardware, HardwareVerificationReport, VerifiedHardwareDevice,
 };
 pub use midi::PeakMidiService;
+pub use peak_mod_fx::*;
 pub use peak_synth::*;
 
 /// Returns the canonical synthesizer identifier for this application.
@@ -87,5 +89,74 @@ mod tests {
         assert_eq!(engine.active_voice_count(), 1);
         let sample = engine.render_sample();
         assert!(sample >= -1.0 && sample <= 1.0);
+    }
+
+    #[test]
+    fn test_peak_mod_fx_engine_root_exports() {
+        // 1. Test ADSR curve generation
+        let curve = generate_adsr_curve(5.0, 64.0, 127.0, 32.0, 32);
+        assert_eq!(curve.len(), 32);
+
+        // 2. Test LFO processing
+        let mut lfo = LfoProcessor::new(LfoWaveform::Triangle, 48000.0);
+        let lfo_val = lfo.step(0.001, 120.0);
+        assert!(lfo_val >= -1.0 && lfo_val <= 1.0);
+
+        // 3. Test 16-Slot Mod Matrix & 4-Slot FX Matrix
+        let mut mod_matrix = ModMatrix::new();
+        mod_matrix.slots[0] = ModMatrixSlot {
+            source_a: ModSource::Animate1,
+            source_b: ModSource::Direct,
+            destination: ModDestination::FilterCutoff,
+            depth: 64.0,
+        };
+        let mut fx_matrix = FxModMatrix::default();
+        fx_matrix.slots[0] = FxModMatrixSlot {
+            source: ModSource::Animate2,
+            destination: FxModDestination::ReverbLevel,
+            depth: 32.0,
+        };
+
+        let patch = create_default_peak_patch();
+        let (param_previews, fx_previews) = calculate_animate_offsets(
+            &mod_matrix,
+            &fx_matrix,
+            &patch,
+            true,
+            true,
+        );
+        assert_eq!(param_previews.len(), 1);
+        assert_eq!(param_previews[0].destination, ModDestination::FilterCutoff);
+        assert_eq!(fx_previews.len(), 1);
+
+        // 4. Test Arpeggiator and Glide
+        let mut arp = ArpEngine::default();
+        arp.enabled = true;
+        arp.note_on(60);
+        let mut got_arp_event = false;
+        for _ in 0..20 {
+            if arp.step(0.01, 120.0).is_some() {
+                got_arp_event = true;
+                break;
+            }
+        }
+        assert!(got_arp_event, "Arpeggiator should emit note event within sequence");
+
+        let mut glide = GlideProcessor::default();
+        glide.enabled = true;
+        glide.glide_time_cc = 50.0;
+        glide.current_semitone = 60.0;
+        glide.set_target_note(72);
+        assert!(glide.step(0.02) > 60.0);
+
+        // 5. Test Master FX Chain
+        let mut fx = MasterFxChain::new(48000.0);
+        fx.distortion.level_cc = 50.0;
+        fx.chorus.level_cc = 60.0;
+        fx.delay.level_cc = 40.0;
+        fx.reverb.level_cc = 70.0;
+        let (l, r) = fx.process(0.4, 0.4);
+        assert!(l >= -1.2 && l <= 1.2);
+        assert!(r >= -1.2 && r <= 1.2);
     }
 }
