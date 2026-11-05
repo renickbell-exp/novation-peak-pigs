@@ -2,7 +2,7 @@
   "meta": {
     "projectId": "novation-peak-manager",
     "version": "0.1.0",
-    "epoch": 3,
+    "epoch": 4,
     "runtimeEnvironment": {
       "platform": "linux",
       "target": "rust-and-node",
@@ -709,25 +709,29 @@
         "path": "src/lib.rs",
         "purpose": "Novation Peak 8-Voice Hybrid Synthesizer Manager, Librarian & Konduktiva Companion. Returns the canonical synthesizer identifier for this application.",
         "responsibilities": [
-          "Exports hardware_verify, midi, synth_id in src/lib.rs"
+          "Exports hardware_verify, midi, peak_synth, synth_id in src/lib.rs"
         ],
         "exposedInterfaces": [
           "hardware_verify",
           "midi",
+          "peak_synth",
           "synth_id"
         ],
         "dependencies": [
           "entity:novation-peak-pigs:hardware_verify",
-          "entity:novation-peak-pigs:midi"
+          "entity:novation-peak-pigs:midi",
+          "entity:novation-peak-pigs:peak_synth"
         ],
         "blackboxConstraints": {},
         "structuralOutline": [
           "L8: pub mod hardware_verify;",
           "L9: pub mod midi;",
-          "L18: pub fn synth_id() -> &'static str {",
-          "L27: fn test_synth_id_baseline() {",
-          "L32: fn test_novation_peak_profile_root_integration() {",
-          "L43: fn test_hardware_verify_and_midi_service_exported() {"
+          "L10: pub mod peak_synth;",
+          "L20: pub fn synth_id() -> &'static str {",
+          "L29: fn test_synth_id_baseline() {",
+          "L34: fn test_novation_peak_profile_root_integration() {",
+          "L45: fn test_hardware_verify_and_midi_service_exported() {",
+          "L63: fn test_peak_synth_domain_engine_root_exports() {"
         ]
       },
       "entity:novation-peak-pigs:main": {
@@ -931,6 +935,52 @@
           "L209: fn test_peak_nrpn_and_bank_program_change() {",
           "L244: fn test_peak_sysex_patch_dump_roundtrip() {"
         ]
+      },
+      "entity:novation-peak-pigs:peak_synth": {
+        "id": "entity:novation-peak-pigs:peak_synth",
+        "type": "MODULE",
+        "path": "src/peak_synth.rs",
+        "purpose": "Novation Peak 8-Voice FPGA NCO Oscillator, 17-Wavetable, Ring/Noise Mixer and Analogue State-Variable Filter Domain Engine. Directly backed by `synth_core::SynthPatch` and `synth_core::CommandHistory` without wrapper structs or duplicate undo stacks.",
+        "responsibilities": [
+          "Exports cc_to_param_key, param_key_to_cc, range_to_octave_shift, HarmonicSpectrum, spectral_centroid, total_energy in src/peak_synth.rs"
+        ],
+        "exposedInterfaces": [
+          "cc_to_param_key",
+          "param_key_to_cc",
+          "range_to_octave_shift",
+          "HarmonicSpectrum",
+          "spectral_centroid",
+          "total_energy"
+        ],
+        "dependencies": [],
+        "blackboxConstraints": {},
+        "structuralOutline": [
+          "L37: pub fn cc_to_param_key(cc: u8) -> Option<&'static str> {",
+          "L118: pub fn param_key_to_cc(key: &str) -> Option<u8> {",
+          "L200: pub fn range_to_octave_shift(range_val: f64) -> i32 {",
+          "L215: pub struct HarmonicSpectrum {",
+          "L224: impl HarmonicSpectrum {",
+          "L226: pub fn spectral_centroid(&self) -> f64 {",
+          "L241: pub fn total_energy(&self) -> f64 {",
+          "L246: pub fn peak_harmonic(&self) -> (usize, f64) {",
+          "L261: pub fn wavetable_wave_harmonics(table_idx: usize, wave_idx: usize) -> [f64; PEAK_HARMONIC_COUNT] {",
+          "L507: pub fn calculate_harmonic_spectrum(table_idx: usize, shape: f64) -> HarmonicSpectrum {",
+          "L531: pub fn calculate_wavetable_slice(table_idx: usize, shape: f64, num_samples: usize) -> Vec<f32> {",
+          "L569: pub fn apply_vsync(master_phase: f64, vsync: f64) -> f64 {",
+          "L580: pub struct VoiceDivergence {",
+          "L594: pub fn calculate_voice_divergence(voice_idx: usize, drift_depth: f64) -> VoiceDivergence {",
+          "L628: pub struct OscVoiceState {",
+          "L633: impl Default for OscVoiceState {",
+          "L634: fn default() -> Self {",
+          "L644: pub fn mix_signals(",
+          "L681: pub enum FilterMode {",
+          "L690: impl FilterMode {",
+          "L692: pub fn from_f64(val: f64) -> Self {",
+          "L704: pub enum FilterSlope {",
+          "L711: impl FilterSlope {",
+          "L713: pub fn from_f64(val: f64) -> Self {",
+          "L723: pub fn cutoff_cc_to_hz(cc_val: f64) -> f64 {"
+        ]
       }
     },
     "relations": [
@@ -1033,6 +1083,12 @@
       {
         "from": "entity:novation-peak-pigs:lib",
         "to": "entity:novation-peak-pigs:midi",
+        "relationType": "DEPENDS_ON",
+        "contract": "Internal module dependency"
+      },
+      {
+        "from": "entity:novation-peak-pigs:lib",
+        "to": "entity:novation-peak-pigs:peak_synth",
         "relationType": "DEPENDS_ON",
         "contract": "Internal module dependency"
       }
@@ -1182,17 +1238,17 @@
       },
       {
         "id": "change-tx-tx-2026-11-05T19",
-        "title": "Epoch 1 of 8: 5-Synth Ecosystem Profile (NovationPeakProfile) & Shared Rust/JS SDK Registration (Target: crates/synth-core; Related: js/shared-synth-sdk, js/konduktiva-peak). Extend crates/synth-core (src/profiles.rs and src/lib.rs) and js/shared-synth-sdk with NovationPeakProfile covering all 74 CCs from js/konduktiva-peak/midi-cc-map.json, +32 bipolar dual-CC pairs, 14-bit NRPN descriptors, 3 FPGA NCO oscillators (17 wavetables), mixer/ring-mod/noise, state-variable LP/BP/HP filter with pre/post drive, 3 ADSR envelopes, 2 tempo-synced LFOs, 16-slot mod matrix, Animate 1 & 2 holds, arpeggiator gate, and analogue distortion + chorus/delay/reverb FX. Register Novation Peak as the 5th synth in UnifiedEcosystemSchemaBundle alongside nkEditor, Hydrasynth, BS2/TD-3, and Nord Drum 2, and add comprehensive unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-001.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
-        "description": "Epoch 1 of 8: 5-Synth Ecosystem Profile (NovationPeakProfile) & Shared Rust/JS SDK Registration (Target: crates/synth-core; Related: js/shared-synth-sdk, js/konduktiva-peak). Extend crates/synth-core (src/profiles.rs and src/lib.rs) and js/shared-synth-sdk with NovationPeakProfile covering all 74 CCs from js/konduktiva-peak/midi-cc-map.json, +32 bipolar dual-CC pairs, 14-bit NRPN descriptors, 3 FPGA NCO oscillators (17 wavetables), mixer/ring-mod/noise, state-variable LP/BP/HP filter with pre/post drive, 3 ADSR envelopes, 2 tempo-synced LFOs, 16-slot mod matrix, Animate 1 & 2 holds, arpeggiator gate, and analogue distortion + chorus/delay/reverb FX. Register Novation Peak as the 5th synth in UnifiedEcosystemSchemaBundle alongside nkEditor, Hydrasynth, BS2/TD-3, and Nord Drum 2, and add comprehensive unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-001.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
-        "prompt": "Epoch 1 of 8: 5-Synth Ecosystem Profile (NovationPeakProfile) & Shared Rust/JS SDK Registration (Target: crates/synth-core; Related: js/shared-synth-sdk, js/konduktiva-peak). Extend crates/synth-core (src/profiles.rs and src/lib.rs) and js/shared-synth-sdk with NovationPeakProfile covering all 74 CCs from js/konduktiva-peak/midi-cc-map.json, +32 bipolar dual-CC pairs, 14-bit NRPN descriptors, 3 FPGA NCO oscillators (17 wavetables), mixer/ring-mod/noise, state-variable LP/BP/HP filter with pre/post drive, 3 ADSR envelopes, 2 tempo-synced LFOs, 16-slot mod matrix, Animate 1 & 2 holds, arpeggiator gate, and analogue distortion + chorus/delay/reverb FX. Register Novation Peak as the 5th synth in UnifiedEcosystemSchemaBundle alongside nkEditor, Hydrasynth, BS2/TD-3, and Nord Drum 2, and add comprehensive unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-001.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+        "title": "Epoch 2 of 8: Non-Invasive ALSA Hardware Discovery (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0), Safety Clamping, NRPN/Dual-CC Router & Bidirectional OSC Server (Target: crates/synth-midi-osc; Related: src/midi.rs, src/hardware_verify.rs). Implement read-only /proc/asound/cards and /proc/asound/seq/clients inspection in crates/synth-midi-osc and src/hardware_verify.rs detecting Focusrite A.E Peak (Peak MIDI 1, hw:3,0,0, client 28, USB ID 1235:007e), UMC1820 MIDI 1 (hw:0,0,0, client 16), and Korg nanoKONTROL2 (hw:2,0,0, client 24) with safe virtual loopback default (never sending unprompted MIDI bytes to hw:3,0,0 or hw:0,0,0 during tests). Implement Novation Peak MIDI Channel 1 router (7-bit CC, +32 bipolar dual-CC, 14-bit NRPN, Bank Select CC0/CC32 + Program Change, and Focusrite/Novation 00 20 29 SysEx patch dump codec), self-oscillation/overdrive safety clamp (safe_sweep_range on CCs 29, 36, 79, 80, 104, 110), and bidirectional UDP OSC server (/peak/osc/{1..3}/*, /peak/filter/*, /peak/env/*, /peak/lfo/*, /peak/fx/*, /peak/animate/{1,2}, /peak/panic) with unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-002.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+        "description": "Epoch 2 of 8: Non-Invasive ALSA Hardware Discovery (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0), Safety Clamping, NRPN/Dual-CC Router & Bidirectional OSC Server (Target: crates/synth-midi-osc; Related: src/midi.rs, src/hardware_verify.rs). Implement read-only /proc/asound/cards and /proc/asound/seq/clients inspection in crates/synth-midi-osc and src/hardware_verify.rs detecting Focusrite A.E Peak (Peak MIDI 1, hw:3,0,0, client 28, USB ID 1235:007e), UMC1820 MIDI 1 (hw:0,0,0, client 16), and Korg nanoKONTROL2 (hw:2,0,0, client 24) with safe virtual loopback default (never sending unprompted MIDI bytes to hw:3,0,0 or hw:0,0,0 during tests). Implement Novation Peak MIDI Channel 1 router (7-bit CC, +32 bipolar dual-CC, 14-bit NRPN, Bank Select CC0/CC32 + Program Change, and Focusrite/Novation 00 20 29 SysEx patch dump codec), self-oscillation/overdrive safety clamp (safe_sweep_range on CCs 29, 36, 79, 80, 104, 110), and bidirectional UDP OSC server (/peak/osc/{1..3}/*, /peak/filter/*, /peak/env/*, /peak/lfo/*, /peak/fx/*, /peak/animate/{1,2}, /peak/panic) with unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-002.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+        "prompt": "Epoch 2 of 8: Non-Invasive ALSA Hardware Discovery (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0), Safety Clamping, NRPN/Dual-CC Router & Bidirectional OSC Server (Target: crates/synth-midi-osc; Related: src/midi.rs, src/hardware_verify.rs). Implement read-only /proc/asound/cards and /proc/asound/seq/clients inspection in crates/synth-midi-osc and src/hardware_verify.rs detecting Focusrite A.E Peak (Peak MIDI 1, hw:3,0,0, client 28, USB ID 1235:007e), UMC1820 MIDI 1 (hw:0,0,0, client 16), and Korg nanoKONTROL2 (hw:2,0,0, client 24) with safe virtual loopback default (never sending unprompted MIDI bytes to hw:3,0,0 or hw:0,0,0 during tests). Implement Novation Peak MIDI Channel 1 router (7-bit CC, +32 bipolar dual-CC, 14-bit NRPN, Bank Select CC0/CC32 + Program Change, and Focusrite/Novation 00 20 29 SysEx patch dump codec), self-oscillation/overdrive safety clamp (safe_sweep_range on CCs 29, 36, 79, 80, 104, 110), and bidirectional UDP OSC server (/peak/osc/{1..3}/*, /peak/filter/*, /peak/env/*, /peak/lfo/*, /peak/fx/*, /peak/animate/{1,2}, /peak/panic) with unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-002.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
         "status": "IMPLEMENTED",
         "category": "FEATURE",
         "domain": "ARCHITECTURE",
         "subIntentId": null,
-        "createdAt": "2026-11-05T19:16:22.466Z",
-        "completedAt": "2026-11-05T19:16:22.466Z",
-        "commitSha": null,
-        "txId": "tx-2026-11-05T19-16-22-466Z-r2ao"
+        "createdAt": "2026-11-05T19:37:19.147Z",
+        "completedAt": "2026-11-05T19:37:19.147Z",
+        "commitSha": "09100e92a92df96bf3bfc3764e29c55a19685327",
+        "txId": "tx-2026-11-05T19-37-19-147Z-p3yu"
       },
       {
         "id": "change:epoch-2-of-8-non-invasive-alsa-hardware-discover",
@@ -1204,21 +1260,21 @@
         "domain": "ARCHITECTURE",
         "subIntentId": null,
         "createdAt": "2026-11-05T19:37:14.217Z",
-        "completedAt": "2026-11-05T19:37:19.147Z",
-        "commitSha": null,
-        "txId": null
+        "completedAt": "2026-11-05T19:46:47.659Z",
+        "commitSha": "09100e92a92df96bf3bfc3764e29c55a19685327",
+        "txId": "tx-2026-11-05T19-37-19-147Z-p3yu"
       },
       {
         "id": "change:epoch-3-of-8-novation-peak-8-voice-fpga-nco-osci",
-        "title": "Epoch 3 of 8: Novation Peak 8-Voice FPGA NCO Oscillator, 17-Wavetable, Ring/Noise Mixer & Analogue State-Variable Filter Domain Engine (Target: src/peak_synth.rs; Related: src/lib.rs, crates/synth-core). Implement the core 8-voice Novation Peak synthesis domain engine in src/peak_synth.rs and export in src/lib.rs, backed directly by synth_core::SynthPatch and synth_core::CommandHistory (zero duplicate wrapper or undo structs). Cover all 3 FPGA NCO oscillators per voice (Range CC3/37/65, Coarse CC14/17/20, Fine CC15/18/21, Shape/Wavetable interpolation CC12/39/71 across 17 wavetables x 5 waves, VSync CC34/42/44, Mod Env/LFO depth CCs, deterministic harmonic spectrum & wavetable slice calculator, voice divergence/drift), Mixer (Osc 1/2/3 levels CC23/24/25, Ring Mod 1x2 CC26, Noise mix CC27), and Analogue State-Variable Filter (12dB/24dB LP/BP/HP response curve calculator, Cutoff CC29, Key Tracking CC75, Osc 3 -> Filter FM CC76, Mod Env 1 -> Filter CC78, Resonance CC79, Pre-Filter Overdrive CC80, Post-Filter Drive CC36) with unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-003.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
-        "description": "Epoch 3 of 8: Novation Peak 8-Voice FPGA NCO Oscillator, 17-Wavetable, Ring/Noise Mixer & Analogue State-Variable Filter Domain Engine (Target: src/peak_synth.rs; Related: src/lib.rs, crates/synth-core). Implement the core 8-voice Novation Peak synthesis domain engine in src/peak_synth.rs and export in src/lib.rs, backed directly by synth_core::SynthPatch and synth_core::CommandHistory (zero duplicate wrapper or undo structs). Cover all 3 FPGA NCO oscillators per voice (Range CC3/37/65, Coarse CC14/17/20, Fine CC15/18/21, Shape/Wavetable interpolation CC12/39/71 across 17 wavetables x 5 waves, VSync CC34/42/44, Mod Env/LFO depth CCs, deterministic harmonic spectrum & wavetable slice calculator, voice divergence/drift), Mixer (Osc 1/2/3 levels CC23/24/25, Ring Mod 1x2 CC26, Noise mix CC27), and Analogue State-Variable Filter (12dB/24dB LP/BP/HP response curve calculator, Cutoff CC29, Key Tracking CC75, Osc 3 -> Filter FM CC76, Mod Env 1 -> Filter CC78, Resonance CC79, Pre-Filter Overdrive CC80, Post-Filter Drive CC36) with unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-003.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
-        "prompt": "Epoch 3 of 8: Novation Peak 8-Voice FPGA NCO Oscillator, 17-Wavetable, Ring/Noise Mixer & Analogue State-Variable Filter Domain Engine (Target: src/peak_synth.rs; Related: src/lib.rs, crates/synth-core). Implement the core 8-voice Novation Peak synthesis domain engine in src/peak_synth.rs and export in src/lib.rs, backed directly by synth_core::SynthPatch and synth_core::CommandHistory (zero duplicate wrapper or undo structs). Cover all 3 FPGA NCO oscillators per voice (Range CC3/37/65, Coarse CC14/17/20, Fine CC15/18/21, Shape/Wavetable interpolation CC12/39/71 across 17 wavetables x 5 waves, VSync CC34/42/44, Mod Env/LFO depth CCs, deterministic harmonic spectrum & wavetable slice calculator, voice divergence/drift), Mixer (Osc 1/2/3 levels CC23/24/25, Ring Mod 1x2 CC26, Noise mix CC27), and Analogue State-Variable Filter (12dB/24dB LP/BP/HP response curve calculator, Cutoff CC29, Key Tracking CC75, Osc 3 -> Filter FM CC76, Mod Env 1 -> Filter CC78, Resonance CC79, Pre-Filter Overdrive CC80, Post-Filter Drive CC36) with unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-003.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+        "title": "Epoch 3 of 8: Novation Peak 8-Voice FPGA NCO Oscillator, 17-Wavetable, Ring/Noise Mixer & Analogue State-Variable Filter Domain Engine (Target: src/peak_synth.rs; Related",
+        "description": "Epoch 3 of 8: Novation Peak 8-Voice FPGA NCO Oscillator, 17-Wavetable, Ring/Noise Mixer & Analogue State-Variable Filter Domain Engine (Target: src/peak_synth.rs; Related",
+        "prompt": null,
         "status": "IMPLEMENTED",
         "category": "FEATURE",
-        "domain": "ARCHITECTURE",
+        "domain": "SYNTHESIS",
         "subIntentId": null,
-        "createdAt": "2026-11-05T19:37:19.128Z",
-        "completedAt": "2026-11-05T19:16:22.466Z",
+        "createdAt": "2026-11-05T19:46:47.801Z",
+        "completedAt": "2026-11-05T19:46:47.820Z",
         "commitSha": null,
         "txId": null
       },
@@ -1231,7 +1287,7 @@
         "category": "FEATURE",
         "domain": "ARCHITECTURE",
         "subIntentId": null,
-        "createdAt": "2026-11-05T19:37:19.128Z",
+        "createdAt": "2026-11-05T19:46:47.801Z",
         "completedAt": "2026-11-05T19:16:22.466Z",
         "commitSha": null,
         "txId": null
@@ -1245,7 +1301,7 @@
         "category": "FEATURE",
         "domain": "ARCHITECTURE",
         "subIntentId": null,
-        "createdAt": "2026-11-05T19:37:19.128Z",
+        "createdAt": "2026-11-05T19:46:47.801Z",
         "completedAt": null,
         "commitSha": null,
         "txId": null
@@ -1259,7 +1315,7 @@
         "category": "FEATURE",
         "domain": "ARCHITECTURE",
         "subIntentId": null,
-        "createdAt": "2026-11-05T19:37:19.128Z",
+        "createdAt": "2026-11-05T19:46:47.801Z",
         "completedAt": null,
         "commitSha": null,
         "txId": null
@@ -1273,7 +1329,7 @@
         "category": "FEATURE",
         "domain": "ARCHITECTURE",
         "subIntentId": null,
-        "createdAt": "2026-11-05T19:37:19.128Z",
+        "createdAt": "2026-11-05T19:46:47.801Z",
         "completedAt": null,
         "commitSha": null,
         "txId": null
@@ -1287,7 +1343,7 @@
         "category": "FEATURE",
         "domain": "ARCHITECTURE",
         "subIntentId": null,
-        "createdAt": "2026-11-05T19:37:19.128Z",
+        "createdAt": "2026-11-05T19:46:47.801Z",
         "completedAt": null,
         "commitSha": null,
         "txId": null
@@ -1303,7 +1359,105 @@
         "subIntentId": null,
         "createdAt": "2026-11-05T19:37:19.072Z",
         "completedAt": "2026-11-05T19:37:19.147Z",
+        "commitSha": "09100e92a92df96bf3bfc3764e29c55a19685327",
+        "txId": null
+      },
+      {
+        "id": "change-1793908007735-qhe9",
+        "title": "Epoch 3 of 8: Novation Peak 8-Voice FPGA NCO Oscillator, 17-Wavetable, Ring/Noise Mixer & Analogue State-Variable Filter Domain Engine (Target: src/peak_synth.rs; Related",
+        "description": "Epoch 3 of 8: Novation Peak 8-Voice FPGA NCO Oscillator, 17-Wavetable, Ring/Noise Mixer & Analogue State-Variable Filter Domain Engine (Target: src/peak_synth.rs; Related: src/lib.rs, crates/synth-core). Implement the core 8-voice Novation Peak synthesis domain engine in src/peak_synth.rs and export in src/lib.rs, backed directly by synth_core::SynthPatch and synth_core::CommandHistory (zero duplicate wrapper or undo structs). Cover all 3 FPGA NCO oscillators per voice (Range CC3/37/65, Coarse CC14/17/20, Fine CC15/18/21, Shape/Wavetable interpolation CC12/39/71 across 17 wavetables x 5 waves, VSync CC34/42/44, Mod Env/LFO depth CCs, deterministic harmonic spectrum & wavetable slice calculator, voice divergence/drift), Mixer (Osc 1/2/3 levels CC23/24/25, Ring Mod 1x2 CC26, Noise mix CC27), and Analogue State-Variable Filter (12dB/24dB LP/BP/HP response curve calculator, Cutoff CC29, Key Tracking CC75, Osc 3 -> Filter FM CC76, Mod Env 1 -> Filter CC78, Resonance CC79, Pre-Filter Overdrive CC80, Post-Filter Drive CC36) with unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-003.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+        "prompt": "Epoch 3 of 8: Novation Peak 8-Voice FPGA NCO Oscillator, 17-Wavetable, Ring/Noise Mixer & Analogue State-Variable Filter Domain Engine (Target: src/peak_synth.rs; Related: src/lib.rs, crates/synth-core). Implement the core 8-voice Novation Peak synthesis domain engine in src/peak_synth.rs and export in src/lib.rs, backed directly by synth_core::SynthPatch and synth_core::CommandHistory (zero duplicate wrapper or undo structs). Cover all 3 FPGA NCO oscillators per voice (Range CC3/37/65, Coarse CC14/17/20, Fine CC15/18/21, Shape/Wavetable interpolation CC12/39/71 across 17 wavetables x 5 waves, VSync CC34/42/44, Mod Env/LFO depth CCs, deterministic harmonic spectrum & wavetable slice calculator, voice divergence/drift), Mixer (Osc 1/2/3 levels CC23/24/25, Ring Mod 1x2 CC26, Noise mix CC27), and Analogue State-Variable Filter (12dB/24dB LP/BP/HP response curve calculator, Cutoff CC29, Key Tracking CC75, Osc 3 -> Filter FM CC76, Mod Env 1 -> Filter CC78, Resonance CC79, Pre-Filter Overdrive CC80, Post-Filter Drive CC36) with unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-003.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+        "status": "IMPLEMENTED",
+        "category": "FEATURE",
+        "domain": "SYNTHESIS",
+        "subIntentId": null,
+        "createdAt": "2026-11-05T19:46:47.735Z",
+        "completedAt": "2026-11-05T19:46:47.820Z",
         "commitSha": null,
+        "txId": null
+      },
+      {
+        "id": "change-inferred-epoch-novation-peak-voice",
+        "title": "Epoch 3 of 8: Novation Peak 8-Voice FPGA NCO Oscillator, 17-Wavetable, Ring/Noise Mixer & Analogue State-Variable Filter Domain Engine (Target",
+        "description": "Epoch 3 of 8: Novation Peak 8-Voice FPGA NCO Oscillator, 17-Wavetable, Ring/Noise Mixer & Analogue State-Variable Filter Domain Engine (Target: src/peak_synth.rs; Related.",
+        "prompt": "Epoch 3 of 8: Novation Peak 8-Voice FPGA NCO Oscillator, 17-Wavetable, Ring/Noise Mixer & Analogue State-Variable Filter Domain Engine (Target: src/peak_synth.rs; Related: src/lib.rs, crates/synth-core). Implement the core 8-voice Novation Peak synthesis domain engine in src/peak_synth.rs and export in src/lib.rs, backed directly by synth_core::SynthPatch and synth_core::CommandHistory (zero duplicate wrapper or undo structs). Cover all 3 FPGA NCO oscillators per voice (Range CC3/37/65, Coarse CC14/17/20, Fine CC15/18/21, Shape/Wavetable interpolation CC12/39/71 across 17 wavetables x 5 waves, VSync CC34/42/44, Mod Env/LFO depth CCs, deterministic harmonic spectrum & wavetable slice calculator, voice divergence/drift), Mixer (Osc 1/2/3 levels CC23/24/25, Ring Mod 1x2 CC26, Noise mix CC27), and Analogue State-Variable Filter (12dB/24dB LP/BP/HP response curve calculator, Cutoff CC29, Key Tracking CC75, Osc 3 -> Filter FM CC76, Mod Env 1 -> Filter CC78, Resonance CC79, Pre-Filter Overdrive CC80, Post-Filter Drive CC36) with unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-003.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+        "status": "IMPLEMENTED",
+        "category": "FEATURE",
+        "domain": "SYNTHESIS",
+        "subIntentId": null,
+        "createdAt": "2026-11-05T19:46:47.801Z",
+        "completedAt": "2026-11-05T19:46:47.820Z",
+        "commitSha": null,
+        "txId": null
+      },
+      {
+        "id": "change-inferred-implement-the-core-voice",
+        "title": "Implement the core 8-voice Novation Peak synthesis domain engine in src/peaksynth.rs and export in src/lib.rs, backed directly by synthcore::SynthPatch and",
+        "description": "Implement the core 8-voice Novation Peak synthesis domain engine in src/peaksynth.rs and export in src/lib.rs, backed directly by synthcore::SynthPatch and synth_core::CommandHistory (zero.",
+        "prompt": "Epoch 3 of 8: Novation Peak 8-Voice FPGA NCO Oscillator, 17-Wavetable, Ring/Noise Mixer & Analogue State-Variable Filter Domain Engine (Target: src/peak_synth.rs; Related: src/lib.rs, crates/synth-core). Implement the core 8-voice Novation Peak synthesis domain engine in src/peak_synth.rs and export in src/lib.rs, backed directly by synth_core::SynthPatch and synth_core::CommandHistory (zero duplicate wrapper or undo structs). Cover all 3 FPGA NCO oscillators per voice (Range CC3/37/65, Coarse CC14/17/20, Fine CC15/18/21, Shape/Wavetable interpolation CC12/39/71 across 17 wavetables x 5 waves, VSync CC34/42/44, Mod Env/LFO depth CCs, deterministic harmonic spectrum & wavetable slice calculator, voice divergence/drift), Mixer (Osc 1/2/3 levels CC23/24/25, Ring Mod 1x2 CC26, Noise mix CC27), and Analogue State-Variable Filter (12dB/24dB LP/BP/HP response curve calculator, Cutoff CC29, Key Tracking CC75, Osc 3 -> Filter FM CC76, Mod Env 1 -> Filter CC78, Resonance CC79, Pre-Filter Overdrive CC80, Post-Filter Drive CC36) with unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-003.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+        "status": "IMPLEMENTED",
+        "category": "FEATURE",
+        "domain": "PERSISTENCE",
+        "subIntentId": null,
+        "createdAt": "2026-11-05T19:46:47.801Z",
+        "completedAt": "2026-11-05T19:46:47.820Z",
+        "commitSha": null,
+        "txId": null
+      },
+      {
+        "id": "change:implement-the-core-8-voice-novation-peak-synthes",
+        "title": "Implement the core 8-voice Novation Peak synthesis domain engine in src/peaksynth.rs and export in src/lib.rs, backed directly by synthcore::SynthPatch and synth_core::CommandHistory (zero",
+        "description": "Implement the core 8-voice Novation Peak synthesis domain engine in src/peaksynth.rs and export in src/lib.rs, backed directly by synthcore::SynthPatch and synth_core::CommandHistory (zero",
+        "prompt": null,
+        "status": "IMPLEMENTED",
+        "category": "FEATURE",
+        "domain": "PERSISTENCE",
+        "subIntentId": null,
+        "createdAt": "2026-11-05T19:46:47.802Z",
+        "completedAt": "2026-11-05T19:46:47.820Z",
+        "commitSha": null,
+        "txId": null
+      },
+      {
+        "id": "change-inferred-cover-all-fpga-nco",
+        "title": "Cover all 3 FPGA NCO oscillators per voice (Range CC3/37/65, Coarse CC14/17/20, Fine CC15/18/21, Shape/Wavetable interpolation CC12/39/71 across 17 wavetables",
+        "description": "Cover all 3 FPGA NCO oscillators per voice (Range CC3/37/65, Coarse CC14/17/20, Fine CC15/18/21, Shape/Wavetable interpolation CC12/39/71 across 17 wavetables x 5.",
+        "prompt": "Epoch 3 of 8: Novation Peak 8-Voice FPGA NCO Oscillator, 17-Wavetable, Ring/Noise Mixer & Analogue State-Variable Filter Domain Engine (Target: src/peak_synth.rs; Related: src/lib.rs, crates/synth-core). Implement the core 8-voice Novation Peak synthesis domain engine in src/peak_synth.rs and export in src/lib.rs, backed directly by synth_core::SynthPatch and synth_core::CommandHistory (zero duplicate wrapper or undo structs). Cover all 3 FPGA NCO oscillators per voice (Range CC3/37/65, Coarse CC14/17/20, Fine CC15/18/21, Shape/Wavetable interpolation CC12/39/71 across 17 wavetables x 5 waves, VSync CC34/42/44, Mod Env/LFO depth CCs, deterministic harmonic spectrum & wavetable slice calculator, voice divergence/drift), Mixer (Osc 1/2/3 levels CC23/24/25, Ring Mod 1x2 CC26, Noise mix CC27), and Analogue State-Variable Filter (12dB/24dB LP/BP/HP response curve calculator, Cutoff CC29, Key Tracking CC75, Osc 3 -> Filter FM CC76, Mod Env 1 -> Filter CC78, Resonance CC79, Pre-Filter Overdrive CC80, Post-Filter Drive CC36) with unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-003.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+        "status": "IMPLEMENTED",
+        "category": "FEATURE",
+        "domain": "SYNTHESIS",
+        "subIntentId": null,
+        "createdAt": "2026-11-05T19:46:47.802Z",
+        "completedAt": "2026-11-05T19:46:47.820Z",
+        "commitSha": null,
+        "txId": null
+      },
+      {
+        "id": "change:cover-all-3-fpga-nco-oscillators-per-voice-range",
+        "title": "Cover all 3 FPGA NCO oscillators per voice (Range CC3/37/65, Coarse CC14/17/20, Fine CC15/18/21, Shape/Wavetable interpolation CC12/39/71 across 17 wavetables x 5",
+        "description": "Cover all 3 FPGA NCO oscillators per voice (Range CC3/37/65, Coarse CC14/17/20, Fine CC15/18/21, Shape/Wavetable interpolation CC12/39/71 across 17 wavetables x 5",
+        "prompt": null,
+        "status": "IMPLEMENTED",
+        "category": "FEATURE",
+        "domain": "SYNTHESIS",
+        "subIntentId": null,
+        "createdAt": "2026-11-05T19:46:47.802Z",
+        "completedAt": "2026-11-05T19:46:47.820Z",
+        "commitSha": null,
+        "txId": null
+      },
+      {
+        "id": "change:ensure-all-workspace-tests-pass-cargobuildjobs-2",
+        "title": "Ensure all workspace tests pass (CARGOBUILDJOBS=2 cargo test --workspace and npm test)",
+        "description": "Ensure all workspace tests pass (CARGOBUILDJOBS=2 cargo test --workspace and npm test)",
+        "prompt": null,
+        "status": "IMPLEMENTED",
+        "category": "FEATURE",
+        "domain": "ARCHITECTURE",
+        "subIntentId": null,
+        "createdAt": "2026-11-05T19:46:47.802Z",
+        "completedAt": "2026-11-05T19:37:19.147Z",
+        "commitSha": "09100e92a92df96bf3bfc3764e29c55a19685327",
         "txId": null
       }
     ],
@@ -1660,6 +1814,10 @@
         {
           "feedback": "Epoch 2 of 8: Non-Invasive ALSA Hardware Discovery (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0), Safety Clamping, NRPN/Dual-CC Router & Bidirectional OSC Server (Target: crates/synth-midi-osc; Related: src/midi.rs, src/hardware_verify.rs). Implement read-only /proc/asound/cards and /proc/asound/seq/clients inspection in crates/synth-midi-osc and src/hardware_verify.rs detecting Focusrite A.E Peak (Peak MIDI 1, hw:3,0,0, client 28, USB ID 1235:007e), UMC1820 MIDI 1 (hw:0,0,0, client 16), and Korg nanoKONTROL2 (hw:2,0,0, client 24) with safe virtual loopback default (never sending unprompted MIDI bytes to hw:3,0,0 or hw:0,0,0 during tests). Implement Novation Peak MIDI Channel 1 router (7-bit CC, +32 bipolar dual-CC, 14-bit NRPN, Bank Select CC0/CC32 + Program Change, and Focusrite/Novation 00 20 29 SysEx patch dump codec), self-oscillation/overdrive safety clamp (safe_sweep_range on CCs 29, 36, 79, 80, 104, 110), and bidirectional UDP OSC server (/peak/osc/{1..3}/*, /peak/filter/*, /peak/env/*, /peak/lfo/*, /peak/fx/*, /peak/animate/{1,2}, /peak/panic) with unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-002.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
           "timestamp": "2026-11-05T19:37:19.078Z"
+        },
+        {
+          "feedback": "Epoch 3 of 8: Novation Peak 8-Voice FPGA NCO Oscillator, 17-Wavetable, Ring/Noise Mixer & Analogue State-Variable Filter Domain Engine (Target: src/peak_synth.rs; Related: src/lib.rs, crates/synth-core). Implement the core 8-voice Novation Peak synthesis domain engine in src/peak_synth.rs and export in src/lib.rs, backed directly by synth_core::SynthPatch and synth_core::CommandHistory (zero duplicate wrapper or undo structs). Cover all 3 FPGA NCO oscillators per voice (Range CC3/37/65, Coarse CC14/17/20, Fine CC15/18/21, Shape/Wavetable interpolation CC12/39/71 across 17 wavetables x 5 waves, VSync CC34/42/44, Mod Env/LFO depth CCs, deterministic harmonic spectrum & wavetable slice calculator, voice divergence/drift), Mixer (Osc 1/2/3 levels CC23/24/25, Ring Mod 1x2 CC26, Noise mix CC27), and Analogue State-Variable Filter (12dB/24dB LP/BP/HP response curve calculator, Cutoff CC29, Key Tracking CC75, Osc 3 -> Filter FM CC76, Mod Env 1 -> Filter CC78, Resonance CC79, Pre-Filter Overdrive CC80, Post-Filter Drive CC36) with unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-003.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+          "timestamp": "2026-11-05T19:46:47.742Z"
         }
       ],
       "activeRoadmap": [
@@ -1668,7 +1826,10 @@
           "name": "Phase 1: Ingestion & Environment Alignment",
           "status": "READY",
           "deliverables": [
-            "Epoch 2 of 8: Non-Invasive ALSA Hardware Discovery (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0), Safety Clamping, NRPN/Dual-CC Router & Bidirectional"
+            "Epoch 3 of 8: Novation Peak 8-Voice FPGA NCO Oscillator, 17-Wavetable, Ring/Noise Mixer & Analogue State-Variable Filter Domain Engine (Target: src/peak_synth.rs; Related",
+            "Implement the core 8-voice Novation Peak synthesis domain engine in src/peaksynth.rs and export in src/lib.rs, backed directly by synthcore::SynthPatch and synth_core::CommandHistory (zero",
+            "Cover all 3 FPGA NCO oscillators per voice (Range CC3/37/65, Coarse CC14/17/20, Fine CC15/18/21, Shape/Wavetable interpolation CC12/39/71 across 17 wavetables x 5",
+            "Ensure all workspace tests pass (CARGOBUILDJOBS=2 cargo test --workspace and npm test)"
           ],
           "suggestions": [
             "Validate configuration schemas against target environments",
@@ -1680,7 +1841,7 @@
           "name": "Phase 2: Local Core Mutation & Feature Implementation",
           "status": "PENDING",
           "deliverables": [
-            "Epoch 2 of 8: Non-Invasive ALSA Hardware Discovery (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0), Safety Clamping, NRPN/Dual-CC Router & Bidirectional"
+            "Epoch 3 of 8: Novation Peak 8-Voice FPGA NCO Oscillator, 17-Wavetable, Ring/Noise Mixer & Analogue State-Variable Filter Domain Engine (Target: src/peak_synth.rs; Related"
           ],
           "suggestions": [
             "Preserve modular boundary interfaces without circular couplings",
@@ -1733,7 +1894,25 @@
         "ARCHITECTURE"
       ]
     },
-    "archivedTasks": [],
+    "archivedTasks": [
+      {
+        "id": "change:epoch-2-of-8-non-invasive-alsa-hardware-discover",
+        "codeId": "CHANGE",
+        "subIntentId": null,
+        "subIntentCodeId": null,
+        "subIntentName": null,
+        "domain": "ARCHITECTURE",
+        "kind": "CHANGE",
+        "title": "Epoch 2 of 8: Non-Invasive ALSA Hardware Discovery (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0), Safety Clamping, NRPN/Dual-CC Router & Bidirectional OSC Server (Target: crates/synth-midi-osc; Related: src/midi.rs, src/hardware_verify.rs). Implement read-only /proc/asound/cards and /proc/asound/seq/clients inspection in crates/synth-midi-osc and src/hardware_verify.rs detecting Focusrite A.E Peak (Peak MIDI 1, hw:3,0,0, client 28, USB ID 1235:007e), UMC1820 MIDI 1 (hw:0,0,0, client 16), and Korg nanoKONTROL2 (hw:2,0,0, client 24) with safe virtual loopback default (never sending unprompted MIDI bytes to hw:3,0,0 or hw:0,0,0 during tests). Implement Novation Peak MIDI Channel 1 router (7-bit CC, +32 bipolar dual-CC, 14-bit NRPN, Bank Select CC0/CC32 + Program Change, and Focusrite/Novation 00 20 29 SysEx patch dump codec), self-oscillation/overdrive safety clamp (safe_sweep_range on CCs 29, 36, 79, 80, 104, 110), and bidirectional UDP OSC server (/peak/osc/{1..3}/*, /peak/filter/*, /peak/env/*, /peak/lfo/*, /peak/fx/*, /peak/animate/{1,2}, /peak/panic) with unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-002.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+        "text": "Epoch 2 of 8: Non-Invasive ALSA Hardware Discovery (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0), Safety Clamping, NRPN/Dual-CC Router & Bidirectional OSC Server (Target: crates/synth-midi-osc; Related: src/midi.rs, src/hardware_verify.rs). Implement read-only /proc/asound/cards and /proc/asound/seq/clients inspection in crates/synth-midi-osc and src/hardware_verify.rs detecting Focusrite A.E Peak (Peak MIDI 1, hw:3,0,0, client 28, USB ID 1235:007e), UMC1820 MIDI 1 (hw:0,0,0, client 16), and Korg nanoKONTROL2 (hw:2,0,0, client 24) with safe virtual loopback default (never sending unprompted MIDI bytes to hw:3,0,0 or hw:0,0,0 during tests). Implement Novation Peak MIDI Channel 1 router (7-bit CC, +32 bipolar dual-CC, 14-bit NRPN, Bank Select CC0/CC32 + Program Change, and Focusrite/Novation 00 20 29 SysEx patch dump codec), self-oscillation/overdrive safety clamp (safe_sweep_range on CCs 29, 36, 79, 80, 104, 110), and bidirectional UDP OSC server (/peak/osc/{1..3}/*, /peak/filter/*, /peak/env/*, /peak/lfo/*, /peak/fx/*, /peak/animate/{1,2}, /peak/panic) with unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-002.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+        "taskPrompt": "Epoch 2 of 8: Non-Invasive ALSA Hardware Discovery (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0), Safety Clamping, NRPN/Dual-CC Router & Bidirectional OSC Server (Target: crates/synth-midi-osc; Related: src/midi.rs, src/hardware_verify.rs). Implement read-only /proc/asound/cards and /proc/asound/seq/clients inspection in crates/synth-midi-osc and src/hardware_verify.rs detecting Focusrite A.E Peak (Peak MIDI 1, hw:3,0,0, client 28, USB ID 1235:007e), UMC1820 MIDI 1 (hw:0,0,0, client 16), and Korg nanoKONTROL2 (hw:2,0,0, client 24) with safe virtual loopback default (never sending unprompted MIDI bytes to hw:3,0,0 or hw:0,0,0 during tests). Implement Novation Peak MIDI Channel 1 router (7-bit CC, +32 bipolar dual-CC, 14-bit NRPN, Bank Select CC0/CC32 + Program Change, and Focusrite/Novation 00 20 29 SysEx patch dump codec), self-oscillation/overdrive safety clamp (safe_sweep_range on CCs 29, 36, 79, 80, 104, 110), and bidirectional UDP OSC server (/peak/osc/{1..3}/*, /peak/filter/*, /peak/env/*, /peak/lfo/*, /peak/fx/*, /peak/animate/{1,2}, /peak/panic) with unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-002.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+        "status": "MET",
+        "commitSha": "09100e92a92df96bf3bfc3764e29c55a19685327",
+        "txId": "tx-2026-11-05T19-37-19-147Z-p3yu",
+        "archivedAt": "2026-11-05T19:46:47.659Z",
+        "completedAt": "2026-11-05T19:46:47.659Z"
+      }
+    ],
     "intentsReviewed": false,
     "structuredIntent": {
       "projectId": "novation-peak-manager",
@@ -2288,7 +2467,7 @@
               "status": "IMPLEMENTED",
               "isQueued": false,
               "failedLastRun": false,
-              "commitSha": null
+              "commitSha": "09100e92a92df96bf3bfc3764e29c55a19685327"
             },
             {
               "id": "task:I5:req-2",
@@ -2301,10 +2480,10 @@
               "index": 2,
               "title": "Requirement #2: Implement read-only /proc/asound/cards and /proc/asound/seq/clients inspection in crates/synth-midi-osc and src/hardware_verify.rs detecting Focusrite A.E Peak (Peak MIDI 1, hw:3,0,0, client 28, USB ID 1235:007e), UMC1820 MIDI 1 (hw:0,0,0, client 16), and Korg nanoKONTROL2 (hw:2,0,0, client 24) with safe virtual loopback default (never sending unprompted MIDI bytes to hw:3,0,0 or hw:0,0,0 during tests). Implement Novation Peak MIDI Channel 1 router (7-bit CC, +32 bipolar dual-CC, 14-bit NRPN, Bank Select CC0/CC32 + Program Change, and Focusrite/Novation 00 20 29 SysEx patch dump codec), self-oscillation/overdrive safety clamp (safe_sweep_range on CCs 29, 36, 79, 80, 104, 110), and bidirectional UDP OSC server (/peak/osc/{1..3}/*, /peak/filter/*, /peak/env/*, /peak/lfo/*, /peak/fx/*, /peak/animate/{1,2}, /peak/panic) with unit tests.",
               "taskPrompt": "Implement requirement #2 on [I5] (Epoch 2/8: Non-Invasive ALSA Hardware Discovery (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0), Safety Clamping, NRPN/Dual-CC Router & Bidirectional): Implement read-only /proc/asound/cards and /proc/asound/seq/clients inspection in crates/synth-midi-osc and src/hardware_verify.rs detecting Focusrite A.E Peak (Peak MIDI 1, hw:3,0,0, client 28, USB ID 1235:007e), UMC1820 MIDI 1 (hw:0,0,0, client 16), and Korg nanoKONTROL2 (hw:2,0,0, client 24) with safe virtual loopback default (never sending unprompted MIDI bytes to hw:3,0,0 or hw:0,0,0 during tests). Implement Novation Peak MIDI Channel 1 router (7-bit CC, +32 bipolar dual-CC, 14-bit NRPN, Bank Select CC0/CC32 + Program Change, and Focusrite/Novation 00 20 29 SysEx patch dump codec), self-oscillation/overdrive safety clamp (safe_sweep_range on CCs 29, 36, 79, 80, 104, 110), and bidirectional UDP OSC server (/peak/osc/{1..3}/*, /peak/filter/*, /peak/env/*, /peak/lfo/*, /peak/fx/*, /peak/animate/{1,2}, /peak/panic) with unit tests.",
-              "status": "IN_PROGRESS",
+              "status": "IMPLEMENTED",
               "isQueued": false,
               "failedLastRun": false,
-              "commitSha": null
+              "commitSha": "09100e92a92df96bf3bfc3764e29c55a19685327"
             },
             {
               "id": "task:I5:synthesis",
@@ -2317,10 +2496,10 @@
               "index": 3,
               "title": "Synthesize capability: Epoch 2/8: Non-Invasive ALSA Hardware Discovery (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0), Safety Clamping, NRPN/Dual-CC Router & Bidirectional",
               "taskPrompt": "Epoch 2/8: Non-Invasive ALSA Hardware Discovery (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0), Safety Clamping, NRPN/Dual-CC Router & Bidirectional: Implement read-only /proc/asound/cards and /proc/asound/seq/clients inspection in crates/synth-midi-osc and src/hardware_verify.rs detecting Focusrite A.E Peak (Peak MIDI 1, hw:3,0,0, client 28, USB ID 1235:007e), UMC1820 MIDI 1 (hw:0,0,0, client 16), and Korg nanoKONTROL2 (hw:2,0,0, client 24) with safe virtual loopback default (never sending unprompted MIDI bytes to hw:3,0,0 or hw:0,0,0 during tests). Implement Novation Peak MIDI Channel 1 router (7-bit CC, +32 bipolar dual-CC, 14-bit NRPN, Bank Select CC0/CC32 + Program Change, and Focusrite/Novation 00 20 29 SysEx patch dump codec), self-oscillation/overdrive safety clamp (safe_sweep_range on CCs 29, 36, 79, 80, 104, 110), and bidirectional UDP OSC server (/peak/osc/{1..3}/*, /peak/filter/*, /peak/env/*, /peak/lfo/*, /peak/fx/*, /peak/animate/{1,2}, /peak/panic) with unit tests. (Requirements: Epoch 2/8: Non-Invasive ALSA Hardware Discovery (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0), Safety Clamping, NRPN/Dual-CC Router & Bidirectional; Implement read-only /proc/asound/cards and /proc/asound/seq/clients inspection in crates/synth-midi-osc and src/hardware_verify.rs detecting Focusrite A.E Peak (Peak MIDI 1, hw:3,0,0, client 28, USB ID 1235:007e), UMC1820 MIDI 1 (hw:0,0,0, client 16), and Korg nanoKONTROL2 (hw:2,0,0, client 24) with safe virtual loopback default (never sending unprompted MIDI bytes to hw:3,0,0 or hw:0,0,0 during tests). Implement Novation Peak MIDI Channel 1 router (7-bit CC, +32 bipolar dual-CC, 14-bit NRPN, Bank Select CC0/CC32 + Program Change, and Focusrite/Novation 00 20 29 SysEx patch dump codec), self-oscillation/overdrive safety clamp (safe_sweep_range on CCs 29, 36, 79, 80, 104, 110), and bidirectional UDP OSC server (/peak/osc/{1..3}/*, /peak/filter/*, /peak/env/*, /peak/lfo/*, /peak/fx/*, /peak/animate/{1,2}, /peak/panic) with unit tests.)",
-              "status": "OUTSTANDING",
+              "status": "IMPLEMENTED",
               "isQueued": false,
               "failedLastRun": false,
-              "commitSha": null
+              "commitSha": "09100e92a92df96bf3bfc3764e29c55a19685327"
             }
           ],
           "suggestions": [
@@ -2338,7 +2517,7 @@
               "status": "IMPLEMENTED",
               "isQueued": false,
               "failedLastRun": false,
-              "commitSha": null
+              "commitSha": "09100e92a92df96bf3bfc3764e29c55a19685327"
             },
             {
               "id": "task:I5:req-2",
@@ -2351,10 +2530,10 @@
               "index": 2,
               "title": "Requirement #2: Implement read-only /proc/asound/cards and /proc/asound/seq/clients inspection in crates/synth-midi-osc and src/hardware_verify.rs detecting Focusrite A.E Peak (Peak MIDI 1, hw:3,0,0, client 28, USB ID 1235:007e), UMC1820 MIDI 1 (hw:0,0,0, client 16), and Korg nanoKONTROL2 (hw:2,0,0, client 24) with safe virtual loopback default (never sending unprompted MIDI bytes to hw:3,0,0 or hw:0,0,0 during tests). Implement Novation Peak MIDI Channel 1 router (7-bit CC, +32 bipolar dual-CC, 14-bit NRPN, Bank Select CC0/CC32 + Program Change, and Focusrite/Novation 00 20 29 SysEx patch dump codec), self-oscillation/overdrive safety clamp (safe_sweep_range on CCs 29, 36, 79, 80, 104, 110), and bidirectional UDP OSC server (/peak/osc/{1..3}/*, /peak/filter/*, /peak/env/*, /peak/lfo/*, /peak/fx/*, /peak/animate/{1,2}, /peak/panic) with unit tests.",
               "taskPrompt": "Implement requirement #2 on [I5] (Epoch 2/8: Non-Invasive ALSA Hardware Discovery (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0), Safety Clamping, NRPN/Dual-CC Router & Bidirectional): Implement read-only /proc/asound/cards and /proc/asound/seq/clients inspection in crates/synth-midi-osc and src/hardware_verify.rs detecting Focusrite A.E Peak (Peak MIDI 1, hw:3,0,0, client 28, USB ID 1235:007e), UMC1820 MIDI 1 (hw:0,0,0, client 16), and Korg nanoKONTROL2 (hw:2,0,0, client 24) with safe virtual loopback default (never sending unprompted MIDI bytes to hw:3,0,0 or hw:0,0,0 during tests). Implement Novation Peak MIDI Channel 1 router (7-bit CC, +32 bipolar dual-CC, 14-bit NRPN, Bank Select CC0/CC32 + Program Change, and Focusrite/Novation 00 20 29 SysEx patch dump codec), self-oscillation/overdrive safety clamp (safe_sweep_range on CCs 29, 36, 79, 80, 104, 110), and bidirectional UDP OSC server (/peak/osc/{1..3}/*, /peak/filter/*, /peak/env/*, /peak/lfo/*, /peak/fx/*, /peak/animate/{1,2}, /peak/panic) with unit tests.",
-              "status": "IN_PROGRESS",
+              "status": "IMPLEMENTED",
               "isQueued": false,
               "failedLastRun": false,
-              "commitSha": null
+              "commitSha": "09100e92a92df96bf3bfc3764e29c55a19685327"
             },
             {
               "id": "task:I5:synthesis",
@@ -2367,10 +2546,10 @@
               "index": 3,
               "title": "Synthesize capability: Epoch 2/8: Non-Invasive ALSA Hardware Discovery (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0), Safety Clamping, NRPN/Dual-CC Router & Bidirectional",
               "taskPrompt": "Epoch 2/8: Non-Invasive ALSA Hardware Discovery (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0), Safety Clamping, NRPN/Dual-CC Router & Bidirectional: Implement read-only /proc/asound/cards and /proc/asound/seq/clients inspection in crates/synth-midi-osc and src/hardware_verify.rs detecting Focusrite A.E Peak (Peak MIDI 1, hw:3,0,0, client 28, USB ID 1235:007e), UMC1820 MIDI 1 (hw:0,0,0, client 16), and Korg nanoKONTROL2 (hw:2,0,0, client 24) with safe virtual loopback default (never sending unprompted MIDI bytes to hw:3,0,0 or hw:0,0,0 during tests). Implement Novation Peak MIDI Channel 1 router (7-bit CC, +32 bipolar dual-CC, 14-bit NRPN, Bank Select CC0/CC32 + Program Change, and Focusrite/Novation 00 20 29 SysEx patch dump codec), self-oscillation/overdrive safety clamp (safe_sweep_range on CCs 29, 36, 79, 80, 104, 110), and bidirectional UDP OSC server (/peak/osc/{1..3}/*, /peak/filter/*, /peak/env/*, /peak/lfo/*, /peak/fx/*, /peak/animate/{1,2}, /peak/panic) with unit tests. (Requirements: Epoch 2/8: Non-Invasive ALSA Hardware Discovery (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0), Safety Clamping, NRPN/Dual-CC Router & Bidirectional; Implement read-only /proc/asound/cards and /proc/asound/seq/clients inspection in crates/synth-midi-osc and src/hardware_verify.rs detecting Focusrite A.E Peak (Peak MIDI 1, hw:3,0,0, client 28, USB ID 1235:007e), UMC1820 MIDI 1 (hw:0,0,0, client 16), and Korg nanoKONTROL2 (hw:2,0,0, client 24) with safe virtual loopback default (never sending unprompted MIDI bytes to hw:3,0,0 or hw:0,0,0 during tests). Implement Novation Peak MIDI Channel 1 router (7-bit CC, +32 bipolar dual-CC, 14-bit NRPN, Bank Select CC0/CC32 + Program Change, and Focusrite/Novation 00 20 29 SysEx patch dump codec), self-oscillation/overdrive safety clamp (safe_sweep_range on CCs 29, 36, 79, 80, 104, 110), and bidirectional UDP OSC server (/peak/osc/{1..3}/*, /peak/filter/*, /peak/env/*, /peak/lfo/*, /peak/fx/*, /peak/animate/{1,2}, /peak/panic) with unit tests.)",
-              "status": "OUTSTANDING",
+              "status": "IMPLEMENTED",
               "isQueued": false,
               "failedLastRun": false,
-              "commitSha": null
+              "commitSha": "09100e92a92df96bf3bfc3764e29c55a19685327"
             }
           ],
           "hasQueuedTasks": false,
@@ -2380,7 +2559,7 @@
               "codeId": "I5.1",
               "text": "Epoch 2/8: Non-Invasive ALSA Hardware Discovery (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0), Safety Clamping, NRPN/Dual-CC Router & Bidirectional",
               "status": "IMPLEMENTED",
-              "commitSha": null,
+              "commitSha": "09100e92a92df96bf3bfc3764e29c55a19685327",
               "timestamp": "2026-11-05T19:37:19.147Z",
               "txId": "tx-2026-11-05T19-37-19-147Z-p3yu",
               "failedLastRun": false
@@ -2389,22 +2568,22 @@
               "index": 2,
               "codeId": "I5.2",
               "text": "Implement read-only /proc/asound/cards and /proc/asound/seq/clients inspection in crates/synth-midi-osc and src/hardware_verify.rs detecting Focusrite A.E Peak (Peak MIDI 1, hw:3,0,0, client 28, USB ID 1235:007e), UMC1820 MIDI 1 (hw:0,0,0, client 16), and Korg nanoKONTROL2 (hw:2,0,0, client 24) with safe virtual loopback default (never sending unprompted MIDI bytes to hw:3,0,0 or hw:0,0,0 during tests). Implement Novation Peak MIDI Channel 1 router (7-bit CC, +32 bipolar dual-CC, 14-bit NRPN, Bank Select CC0/CC32 + Program Change, and Focusrite/Novation 00 20 29 SysEx patch dump codec), self-oscillation/overdrive safety clamp (safe_sweep_range on CCs 29, 36, 79, 80, 104, 110), and bidirectional UDP OSC server (/peak/osc/{1..3}/*, /peak/filter/*, /peak/env/*, /peak/lfo/*, /peak/fx/*, /peak/animate/{1,2}, /peak/panic) with unit tests.",
-              "status": "IN_PROGRESS",
-              "commitSha": null,
-              "timestamp": null,
-              "txId": null,
+              "status": "IMPLEMENTED",
+              "commitSha": "09100e92a92df96bf3bfc3764e29c55a19685327",
+              "timestamp": "2026-11-05T19:37:19.147Z",
+              "txId": "tx-2026-11-05T19-37-19-147Z-p3yu",
               "failedLastRun": false
             }
           ],
-          "implementationStatus": "IN_PROGRESS",
-          "implementedCount": 1,
-          "inProgressCount": 1,
+          "implementationStatus": "IMPLEMENTED",
+          "implementedCount": 2,
+          "inProgressCount": 0,
           "queuedCount": 0,
           "outstandingCount": 0,
           "failedCount": 0,
           "totalRequirements": 2,
-          "completionPct": 50,
-          "latestCommitSha": null,
+          "completionPct": 100,
+          "latestCommitSha": "09100e92a92df96bf3bfc3764e29c55a19685327",
           "latestVerifiedAt": "2026-11-05T19:37:19.147Z"
         },
         {
@@ -2466,8 +2645,8 @@
               "index": 2,
               "title": "Requirement #2: Implement the core 8-voice Novation Peak synthesis domain engine in src/peak_synth.rs and export in src/lib.rs, backed directly by synth_core::SynthPatch and synth_core::CommandHistory (zero duplicate wrapper or undo structs). Cover all 3 FPGA NCO oscillators per voice (Range CC3/37/65, Coarse CC14/17/20, Fine CC15/18/21, Shape/Wavetable interpolation CC12/39/71 across 17 wavetables x 5 waves, VSync CC34/42/44, Mod Env/LFO depth CCs, deterministic harmonic spectrum & wavetable slice calculator, voice divergence/drift), Mixer (Osc 1/2/3 levels CC23/24/25, Ring Mod 1x2 CC26, Noise mix CC27), and Analogue State-Variable Filter (12dB/24dB LP/BP/HP response curve calculator, Cutoff CC29, Key Tracking CC75, Osc 3 -> Filter FM CC76, Mod Env 1 -> Filter CC78, Resonance CC79, Pre-Filter Overdrive CC80, Post-Filter Drive CC36) with unit tests.",
               "taskPrompt": "Implement requirement #2 on [I6] (Epoch 3/8: Novation Peak 8-Voice FPGA NCO Oscillator, 17-Wavetable, Ring/Noise Mixer & Analogue State-Variable Filter Domain Engine): Implement the core 8-voice Novation Peak synthesis domain engine in src/peak_synth.rs and export in src/lib.rs, backed directly by synth_core::SynthPatch and synth_core::CommandHistory (zero duplicate wrapper or undo structs). Cover all 3 FPGA NCO oscillators per voice (Range CC3/37/65, Coarse CC14/17/20, Fine CC15/18/21, Shape/Wavetable interpolation CC12/39/71 across 17 wavetables x 5 waves, VSync CC34/42/44, Mod Env/LFO depth CCs, deterministic harmonic spectrum & wavetable slice calculator, voice divergence/drift), Mixer (Osc 1/2/3 levels CC23/24/25, Ring Mod 1x2 CC26, Noise mix CC27), and Analogue State-Variable Filter (12dB/24dB LP/BP/HP response curve calculator, Cutoff CC29, Key Tracking CC75, Osc 3 -> Filter FM CC76, Mod Env 1 -> Filter CC78, Resonance CC79, Pre-Filter Overdrive CC80, Post-Filter Drive CC36) with unit tests.",
-              "status": "QUEUED",
-              "isQueued": true,
+              "status": "IN_PROGRESS",
+              "isQueued": false,
               "failedLastRun": false,
               "commitSha": null
             },
@@ -2516,8 +2695,8 @@
               "index": 2,
               "title": "Requirement #2: Implement the core 8-voice Novation Peak synthesis domain engine in src/peak_synth.rs and export in src/lib.rs, backed directly by synth_core::SynthPatch and synth_core::CommandHistory (zero duplicate wrapper or undo structs). Cover all 3 FPGA NCO oscillators per voice (Range CC3/37/65, Coarse CC14/17/20, Fine CC15/18/21, Shape/Wavetable interpolation CC12/39/71 across 17 wavetables x 5 waves, VSync CC34/42/44, Mod Env/LFO depth CCs, deterministic harmonic spectrum & wavetable slice calculator, voice divergence/drift), Mixer (Osc 1/2/3 levels CC23/24/25, Ring Mod 1x2 CC26, Noise mix CC27), and Analogue State-Variable Filter (12dB/24dB LP/BP/HP response curve calculator, Cutoff CC29, Key Tracking CC75, Osc 3 -> Filter FM CC76, Mod Env 1 -> Filter CC78, Resonance CC79, Pre-Filter Overdrive CC80, Post-Filter Drive CC36) with unit tests.",
               "taskPrompt": "Implement requirement #2 on [I6] (Epoch 3/8: Novation Peak 8-Voice FPGA NCO Oscillator, 17-Wavetable, Ring/Noise Mixer & Analogue State-Variable Filter Domain Engine): Implement the core 8-voice Novation Peak synthesis domain engine in src/peak_synth.rs and export in src/lib.rs, backed directly by synth_core::SynthPatch and synth_core::CommandHistory (zero duplicate wrapper or undo structs). Cover all 3 FPGA NCO oscillators per voice (Range CC3/37/65, Coarse CC14/17/20, Fine CC15/18/21, Shape/Wavetable interpolation CC12/39/71 across 17 wavetables x 5 waves, VSync CC34/42/44, Mod Env/LFO depth CCs, deterministic harmonic spectrum & wavetable slice calculator, voice divergence/drift), Mixer (Osc 1/2/3 levels CC23/24/25, Ring Mod 1x2 CC26, Noise mix CC27), and Analogue State-Variable Filter (12dB/24dB LP/BP/HP response curve calculator, Cutoff CC29, Key Tracking CC75, Osc 3 -> Filter FM CC76, Mod Env 1 -> Filter CC78, Resonance CC79, Pre-Filter Overdrive CC80, Post-Filter Drive CC36) with unit tests.",
-              "status": "QUEUED",
-              "isQueued": true,
+              "status": "IN_PROGRESS",
+              "isQueued": false,
               "failedLastRun": false,
               "commitSha": null
             },
@@ -2538,7 +2717,7 @@
               "commitSha": null
             }
           ],
-          "hasQueuedTasks": true,
+          "hasQueuedTasks": false,
           "requirementsDetailed": [
             {
               "index": 1,
@@ -2546,31 +2725,31 @@
               "text": "Epoch 3/8: Novation Peak 8-Voice FPGA NCO Oscillator, 17-Wavetable, Ring/Noise Mixer & Analogue State-Variable Filter Domain Engine",
               "status": "IMPLEMENTED",
               "commitSha": null,
-              "timestamp": "2026-11-05T19:16:22.466Z",
-              "txId": "tx-2026-11-05T19-16-22-466Z-r2ao",
+              "timestamp": "2026-11-05T19:46:47.820Z",
+              "txId": "tx-2026-11-05T19-46-47-820Z-udjx",
               "failedLastRun": false
             },
             {
               "index": 2,
               "codeId": "I6.2",
               "text": "Implement the core 8-voice Novation Peak synthesis domain engine in src/peak_synth.rs and export in src/lib.rs, backed directly by synth_core::SynthPatch and synth_core::CommandHistory (zero duplicate wrapper or undo structs). Cover all 3 FPGA NCO oscillators per voice (Range CC3/37/65, Coarse CC14/17/20, Fine CC15/18/21, Shape/Wavetable interpolation CC12/39/71 across 17 wavetables x 5 waves, VSync CC34/42/44, Mod Env/LFO depth CCs, deterministic harmonic spectrum & wavetable slice calculator, voice divergence/drift), Mixer (Osc 1/2/3 levels CC23/24/25, Ring Mod 1x2 CC26, Noise mix CC27), and Analogue State-Variable Filter (12dB/24dB LP/BP/HP response curve calculator, Cutoff CC29, Key Tracking CC75, Osc 3 -> Filter FM CC76, Mod Env 1 -> Filter CC78, Resonance CC79, Pre-Filter Overdrive CC80, Post-Filter Drive CC36) with unit tests.",
-              "status": "QUEUED",
+              "status": "IN_PROGRESS",
               "commitSha": null,
               "timestamp": null,
               "txId": null,
               "failedLastRun": false
             }
           ],
-          "implementationStatus": "PARTIAL",
+          "implementationStatus": "IN_PROGRESS",
           "implementedCount": 1,
-          "inProgressCount": 0,
-          "queuedCount": 1,
+          "inProgressCount": 1,
+          "queuedCount": 0,
           "outstandingCount": 0,
           "failedCount": 0,
           "totalRequirements": 2,
           "completionPct": 50,
           "latestCommitSha": null,
-          "latestVerifiedAt": null
+          "latestVerifiedAt": "2026-11-05T19:46:47.820Z"
         },
         {
           "id": "subintent:epoch-4-3x-adsr-envelopes-dual-tempo-synced-lfos",
@@ -2980,7 +3159,7 @@
               "status": "OUTSTANDING",
               "isQueued": false,
               "failedLastRun": false,
-              "commitSha": null
+              "commitSha": "09100e92a92df96bf3bfc3764e29c55a19685327"
             }
           ],
           "suggestions": [
@@ -3030,7 +3209,7 @@
               "status": "OUTSTANDING",
               "isQueued": false,
               "failedLastRun": false,
-              "commitSha": null
+              "commitSha": "09100e92a92df96bf3bfc3764e29c55a19685327"
             }
           ],
           "hasQueuedTasks": true,
@@ -3041,8 +3220,8 @@
               "text": "Epoch 6/8: Two-Bowls / YAAE Native egui Desktop GUI (NovationPeakApp) — Oscillators/Wavetable, SVF Filter, Envelopes/LFOs/16-Slot Mod Matrix, FX/Animate Bar &",
               "status": "IMPLEMENTED",
               "commitSha": null,
-              "timestamp": "2026-11-05T19:37:19.147Z",
-              "txId": "tx-2026-11-05T19-37-19-147Z-p3yu",
+              "timestamp": "2026-11-05T19:46:47.820Z",
+              "txId": "tx-2026-11-05T19-46-47-820Z-udjx",
               "failedLastRun": false
             },
             {
@@ -3275,7 +3454,7 @@
               "index": 1,
               "title": "Requirement #1: Epoch 8/8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release",
               "taskPrompt": "Implement requirement #1 on [I11] (Epoch 8/8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release): Epoch 8/8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release",
-              "status": "OUTSTANDING",
+              "status": "IMPLEMENTED",
               "isQueued": false,
               "failedLastRun": false,
               "commitSha": null
@@ -3325,7 +3504,7 @@
               "index": 1,
               "title": "Requirement #1: Epoch 8/8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release",
               "taskPrompt": "Implement requirement #1 on [I11] (Epoch 8/8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release): Epoch 8/8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release",
-              "status": "OUTSTANDING",
+              "status": "IMPLEMENTED",
               "isQueued": false,
               "failedLastRun": false,
               "commitSha": null
@@ -3369,10 +3548,10 @@
               "index": 1,
               "codeId": "I11.1",
               "text": "Epoch 8/8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release",
-              "status": "OUTSTANDING",
+              "status": "IMPLEMENTED",
               "commitSha": null,
-              "timestamp": null,
-              "txId": null,
+              "timestamp": "2026-11-05T19:46:47.820Z",
+              "txId": "tx-2026-11-05T19-46-47-820Z-udjx",
               "failedLastRun": false
             },
             {
@@ -3386,14 +3565,14 @@
               "failedLastRun": false
             }
           ],
-          "implementationStatus": "QUEUED",
-          "implementedCount": 0,
+          "implementationStatus": "PARTIAL",
+          "implementedCount": 1,
           "inProgressCount": 0,
           "queuedCount": 1,
-          "outstandingCount": 1,
+          "outstandingCount": 0,
           "failedCount": 0,
           "totalRequirements": 2,
-          "completionPct": 0,
+          "completionPct": 50,
           "latestCommitSha": null,
           "latestVerifiedAt": null
         },
@@ -3439,10 +3618,10 @@
               "index": 1,
               "title": "Requirement #1: Epoch 2 of 8: Non-Invasive ALSA Hardware Discovery (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0), Safety Clamping, NRPN/Dual-CC Router & Bidirectional",
               "taskPrompt": "Implement requirement #1 on [I12] (Keyboard Shortcuts & Modal Input Ergonomics): Epoch 2 of 8: Non-Invasive ALSA Hardware Discovery (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0), Safety Clamping, NRPN/Dual-CC Router & Bidirectional",
-              "status": "IN_PROGRESS",
+              "status": "IMPLEMENTED",
               "isQueued": false,
               "failedLastRun": false,
-              "commitSha": null
+              "commitSha": "09100e92a92df96bf3bfc3764e29c55a19685327"
             },
             {
               "id": "task:I12:synthesis",
@@ -3455,10 +3634,10 @@
               "index": 2,
               "title": "Synthesize capability: Keyboard Shortcuts & Modal Input Ergonomics",
               "taskPrompt": "Keyboard Shortcuts & Modal Input Ergonomics: Support fast keyboard shortcuts and navigation while isolating modal text/search input fields so typing or editing never triggers unintended global actions. (Requirements: Epoch 2 of 8: Non-Invasive ALSA Hardware Discovery (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0), Safety Clamping, NRPN/Dual-CC Router & Bidirectional)",
-              "status": "OUTSTANDING",
+              "status": "IMPLEMENTED",
               "isQueued": false,
               "failedLastRun": false,
-              "commitSha": null
+              "commitSha": "09100e92a92df96bf3bfc3764e29c55a19685327"
             }
           ],
           "suggestions": [
@@ -3473,10 +3652,10 @@
               "index": 1,
               "title": "Requirement #1: Epoch 2 of 8: Non-Invasive ALSA Hardware Discovery (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0), Safety Clamping, NRPN/Dual-CC Router & Bidirectional",
               "taskPrompt": "Implement requirement #1 on [I12] (Keyboard Shortcuts & Modal Input Ergonomics): Epoch 2 of 8: Non-Invasive ALSA Hardware Discovery (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0), Safety Clamping, NRPN/Dual-CC Router & Bidirectional",
-              "status": "IN_PROGRESS",
+              "status": "IMPLEMENTED",
               "isQueued": false,
               "failedLastRun": false,
-              "commitSha": null
+              "commitSha": "09100e92a92df96bf3bfc3764e29c55a19685327"
             },
             {
               "id": "task:I12:synthesis",
@@ -3489,10 +3668,10 @@
               "index": 2,
               "title": "Synthesize capability: Keyboard Shortcuts & Modal Input Ergonomics",
               "taskPrompt": "Keyboard Shortcuts & Modal Input Ergonomics: Support fast keyboard shortcuts and navigation while isolating modal text/search input fields so typing or editing never triggers unintended global actions. (Requirements: Epoch 2 of 8: Non-Invasive ALSA Hardware Discovery (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0), Safety Clamping, NRPN/Dual-CC Router & Bidirectional)",
-              "status": "OUTSTANDING",
+              "status": "IMPLEMENTED",
               "isQueued": false,
               "failedLastRun": false,
-              "commitSha": null
+              "commitSha": "09100e92a92df96bf3bfc3764e29c55a19685327"
             }
           ],
           "hasQueuedTasks": false,
@@ -3501,22 +3680,22 @@
               "index": 1,
               "codeId": "I12.1",
               "text": "Epoch 2 of 8: Non-Invasive ALSA Hardware Discovery (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0), Safety Clamping, NRPN/Dual-CC Router & Bidirectional",
-              "status": "IN_PROGRESS",
-              "commitSha": null,
-              "timestamp": null,
-              "txId": null,
+              "status": "IMPLEMENTED",
+              "commitSha": "09100e92a92df96bf3bfc3764e29c55a19685327",
+              "timestamp": "2026-11-05T19:37:19.147Z",
+              "txId": "tx-2026-11-05T19-37-19-147Z-p3yu",
               "failedLastRun": false
             }
           ],
-          "implementationStatus": "IN_PROGRESS",
-          "implementedCount": 0,
-          "inProgressCount": 1,
+          "implementationStatus": "IMPLEMENTED",
+          "implementedCount": 1,
+          "inProgressCount": 0,
           "queuedCount": 0,
           "outstandingCount": 0,
           "failedCount": 0,
           "totalRequirements": 1,
-          "completionPct": 0,
-          "latestCommitSha": null,
+          "completionPct": 100,
+          "latestCommitSha": "09100e92a92df96bf3bfc3764e29c55a19685327",
           "latestVerifiedAt": "2026-11-05T19:37:19.147Z"
         }
       ],
@@ -3663,17 +3842,17 @@
         },
         {
           "id": "change-tx-tx-2026-11-05T19",
-          "title": "Epoch 1 of 8: 5-Synth Ecosystem Profile (NovationPeakProfile) & Shared Rust/JS SDK Registration (Target: crates/synth-core; Related: js/shared-synth-sdk, js/konduktiva-peak). Extend crates/synth-core (src/profiles.rs and src/lib.rs) and js/shared-synth-sdk with NovationPeakProfile covering all 74 CCs from js/konduktiva-peak/midi-cc-map.json, +32 bipolar dual-CC pairs, 14-bit NRPN descriptors, 3 FPGA NCO oscillators (17 wavetables), mixer/ring-mod/noise, state-variable LP/BP/HP filter with pre/post drive, 3 ADSR envelopes, 2 tempo-synced LFOs, 16-slot mod matrix, Animate 1 & 2 holds, arpeggiator gate, and analogue distortion + chorus/delay/reverb FX. Register Novation Peak as the 5th synth in UnifiedEcosystemSchemaBundle alongside nkEditor, Hydrasynth, BS2/TD-3, and Nord Drum 2, and add comprehensive unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-001.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
-          "description": "Epoch 1 of 8: 5-Synth Ecosystem Profile (NovationPeakProfile) & Shared Rust/JS SDK Registration (Target: crates/synth-core; Related: js/shared-synth-sdk, js/konduktiva-peak). Extend crates/synth-core (src/profiles.rs and src/lib.rs) and js/shared-synth-sdk with NovationPeakProfile covering all 74 CCs from js/konduktiva-peak/midi-cc-map.json, +32 bipolar dual-CC pairs, 14-bit NRPN descriptors, 3 FPGA NCO oscillators (17 wavetables), mixer/ring-mod/noise, state-variable LP/BP/HP filter with pre/post drive, 3 ADSR envelopes, 2 tempo-synced LFOs, 16-slot mod matrix, Animate 1 & 2 holds, arpeggiator gate, and analogue distortion + chorus/delay/reverb FX. Register Novation Peak as the 5th synth in UnifiedEcosystemSchemaBundle alongside nkEditor, Hydrasynth, BS2/TD-3, and Nord Drum 2, and add comprehensive unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-001.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
-          "prompt": "Epoch 1 of 8: 5-Synth Ecosystem Profile (NovationPeakProfile) & Shared Rust/JS SDK Registration (Target: crates/synth-core; Related: js/shared-synth-sdk, js/konduktiva-peak). Extend crates/synth-core (src/profiles.rs and src/lib.rs) and js/shared-synth-sdk with NovationPeakProfile covering all 74 CCs from js/konduktiva-peak/midi-cc-map.json, +32 bipolar dual-CC pairs, 14-bit NRPN descriptors, 3 FPGA NCO oscillators (17 wavetables), mixer/ring-mod/noise, state-variable LP/BP/HP filter with pre/post drive, 3 ADSR envelopes, 2 tempo-synced LFOs, 16-slot mod matrix, Animate 1 & 2 holds, arpeggiator gate, and analogue distortion + chorus/delay/reverb FX. Register Novation Peak as the 5th synth in UnifiedEcosystemSchemaBundle alongside nkEditor, Hydrasynth, BS2/TD-3, and Nord Drum 2, and add comprehensive unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-001.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+          "title": "Epoch 2 of 8: Non-Invasive ALSA Hardware Discovery (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0), Safety Clamping, NRPN/Dual-CC Router & Bidirectional OSC Server (Target: crates/synth-midi-osc; Related: src/midi.rs, src/hardware_verify.rs). Implement read-only /proc/asound/cards and /proc/asound/seq/clients inspection in crates/synth-midi-osc and src/hardware_verify.rs detecting Focusrite A.E Peak (Peak MIDI 1, hw:3,0,0, client 28, USB ID 1235:007e), UMC1820 MIDI 1 (hw:0,0,0, client 16), and Korg nanoKONTROL2 (hw:2,0,0, client 24) with safe virtual loopback default (never sending unprompted MIDI bytes to hw:3,0,0 or hw:0,0,0 during tests). Implement Novation Peak MIDI Channel 1 router (7-bit CC, +32 bipolar dual-CC, 14-bit NRPN, Bank Select CC0/CC32 + Program Change, and Focusrite/Novation 00 20 29 SysEx patch dump codec), self-oscillation/overdrive safety clamp (safe_sweep_range on CCs 29, 36, 79, 80, 104, 110), and bidirectional UDP OSC server (/peak/osc/{1..3}/*, /peak/filter/*, /peak/env/*, /peak/lfo/*, /peak/fx/*, /peak/animate/{1,2}, /peak/panic) with unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-002.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+          "description": "Epoch 2 of 8: Non-Invasive ALSA Hardware Discovery (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0), Safety Clamping, NRPN/Dual-CC Router & Bidirectional OSC Server (Target: crates/synth-midi-osc; Related: src/midi.rs, src/hardware_verify.rs). Implement read-only /proc/asound/cards and /proc/asound/seq/clients inspection in crates/synth-midi-osc and src/hardware_verify.rs detecting Focusrite A.E Peak (Peak MIDI 1, hw:3,0,0, client 28, USB ID 1235:007e), UMC1820 MIDI 1 (hw:0,0,0, client 16), and Korg nanoKONTROL2 (hw:2,0,0, client 24) with safe virtual loopback default (never sending unprompted MIDI bytes to hw:3,0,0 or hw:0,0,0 during tests). Implement Novation Peak MIDI Channel 1 router (7-bit CC, +32 bipolar dual-CC, 14-bit NRPN, Bank Select CC0/CC32 + Program Change, and Focusrite/Novation 00 20 29 SysEx patch dump codec), self-oscillation/overdrive safety clamp (safe_sweep_range on CCs 29, 36, 79, 80, 104, 110), and bidirectional UDP OSC server (/peak/osc/{1..3}/*, /peak/filter/*, /peak/env/*, /peak/lfo/*, /peak/fx/*, /peak/animate/{1,2}, /peak/panic) with unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-002.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+          "prompt": "Epoch 2 of 8: Non-Invasive ALSA Hardware Discovery (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0), Safety Clamping, NRPN/Dual-CC Router & Bidirectional OSC Server (Target: crates/synth-midi-osc; Related: src/midi.rs, src/hardware_verify.rs). Implement read-only /proc/asound/cards and /proc/asound/seq/clients inspection in crates/synth-midi-osc and src/hardware_verify.rs detecting Focusrite A.E Peak (Peak MIDI 1, hw:3,0,0, client 28, USB ID 1235:007e), UMC1820 MIDI 1 (hw:0,0,0, client 16), and Korg nanoKONTROL2 (hw:2,0,0, client 24) with safe virtual loopback default (never sending unprompted MIDI bytes to hw:3,0,0 or hw:0,0,0 during tests). Implement Novation Peak MIDI Channel 1 router (7-bit CC, +32 bipolar dual-CC, 14-bit NRPN, Bank Select CC0/CC32 + Program Change, and Focusrite/Novation 00 20 29 SysEx patch dump codec), self-oscillation/overdrive safety clamp (safe_sweep_range on CCs 29, 36, 79, 80, 104, 110), and bidirectional UDP OSC server (/peak/osc/{1..3}/*, /peak/filter/*, /peak/env/*, /peak/lfo/*, /peak/fx/*, /peak/animate/{1,2}, /peak/panic) with unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-002.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
           "status": "IMPLEMENTED",
           "category": "FEATURE",
           "domain": "ARCHITECTURE",
           "subIntentId": null,
-          "createdAt": "2026-11-05T19:16:22.466Z",
-          "completedAt": "2026-11-05T19:16:22.466Z",
-          "commitSha": null,
-          "txId": "tx-2026-11-05T19-16-22-466Z-r2ao"
+          "createdAt": "2026-11-05T19:37:19.147Z",
+          "completedAt": "2026-11-05T19:37:19.147Z",
+          "commitSha": "09100e92a92df96bf3bfc3764e29c55a19685327",
+          "txId": "tx-2026-11-05T19-37-19-147Z-p3yu"
         },
         {
           "id": "change:epoch-2-of-8-non-invasive-alsa-hardware-discover",
@@ -3685,21 +3864,21 @@
           "domain": "ARCHITECTURE",
           "subIntentId": null,
           "createdAt": "2026-11-05T19:37:14.217Z",
-          "completedAt": "2026-11-05T19:37:19.147Z",
-          "commitSha": null,
-          "txId": null
+          "completedAt": "2026-11-05T19:46:47.659Z",
+          "commitSha": "09100e92a92df96bf3bfc3764e29c55a19685327",
+          "txId": "tx-2026-11-05T19-37-19-147Z-p3yu"
         },
         {
           "id": "change:epoch-3-of-8-novation-peak-8-voice-fpga-nco-osci",
-          "title": "Epoch 3 of 8: Novation Peak 8-Voice FPGA NCO Oscillator, 17-Wavetable, Ring/Noise Mixer & Analogue State-Variable Filter Domain Engine (Target: src/peak_synth.rs; Related: src/lib.rs, crates/synth-core). Implement the core 8-voice Novation Peak synthesis domain engine in src/peak_synth.rs and export in src/lib.rs, backed directly by synth_core::SynthPatch and synth_core::CommandHistory (zero duplicate wrapper or undo structs). Cover all 3 FPGA NCO oscillators per voice (Range CC3/37/65, Coarse CC14/17/20, Fine CC15/18/21, Shape/Wavetable interpolation CC12/39/71 across 17 wavetables x 5 waves, VSync CC34/42/44, Mod Env/LFO depth CCs, deterministic harmonic spectrum & wavetable slice calculator, voice divergence/drift), Mixer (Osc 1/2/3 levels CC23/24/25, Ring Mod 1x2 CC26, Noise mix CC27), and Analogue State-Variable Filter (12dB/24dB LP/BP/HP response curve calculator, Cutoff CC29, Key Tracking CC75, Osc 3 -> Filter FM CC76, Mod Env 1 -> Filter CC78, Resonance CC79, Pre-Filter Overdrive CC80, Post-Filter Drive CC36) with unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-003.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
-          "description": "Epoch 3 of 8: Novation Peak 8-Voice FPGA NCO Oscillator, 17-Wavetable, Ring/Noise Mixer & Analogue State-Variable Filter Domain Engine (Target: src/peak_synth.rs; Related: src/lib.rs, crates/synth-core). Implement the core 8-voice Novation Peak synthesis domain engine in src/peak_synth.rs and export in src/lib.rs, backed directly by synth_core::SynthPatch and synth_core::CommandHistory (zero duplicate wrapper or undo structs). Cover all 3 FPGA NCO oscillators per voice (Range CC3/37/65, Coarse CC14/17/20, Fine CC15/18/21, Shape/Wavetable interpolation CC12/39/71 across 17 wavetables x 5 waves, VSync CC34/42/44, Mod Env/LFO depth CCs, deterministic harmonic spectrum & wavetable slice calculator, voice divergence/drift), Mixer (Osc 1/2/3 levels CC23/24/25, Ring Mod 1x2 CC26, Noise mix CC27), and Analogue State-Variable Filter (12dB/24dB LP/BP/HP response curve calculator, Cutoff CC29, Key Tracking CC75, Osc 3 -> Filter FM CC76, Mod Env 1 -> Filter CC78, Resonance CC79, Pre-Filter Overdrive CC80, Post-Filter Drive CC36) with unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-003.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
-          "prompt": "Epoch 3 of 8: Novation Peak 8-Voice FPGA NCO Oscillator, 17-Wavetable, Ring/Noise Mixer & Analogue State-Variable Filter Domain Engine (Target: src/peak_synth.rs; Related: src/lib.rs, crates/synth-core). Implement the core 8-voice Novation Peak synthesis domain engine in src/peak_synth.rs and export in src/lib.rs, backed directly by synth_core::SynthPatch and synth_core::CommandHistory (zero duplicate wrapper or undo structs). Cover all 3 FPGA NCO oscillators per voice (Range CC3/37/65, Coarse CC14/17/20, Fine CC15/18/21, Shape/Wavetable interpolation CC12/39/71 across 17 wavetables x 5 waves, VSync CC34/42/44, Mod Env/LFO depth CCs, deterministic harmonic spectrum & wavetable slice calculator, voice divergence/drift), Mixer (Osc 1/2/3 levels CC23/24/25, Ring Mod 1x2 CC26, Noise mix CC27), and Analogue State-Variable Filter (12dB/24dB LP/BP/HP response curve calculator, Cutoff CC29, Key Tracking CC75, Osc 3 -> Filter FM CC76, Mod Env 1 -> Filter CC78, Resonance CC79, Pre-Filter Overdrive CC80, Post-Filter Drive CC36) with unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-003.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+          "title": "Epoch 3 of 8: Novation Peak 8-Voice FPGA NCO Oscillator, 17-Wavetable, Ring/Noise Mixer & Analogue State-Variable Filter Domain Engine (Target: src/peak_synth.rs; Related",
+          "description": "Epoch 3 of 8: Novation Peak 8-Voice FPGA NCO Oscillator, 17-Wavetable, Ring/Noise Mixer & Analogue State-Variable Filter Domain Engine (Target: src/peak_synth.rs; Related",
+          "prompt": null,
           "status": "IMPLEMENTED",
           "category": "FEATURE",
-          "domain": "ARCHITECTURE",
+          "domain": "SYNTHESIS",
           "subIntentId": null,
-          "createdAt": "2026-11-05T19:37:19.128Z",
-          "completedAt": "2026-11-05T19:16:22.466Z",
+          "createdAt": "2026-11-05T19:46:47.801Z",
+          "completedAt": "2026-11-05T19:46:47.820Z",
           "commitSha": null,
           "txId": null
         },
@@ -3712,7 +3891,7 @@
           "category": "FEATURE",
           "domain": "ARCHITECTURE",
           "subIntentId": null,
-          "createdAt": "2026-11-05T19:37:19.128Z",
+          "createdAt": "2026-11-05T19:46:47.801Z",
           "completedAt": "2026-11-05T19:16:22.466Z",
           "commitSha": null,
           "txId": null
@@ -3726,7 +3905,7 @@
           "category": "FEATURE",
           "domain": "ARCHITECTURE",
           "subIntentId": null,
-          "createdAt": "2026-11-05T19:37:19.128Z",
+          "createdAt": "2026-11-05T19:46:47.801Z",
           "completedAt": null,
           "commitSha": null,
           "txId": null
@@ -3740,7 +3919,7 @@
           "category": "FEATURE",
           "domain": "ARCHITECTURE",
           "subIntentId": null,
-          "createdAt": "2026-11-05T19:37:19.128Z",
+          "createdAt": "2026-11-05T19:46:47.801Z",
           "completedAt": null,
           "commitSha": null,
           "txId": null
@@ -3754,7 +3933,7 @@
           "category": "FEATURE",
           "domain": "ARCHITECTURE",
           "subIntentId": null,
-          "createdAt": "2026-11-05T19:37:19.128Z",
+          "createdAt": "2026-11-05T19:46:47.801Z",
           "completedAt": null,
           "commitSha": null,
           "txId": null
@@ -3768,7 +3947,7 @@
           "category": "FEATURE",
           "domain": "ARCHITECTURE",
           "subIntentId": null,
-          "createdAt": "2026-11-05T19:37:19.128Z",
+          "createdAt": "2026-11-05T19:46:47.801Z",
           "completedAt": null,
           "commitSha": null,
           "txId": null
@@ -3784,11 +3963,127 @@
           "subIntentId": null,
           "createdAt": "2026-11-05T19:37:19.072Z",
           "completedAt": "2026-11-05T19:37:19.147Z",
+          "commitSha": "09100e92a92df96bf3bfc3764e29c55a19685327",
+          "txId": null
+        },
+        {
+          "id": "change-1793908007735-qhe9",
+          "title": "Epoch 3 of 8: Novation Peak 8-Voice FPGA NCO Oscillator, 17-Wavetable, Ring/Noise Mixer & Analogue State-Variable Filter Domain Engine (Target: src/peak_synth.rs; Related",
+          "description": "Epoch 3 of 8: Novation Peak 8-Voice FPGA NCO Oscillator, 17-Wavetable, Ring/Noise Mixer & Analogue State-Variable Filter Domain Engine (Target: src/peak_synth.rs; Related: src/lib.rs, crates/synth-core). Implement the core 8-voice Novation Peak synthesis domain engine in src/peak_synth.rs and export in src/lib.rs, backed directly by synth_core::SynthPatch and synth_core::CommandHistory (zero duplicate wrapper or undo structs). Cover all 3 FPGA NCO oscillators per voice (Range CC3/37/65, Coarse CC14/17/20, Fine CC15/18/21, Shape/Wavetable interpolation CC12/39/71 across 17 wavetables x 5 waves, VSync CC34/42/44, Mod Env/LFO depth CCs, deterministic harmonic spectrum & wavetable slice calculator, voice divergence/drift), Mixer (Osc 1/2/3 levels CC23/24/25, Ring Mod 1x2 CC26, Noise mix CC27), and Analogue State-Variable Filter (12dB/24dB LP/BP/HP response curve calculator, Cutoff CC29, Key Tracking CC75, Osc 3 -> Filter FM CC76, Mod Env 1 -> Filter CC78, Resonance CC79, Pre-Filter Overdrive CC80, Post-Filter Drive CC36) with unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-003.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+          "prompt": "Epoch 3 of 8: Novation Peak 8-Voice FPGA NCO Oscillator, 17-Wavetable, Ring/Noise Mixer & Analogue State-Variable Filter Domain Engine (Target: src/peak_synth.rs; Related: src/lib.rs, crates/synth-core). Implement the core 8-voice Novation Peak synthesis domain engine in src/peak_synth.rs and export in src/lib.rs, backed directly by synth_core::SynthPatch and synth_core::CommandHistory (zero duplicate wrapper or undo structs). Cover all 3 FPGA NCO oscillators per voice (Range CC3/37/65, Coarse CC14/17/20, Fine CC15/18/21, Shape/Wavetable interpolation CC12/39/71 across 17 wavetables x 5 waves, VSync CC34/42/44, Mod Env/LFO depth CCs, deterministic harmonic spectrum & wavetable slice calculator, voice divergence/drift), Mixer (Osc 1/2/3 levels CC23/24/25, Ring Mod 1x2 CC26, Noise mix CC27), and Analogue State-Variable Filter (12dB/24dB LP/BP/HP response curve calculator, Cutoff CC29, Key Tracking CC75, Osc 3 -> Filter FM CC76, Mod Env 1 -> Filter CC78, Resonance CC79, Pre-Filter Overdrive CC80, Post-Filter Drive CC36) with unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-003.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+          "status": "IMPLEMENTED",
+          "category": "FEATURE",
+          "domain": "SYNTHESIS",
+          "subIntentId": null,
+          "createdAt": "2026-11-05T19:46:47.735Z",
+          "completedAt": "2026-11-05T19:46:47.820Z",
           "commitSha": null,
+          "txId": null
+        },
+        {
+          "id": "change-inferred-epoch-novation-peak-voice",
+          "title": "Epoch 3 of 8: Novation Peak 8-Voice FPGA NCO Oscillator, 17-Wavetable, Ring/Noise Mixer & Analogue State-Variable Filter Domain Engine (Target",
+          "description": "Epoch 3 of 8: Novation Peak 8-Voice FPGA NCO Oscillator, 17-Wavetable, Ring/Noise Mixer & Analogue State-Variable Filter Domain Engine (Target: src/peak_synth.rs; Related.",
+          "prompt": "Epoch 3 of 8: Novation Peak 8-Voice FPGA NCO Oscillator, 17-Wavetable, Ring/Noise Mixer & Analogue State-Variable Filter Domain Engine (Target: src/peak_synth.rs; Related: src/lib.rs, crates/synth-core). Implement the core 8-voice Novation Peak synthesis domain engine in src/peak_synth.rs and export in src/lib.rs, backed directly by synth_core::SynthPatch and synth_core::CommandHistory (zero duplicate wrapper or undo structs). Cover all 3 FPGA NCO oscillators per voice (Range CC3/37/65, Coarse CC14/17/20, Fine CC15/18/21, Shape/Wavetable interpolation CC12/39/71 across 17 wavetables x 5 waves, VSync CC34/42/44, Mod Env/LFO depth CCs, deterministic harmonic spectrum & wavetable slice calculator, voice divergence/drift), Mixer (Osc 1/2/3 levels CC23/24/25, Ring Mod 1x2 CC26, Noise mix CC27), and Analogue State-Variable Filter (12dB/24dB LP/BP/HP response curve calculator, Cutoff CC29, Key Tracking CC75, Osc 3 -> Filter FM CC76, Mod Env 1 -> Filter CC78, Resonance CC79, Pre-Filter Overdrive CC80, Post-Filter Drive CC36) with unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-003.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+          "status": "IMPLEMENTED",
+          "category": "FEATURE",
+          "domain": "SYNTHESIS",
+          "subIntentId": null,
+          "createdAt": "2026-11-05T19:46:47.801Z",
+          "completedAt": "2026-11-05T19:46:47.820Z",
+          "commitSha": null,
+          "txId": null
+        },
+        {
+          "id": "change-inferred-implement-the-core-voice",
+          "title": "Implement the core 8-voice Novation Peak synthesis domain engine in src/peaksynth.rs and export in src/lib.rs, backed directly by synthcore::SynthPatch and",
+          "description": "Implement the core 8-voice Novation Peak synthesis domain engine in src/peaksynth.rs and export in src/lib.rs, backed directly by synthcore::SynthPatch and synth_core::CommandHistory (zero.",
+          "prompt": "Epoch 3 of 8: Novation Peak 8-Voice FPGA NCO Oscillator, 17-Wavetable, Ring/Noise Mixer & Analogue State-Variable Filter Domain Engine (Target: src/peak_synth.rs; Related: src/lib.rs, crates/synth-core). Implement the core 8-voice Novation Peak synthesis domain engine in src/peak_synth.rs and export in src/lib.rs, backed directly by synth_core::SynthPatch and synth_core::CommandHistory (zero duplicate wrapper or undo structs). Cover all 3 FPGA NCO oscillators per voice (Range CC3/37/65, Coarse CC14/17/20, Fine CC15/18/21, Shape/Wavetable interpolation CC12/39/71 across 17 wavetables x 5 waves, VSync CC34/42/44, Mod Env/LFO depth CCs, deterministic harmonic spectrum & wavetable slice calculator, voice divergence/drift), Mixer (Osc 1/2/3 levels CC23/24/25, Ring Mod 1x2 CC26, Noise mix CC27), and Analogue State-Variable Filter (12dB/24dB LP/BP/HP response curve calculator, Cutoff CC29, Key Tracking CC75, Osc 3 -> Filter FM CC76, Mod Env 1 -> Filter CC78, Resonance CC79, Pre-Filter Overdrive CC80, Post-Filter Drive CC36) with unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-003.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+          "status": "IMPLEMENTED",
+          "category": "FEATURE",
+          "domain": "PERSISTENCE",
+          "subIntentId": null,
+          "createdAt": "2026-11-05T19:46:47.801Z",
+          "completedAt": "2026-11-05T19:46:47.820Z",
+          "commitSha": null,
+          "txId": null
+        },
+        {
+          "id": "change:implement-the-core-8-voice-novation-peak-synthes",
+          "title": "Implement the core 8-voice Novation Peak synthesis domain engine in src/peaksynth.rs and export in src/lib.rs, backed directly by synthcore::SynthPatch and synth_core::CommandHistory (zero",
+          "description": "Implement the core 8-voice Novation Peak synthesis domain engine in src/peaksynth.rs and export in src/lib.rs, backed directly by synthcore::SynthPatch and synth_core::CommandHistory (zero",
+          "prompt": null,
+          "status": "IMPLEMENTED",
+          "category": "FEATURE",
+          "domain": "PERSISTENCE",
+          "subIntentId": null,
+          "createdAt": "2026-11-05T19:46:47.802Z",
+          "completedAt": "2026-11-05T19:46:47.820Z",
+          "commitSha": null,
+          "txId": null
+        },
+        {
+          "id": "change-inferred-cover-all-fpga-nco",
+          "title": "Cover all 3 FPGA NCO oscillators per voice (Range CC3/37/65, Coarse CC14/17/20, Fine CC15/18/21, Shape/Wavetable interpolation CC12/39/71 across 17 wavetables",
+          "description": "Cover all 3 FPGA NCO oscillators per voice (Range CC3/37/65, Coarse CC14/17/20, Fine CC15/18/21, Shape/Wavetable interpolation CC12/39/71 across 17 wavetables x 5.",
+          "prompt": "Epoch 3 of 8: Novation Peak 8-Voice FPGA NCO Oscillator, 17-Wavetable, Ring/Noise Mixer & Analogue State-Variable Filter Domain Engine (Target: src/peak_synth.rs; Related: src/lib.rs, crates/synth-core). Implement the core 8-voice Novation Peak synthesis domain engine in src/peak_synth.rs and export in src/lib.rs, backed directly by synth_core::SynthPatch and synth_core::CommandHistory (zero duplicate wrapper or undo structs). Cover all 3 FPGA NCO oscillators per voice (Range CC3/37/65, Coarse CC14/17/20, Fine CC15/18/21, Shape/Wavetable interpolation CC12/39/71 across 17 wavetables x 5 waves, VSync CC34/42/44, Mod Env/LFO depth CCs, deterministic harmonic spectrum & wavetable slice calculator, voice divergence/drift), Mixer (Osc 1/2/3 levels CC23/24/25, Ring Mod 1x2 CC26, Noise mix CC27), and Analogue State-Variable Filter (12dB/24dB LP/BP/HP response curve calculator, Cutoff CC29, Key Tracking CC75, Osc 3 -> Filter FM CC76, Mod Env 1 -> Filter CC78, Resonance CC79, Pre-Filter Overdrive CC80, Post-Filter Drive CC36) with unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-003.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+          "status": "IMPLEMENTED",
+          "category": "FEATURE",
+          "domain": "SYNTHESIS",
+          "subIntentId": null,
+          "createdAt": "2026-11-05T19:46:47.802Z",
+          "completedAt": "2026-11-05T19:46:47.820Z",
+          "commitSha": null,
+          "txId": null
+        },
+        {
+          "id": "change:cover-all-3-fpga-nco-oscillators-per-voice-range",
+          "title": "Cover all 3 FPGA NCO oscillators per voice (Range CC3/37/65, Coarse CC14/17/20, Fine CC15/18/21, Shape/Wavetable interpolation CC12/39/71 across 17 wavetables x 5",
+          "description": "Cover all 3 FPGA NCO oscillators per voice (Range CC3/37/65, Coarse CC14/17/20, Fine CC15/18/21, Shape/Wavetable interpolation CC12/39/71 across 17 wavetables x 5",
+          "prompt": null,
+          "status": "IMPLEMENTED",
+          "category": "FEATURE",
+          "domain": "SYNTHESIS",
+          "subIntentId": null,
+          "createdAt": "2026-11-05T19:46:47.802Z",
+          "completedAt": "2026-11-05T19:46:47.820Z",
+          "commitSha": null,
+          "txId": null
+        },
+        {
+          "id": "change:ensure-all-workspace-tests-pass-cargobuildjobs-2",
+          "title": "Ensure all workspace tests pass (CARGOBUILDJOBS=2 cargo test --workspace and npm test)",
+          "description": "Ensure all workspace tests pass (CARGOBUILDJOBS=2 cargo test --workspace and npm test)",
+          "prompt": null,
+          "status": "IMPLEMENTED",
+          "category": "FEATURE",
+          "domain": "ARCHITECTURE",
+          "subIntentId": null,
+          "createdAt": "2026-11-05T19:46:47.802Z",
+          "completedAt": "2026-11-05T19:37:19.147Z",
+          "commitSha": "09100e92a92df96bf3bfc3764e29c55a19685327",
           "txId": null
         }
       ],
-      "archivedTasks": [],
+      "archivedTasks": [
+        {
+          "id": "change:epoch-2-of-8-non-invasive-alsa-hardware-discover",
+          "codeId": "CHANGE",
+          "subIntentId": null,
+          "subIntentCodeId": null,
+          "subIntentName": null,
+          "domain": "ARCHITECTURE",
+          "kind": "CHANGE",
+          "title": "Epoch 2 of 8: Non-Invasive ALSA Hardware Discovery (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0), Safety Clamping, NRPN/Dual-CC Router & Bidirectional OSC Server (Target: crates/synth-midi-osc; Related: src/midi.rs, src/hardware_verify.rs). Implement read-only /proc/asound/cards and /proc/asound/seq/clients inspection in crates/synth-midi-osc and src/hardware_verify.rs detecting Focusrite A.E Peak (Peak MIDI 1, hw:3,0,0, client 28, USB ID 1235:007e), UMC1820 MIDI 1 (hw:0,0,0, client 16), and Korg nanoKONTROL2 (hw:2,0,0, client 24) with safe virtual loopback default (never sending unprompted MIDI bytes to hw:3,0,0 or hw:0,0,0 during tests). Implement Novation Peak MIDI Channel 1 router (7-bit CC, +32 bipolar dual-CC, 14-bit NRPN, Bank Select CC0/CC32 + Program Change, and Focusrite/Novation 00 20 29 SysEx patch dump codec), self-oscillation/overdrive safety clamp (safe_sweep_range on CCs 29, 36, 79, 80, 104, 110), and bidirectional UDP OSC server (/peak/osc/{1..3}/*, /peak/filter/*, /peak/env/*, /peak/lfo/*, /peak/fx/*, /peak/animate/{1,2}, /peak/panic) with unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-002.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+          "text": "Epoch 2 of 8: Non-Invasive ALSA Hardware Discovery (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0), Safety Clamping, NRPN/Dual-CC Router & Bidirectional OSC Server (Target: crates/synth-midi-osc; Related: src/midi.rs, src/hardware_verify.rs). Implement read-only /proc/asound/cards and /proc/asound/seq/clients inspection in crates/synth-midi-osc and src/hardware_verify.rs detecting Focusrite A.E Peak (Peak MIDI 1, hw:3,0,0, client 28, USB ID 1235:007e), UMC1820 MIDI 1 (hw:0,0,0, client 16), and Korg nanoKONTROL2 (hw:2,0,0, client 24) with safe virtual loopback default (never sending unprompted MIDI bytes to hw:3,0,0 or hw:0,0,0 during tests). Implement Novation Peak MIDI Channel 1 router (7-bit CC, +32 bipolar dual-CC, 14-bit NRPN, Bank Select CC0/CC32 + Program Change, and Focusrite/Novation 00 20 29 SysEx patch dump codec), self-oscillation/overdrive safety clamp (safe_sweep_range on CCs 29, 36, 79, 80, 104, 110), and bidirectional UDP OSC server (/peak/osc/{1..3}/*, /peak/filter/*, /peak/env/*, /peak/lfo/*, /peak/fx/*, /peak/animate/{1,2}, /peak/panic) with unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-002.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+          "taskPrompt": "Epoch 2 of 8: Non-Invasive ALSA Hardware Discovery (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0), Safety Clamping, NRPN/Dual-CC Router & Bidirectional OSC Server (Target: crates/synth-midi-osc; Related: src/midi.rs, src/hardware_verify.rs). Implement read-only /proc/asound/cards and /proc/asound/seq/clients inspection in crates/synth-midi-osc and src/hardware_verify.rs detecting Focusrite A.E Peak (Peak MIDI 1, hw:3,0,0, client 28, USB ID 1235:007e), UMC1820 MIDI 1 (hw:0,0,0, client 16), and Korg nanoKONTROL2 (hw:2,0,0, client 24) with safe virtual loopback default (never sending unprompted MIDI bytes to hw:3,0,0 or hw:0,0,0 during tests). Implement Novation Peak MIDI Channel 1 router (7-bit CC, +32 bipolar dual-CC, 14-bit NRPN, Bank Select CC0/CC32 + Program Change, and Focusrite/Novation 00 20 29 SysEx patch dump codec), self-oscillation/overdrive safety clamp (safe_sweep_range on CCs 29, 36, 79, 80, 104, 110), and bidirectional UDP OSC server (/peak/osc/{1..3}/*, /peak/filter/*, /peak/env/*, /peak/lfo/*, /peak/fx/*, /peak/animate/{1,2}, /peak/panic) with unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-002.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+          "status": "MET",
+          "commitSha": "09100e92a92df96bf3bfc3764e29c55a19685327",
+          "txId": "tx-2026-11-05T19-37-19-147Z-p3yu",
+          "archivedAt": "2026-11-05T19:46:47.659Z",
+          "completedAt": "2026-11-05T19:46:47.659Z"
+        }
+      ],
       "deletedSubIntents": [],
       "tensions": [
         {
@@ -3976,7 +4271,7 @@
       "intentsReviewed": false,
       "reviewedAt": null,
       "reviewNote": null,
-      "lastUpdated": "2026-11-05T19:37:19.128Z"
+      "lastUpdated": "2026-11-05T19:46:47.802Z"
     },
     "intentRevisionLog": [
       {
@@ -4427,6 +4722,184 @@
       {
         "stepNumber": 3,
         "revisionId": "rev-003",
+        "timestamp": "2026-11-05T19:46:47.742Z",
+        "triggerType": "USER_CLI_PROMPT",
+        "shiftKind": "MULTI_DOMAIN_SHIFT",
+        "userPrompt": "Epoch 3 of 8: Novation Peak 8-Voice FPGA NCO Oscillator, 17-Wavetable, Ring/Noise Mixer & Analogue State-Variable Filter Domain Engine (Target: src/peak_synth.rs; Related: src/lib.rs, crates/synth-core). Implement the core 8-voice Novation Peak synthesis domain engine in src/peak_synth.rs and export in src/lib.rs, backed directly by synth_core::SynthPatch and synth_core::CommandHistory (zero duplicate wrapper or undo structs). Cover all 3 FPGA NCO oscillators per voice (Range CC3/37/65, Coarse CC14/17/20, Fine CC15/18/21, Shape/Wavetable interpolation CC12/39/71 across 17 wavetables x 5 waves, VSync CC34/42/44, Mod Env/LFO depth CCs, deterministic harmonic spectrum & wavetable slice calculator, voice divergence/drift), Mixer (Osc 1/2/3 levels CC23/24/25, Ring Mod 1x2 CC26, Noise mix CC27), and Analogue State-Variable Filter (12dB/24dB LP/BP/HP response curve calculator, Cutoff CC29, Key Tracking CC75, Osc 3 -> Filter FM CC76, Mod Env 1 -> Filter CC78, Resonance CC79, Pre-Filter Overdrive CC80, Post-Filter Drive CC36) with unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-003.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+        "distilledRequirement": "Epoch 3 of 8: Novation Peak 8-Voice FPGA NCO Oscillator, 17-Wavetable, Ring/Noise Mixer & Analogue State-Variable Filter Domain Engine (Target: src/peak_synth.rs; Related",
+        "mainIntentSnapshot": {
+          "title": "Novation Peak 8-Voice Polyphonic Hybrid Synthesizer Manager, Patch Librarian & Konduktiva Companion",
+          "statement": "Full-featured Rust/egui native desktop synthesizer manager, patch editor, librarian, Korg nanoKONTROL2 controller, and Konduktiva live-coding companion for the Novation Peak 8-voice polyphonic hybrid synthesizer, extending the shared synth ecosystem (synth-core, synth-midi-osc, synth-ui-theme, shared-synth-sdk, konduktiva-peak) across 5 synthesizers.",
+          "primaryDomains": [
+            "SYNTHESIS",
+            "SEQUENCING_MIDI",
+            "NETWORKING_IPC",
+            "UI_LAYOUT",
+            "ERGONOMICS",
+            "PERSISTENCE",
+            "ARCHITECTURE"
+          ]
+        },
+        "shiftSummary": "Prompt #3 created [SYNTHESIS] \"Epoch 3 of 8: Novation Peak 8-Voice FPGA NCO Oscillator, 17-Wavetable, Ring/Noise Mixer & Analogue State-Variable Filter Domain Engine (Target: src/peak_synth.rs; Related\"; created [PERSISTENCE] \"Implement the core 8-voice Novation Peak synthesis domain engine in src/peaksynth.rs and export in src/lib.rs, backed directly by synthcore::SynthPatch and synth_core::CommandHistory (zero\"; created [SYNTHESIS] \"Cover all 3 FPGA NCO oscillators per voice (Range CC3/37/65, Coarse CC14/17/20, Fine CC15/18/21, Shape/Wavetable interpolation CC12/39/71 across 17 wavetables x 5\"; created [ARCHITECTURE] \"Ensure all workspace tests pass (CARGOBUILDJOBS=2 cargo test --workspace and npm test)\": stored sub-intents: 9 → 13, stored requirements: 9 → 13.",
+        "mutations": [
+          {
+            "subIntentId": "subintent:inferred-epoch-novation-peak-voice",
+            "theme": "INFERRED_EPOCH_NOVATION_PEAK_VOICE",
+            "domain": "SYNTHESIS",
+            "name": "Epoch 3 of 8: Novation Peak 8-Voice FPGA NCO Oscillator, 17-Wavetable, Ring/Noise Mixer & Analogue State-Variable Filter Domain Engine (Target: src/peak_synth.rs; Related",
+            "changeType": "NEW_SUBINTENT",
+            "relationToMainIntent": "Advances Main Intent [Novation Peak 8-Voice Polyphonic Hybrid Synthesizer Manager, Patch Librarian & Konduktiva Companion → SYNTHESIS]: Epoch 3 of 8: Novation Peak 8-Voice FPGA NCO Oscillator, 17-Wavetable, Ring/Noise Mixer & Analogue State-Variable Filter Domain Engine (Target: src/peak_synth.rs; Related",
+            "beforeState": {
+              "existed": false,
+              "requirementsCount": 0,
+              "promptsCount": 0,
+              "previousRequirements": [],
+              "summary": "Did not exist yet in stored intent prior to Prompt #3."
+            },
+            "delta": {
+              "addedRequirements": [
+                "Epoch 3 of 8: Novation Peak 8-Voice FPGA NCO Oscillator, 17-Wavetable, Ring/Noise Mixer & Analogue State-Variable Filter Domain Engine (Target: src/peak_synth.rs; Related"
+              ],
+              "addedInvariants": [],
+              "targetEntities": [
+                "entity:novation-peak-pigs:synth-core",
+                "entity:novation-peak-pigs:synth-core-diff"
+              ]
+            },
+            "afterState": {
+              "requirementsCount": 1,
+              "promptsCount": 1,
+              "allRequirements": [
+                "Epoch 3 of 8: Novation Peak 8-Voice FPGA NCO Oscillator, 17-Wavetable, Ring/Noise Mixer & Analogue State-Variable Filter Domain Engine (Target: src/peak_synth.rs; Related"
+              ],
+              "specification": "Epoch 3 of 8: Novation Peak 8-Voice FPGA NCO Oscillator, 17-Wavetable, Ring/Noise Mixer & Analogue State-Variable Filter Domain Engine (Target: src/peak_synth.rs; Related.",
+              "summary": "Created new [SYNTHESIS] sub-intent \"Epoch 3 of 8: Novation Peak 8-Voice FPGA NCO Oscillator, 17-Wavetable, Ring/Noise Mixer & Analogue State-Variable Filter Domain Engine (Target: src/peak_synth.rs; Related\" with 1 requirement(s)."
+            }
+          },
+          {
+            "subIntentId": "subintent:inferred-implement-the-core-voice",
+            "theme": "INFERRED_IMPLEMENT_THE_CORE_VOICE",
+            "domain": "PERSISTENCE",
+            "name": "Implement the core 8-voice Novation Peak synthesis domain engine in src/peaksynth.rs and export in src/lib.rs, backed directly by synthcore::SynthPatch and synth_core::CommandHistory (zero",
+            "changeType": "NEW_SUBINTENT",
+            "relationToMainIntent": "Advances Main Intent [Novation Peak 8-Voice Polyphonic Hybrid Synthesizer Manager, Patch Librarian & Konduktiva Companion → PERSISTENCE]: Implement the core 8-voice Novation Peak synthesis domain engine in src/peaksynth.rs and export in src/lib.rs, backed directly by synthcore::SynthPatch and synth_core::CommandHistory (zero",
+            "beforeState": {
+              "existed": false,
+              "requirementsCount": 0,
+              "promptsCount": 0,
+              "previousRequirements": [],
+              "summary": "Did not exist yet in stored intent prior to Prompt #3."
+            },
+            "delta": {
+              "addedRequirements": [
+                "Implement the core 8-voice Novation Peak synthesis domain engine in src/peaksynth.rs and export in src/lib.rs, backed directly by synthcore::SynthPatch and synth_core::CommandHistory (zero"
+              ],
+              "addedInvariants": [],
+              "targetEntities": [
+                "entity:novation-peak-pigs:synth-core",
+                "entity:novation-peak-pigs:synth-core-diff"
+              ]
+            },
+            "afterState": {
+              "requirementsCount": 1,
+              "promptsCount": 1,
+              "allRequirements": [
+                "Implement the core 8-voice Novation Peak synthesis domain engine in src/peaksynth.rs and export in src/lib.rs, backed directly by synthcore::SynthPatch and synth_core::CommandHistory (zero"
+              ],
+              "specification": "Implement the core 8-voice Novation Peak synthesis domain engine in src/peaksynth.rs and export in src/lib.rs, backed directly by synthcore::SynthPatch and synth_core::CommandHistory (zero.",
+              "summary": "Created new [PERSISTENCE] sub-intent \"Implement the core 8-voice Novation Peak synthesis domain engine in src/peaksynth.rs and export in src/lib.rs, backed directly by synthcore::SynthPatch and synth_core::CommandHistory (zero\" with 1 requirement(s)."
+            }
+          },
+          {
+            "subIntentId": "subintent:inferred-cover-all-fpga-nco",
+            "theme": "INFERRED_COVER_ALL_FPGA_NCO",
+            "domain": "SYNTHESIS",
+            "name": "Cover all 3 FPGA NCO oscillators per voice (Range CC3/37/65, Coarse CC14/17/20, Fine CC15/18/21, Shape/Wavetable interpolation CC12/39/71 across 17 wavetables x 5",
+            "changeType": "NEW_SUBINTENT",
+            "relationToMainIntent": "Advances Main Intent [Novation Peak 8-Voice Polyphonic Hybrid Synthesizer Manager, Patch Librarian & Konduktiva Companion → SYNTHESIS]: Cover all 3 FPGA NCO oscillators per voice (Range CC3/37/65, Coarse CC14/17/20, Fine CC15/18/21, Shape/Wavetable interpolation CC12/39/71 across 17 wavetables x 5",
+            "beforeState": {
+              "existed": false,
+              "requirementsCount": 0,
+              "promptsCount": 0,
+              "previousRequirements": [],
+              "summary": "Did not exist yet in stored intent prior to Prompt #3."
+            },
+            "delta": {
+              "addedRequirements": [
+                "Cover all 3 FPGA NCO oscillators per voice (Range CC3/37/65, Coarse CC14/17/20, Fine CC15/18/21, Shape/Wavetable interpolation CC12/39/71 across 17 wavetables x 5"
+              ],
+              "addedInvariants": [],
+              "targetEntities": [
+                "entity:novation-peak-pigs:synth-core",
+                "entity:novation-peak-pigs:synth-core-diff"
+              ]
+            },
+            "afterState": {
+              "requirementsCount": 1,
+              "promptsCount": 1,
+              "allRequirements": [
+                "Cover all 3 FPGA NCO oscillators per voice (Range CC3/37/65, Coarse CC14/17/20, Fine CC15/18/21, Shape/Wavetable interpolation CC12/39/71 across 17 wavetables x 5"
+              ],
+              "specification": "Cover all 3 FPGA NCO oscillators per voice (Range CC3/37/65, Coarse CC14/17/20, Fine CC15/18/21, Shape/Wavetable interpolation CC12/39/71 across 17 wavetables x 5.",
+              "summary": "Created new [SYNTHESIS] sub-intent \"Cover all 3 FPGA NCO oscillators per voice (Range CC3/37/65, Coarse CC14/17/20, Fine CC15/18/21, Shape/Wavetable interpolation CC12/39/71 across 17 wavetables x 5\" with 1 requirement(s)."
+            }
+          },
+          {
+            "subIntentId": "subintent:inferred-ensure-all-workspace-tests",
+            "theme": "INFERRED_ENSURE_ALL_WORKSPACE_TESTS",
+            "domain": "ARCHITECTURE",
+            "name": "Ensure all workspace tests pass (CARGOBUILDJOBS=2 cargo test --workspace and npm test)",
+            "changeType": "NEW_SUBINTENT",
+            "relationToMainIntent": "Advances Main Intent [Novation Peak 8-Voice Polyphonic Hybrid Synthesizer Manager, Patch Librarian & Konduktiva Companion → ARCHITECTURE]: Ensure all workspace tests pass (CARGOBUILDJOBS=2 cargo test --workspace and npm test)",
+            "beforeState": {
+              "existed": false,
+              "requirementsCount": 0,
+              "promptsCount": 0,
+              "previousRequirements": [],
+              "summary": "Did not exist yet in stored intent prior to Prompt #3."
+            },
+            "delta": {
+              "addedRequirements": [
+                "Ensure all workspace tests pass (CARGOBUILDJOBS=2 cargo test --workspace and npm test)"
+              ],
+              "addedInvariants": [],
+              "targetEntities": [
+                "entity:novation-peak-pigs:synth-core",
+                "entity:novation-peak-pigs:synth-core-diff"
+              ]
+            },
+            "afterState": {
+              "requirementsCount": 1,
+              "promptsCount": 1,
+              "allRequirements": [
+                "Ensure all workspace tests pass (CARGOBUILDJOBS=2 cargo test --workspace and npm test)"
+              ],
+              "specification": "Ensure all workspace tests pass (CARGOBUILDJOBS=2 cargo test --workspace and npm test).",
+              "summary": "Created new [ARCHITECTURE] sub-intent \"Ensure all workspace tests pass (CARGOBUILDJOBS=2 cargo test --workspace and npm test)\" with 1 requirement(s)."
+            }
+          }
+        ],
+        "storedStateTotals": {
+          "subIntentsBefore": 9,
+          "subIntentsAfter": 13,
+          "totalRequirementsBefore": 9,
+          "totalRequirementsAfter": 13,
+          "domainsCoveredAfter": [
+            "ARCHITECTURE",
+            "DSP_AUDIO",
+            "DATA_LIBRARIAN",
+            "UI_LAYOUT",
+            "ECOSYSTEM_PARITY",
+            "VERIFICATION",
+            "ERGONOMICS",
+            "SYNTHESIS",
+            "PERSISTENCE"
+          ]
+        }
+      },
+      {
+        "stepNumber": 4,
+        "revisionId": "rev-004",
         "timestamp": "2026-11-05T19:16:22.466Z",
         "triggerType": "USER_CLI_PROMPT",
         "shiftKind": "CREATED_NEW_SUBINTENT",
@@ -4445,7 +4918,7 @@
             "ARCHITECTURE"
           ]
         },
-        "shiftSummary": "Prompt #3 created [ARCHITECTURE] \"Demo Patches, Konduktiva Live-Coding & HTML Documentation\": stored sub-intents: 9 → 10, stored requirements: 9 → 10.",
+        "shiftSummary": "Prompt #4 created [ARCHITECTURE] \"Demo Patches, Konduktiva Live-Coding & HTML Documentation\": stored sub-intents: 13 → 14, stored requirements: 13 → 14.",
         "mutations": [
           {
             "subIntentId": "subintent:demos-livecoding-and-docs",
@@ -4459,7 +4932,7 @@
               "requirementsCount": 0,
               "promptsCount": 0,
               "previousRequirements": [],
-              "summary": "Did not exist yet in stored intent prior to Prompt #3."
+              "summary": "Did not exist yet in stored intent prior to Prompt #4."
             },
             "delta": {
               "addedRequirements": [
@@ -4483,10 +4956,10 @@
           }
         ],
         "storedStateTotals": {
-          "subIntentsBefore": 9,
-          "subIntentsAfter": 10,
-          "totalRequirementsBefore": 9,
-          "totalRequirementsAfter": 10,
+          "subIntentsBefore": 13,
+          "subIntentsAfter": 14,
+          "totalRequirementsBefore": 13,
+          "totalRequirementsAfter": 14,
           "domainsCoveredAfter": [
             "ARCHITECTURE",
             "DSP_AUDIO",
@@ -4494,7 +4967,9 @@
             "UI_LAYOUT",
             "ECOSYSTEM_PARITY",
             "VERIFICATION",
-            "ERGONOMICS"
+            "ERGONOMICS",
+            "SYNTHESIS",
+            "PERSISTENCE"
           ]
         }
       }
@@ -4698,20 +5173,88 @@
         },
         "durationSeconds": 558.065544329,
         "networkRecovered": false,
+        "allPassed": true,
+        "commitSha": "09100e92a92df96bf3bfc3764e29c55a19685327"
+      },
+      {
+        "id": "tx-2026-11-05T19-46-47-820Z-udjx",
+        "initiatedBy": "FRONTIER_PLANNER",
+        "intentId": "intent:1793908007820",
+        "description": "Epoch 3 of 8: Novation Peak 8-Voice FPGA NCO Oscillator, 17-Wavetable, Ring/Noise Mixer & Analogue State-Variable Filter Domain Engine (Target: src/peak_synth.rs; Related: src/lib.rs, crates/synth-core). Implement the core 8-voice Novation Peak synthesis domain engine in src/peak_synth.rs and export in src/lib.rs, backed directly by synth_core::SynthPatch and synth_core::CommandHistory (zero duplicate wrapper or undo structs). Cover all 3 FPGA NCO oscillators per voice (Range CC3/37/65, Coarse CC14/17/20, Fine CC15/18/21, Shape/Wavetable interpolation CC12/39/71 across 17 wavetables x 5 waves, VSync CC34/42/44, Mod Env/LFO depth CCs, deterministic harmonic spectrum & wavetable slice calculator, voice divergence/drift), Mixer (Osc 1/2/3 levels CC23/24/25, Ring Mod 1x2 CC26, Noise mix CC27), and Analogue State-Variable Filter (12dB/24dB LP/BP/HP response curve calculator, Cutoff CC29, Key Tracking CC75, Osc 3 -> Filter FM CC76, Mod Env 1 -> Filter CC78, Resonance CC79, Pre-Filter Overdrive CC80, Post-Filter Drive CC36) with unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-003.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+        "targetEntities": [],
+        "assignedTo": "gemini-3.8-flash-high (high)",
+        "diffArtifactUrl": null,
+        "verificationPipeline": {
+          "mutationCheck": {
+            "status": "PASS",
+            "meaning": "Code changes were saved to disk.",
+            "modifiedFiles": [
+              "src/lib.rs",
+              "src/peak_synth.rs"
+            ]
+          },
+          "syntaxCheck": {
+            "status": "PASS",
+            "durationMs": 585,
+            "type": "rust-and-node"
+          },
+          "astInvariants": {
+            "status": "PASS",
+            "durationMs": 21,
+            "results": [
+              {
+                "id": "inv:clean-architecture",
+                "status": "PASS",
+                "durationMs": 9
+              },
+              {
+                "id": "inv:no-raw-panics",
+                "status": "PASS",
+                "durationMs": 4
+              },
+              {
+                "id": "inv:resource-bounds",
+                "status": "PASS",
+                "durationMs": 0
+              }
+            ],
+            "violations": [],
+            "firstFailing": null
+          },
+          "unitTests": {
+            "status": "PASS",
+            "durationMs": 3365,
+            "type": "rust-and-node",
+            "output": "test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s; test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s; test result: ok. 34 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s; test result: ok. 33 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s; test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s; test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s; test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s; test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s; test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s | 8/8 automated tests passed"
+          },
+          "budgetCheck": {
+            "status": "PASS",
+            "durationMs": 0
+          }
+        },
+        "retryCount": 0,
+        "resolved": true,
+        "timestamp": "2026-11-05T19:46:47.820Z",
+        "allocationProfile": "HIGH_REASONING_FLASH",
+        "tokenBudgetClass": "MEDIUM_HIGH_TOKEN",
+        "allocationRationale": "Architectural scope or high-complexity keywords detected; routing to high inference tier",
+        "tokenUsage": {
+          "input_tokens": 332778,
+          "output_tokens": 93852,
+          "thinking_tokens": 54753,
+          "cache_read_tokens": 3746934,
+          "total_tokens": 426630
+        },
+        "durationSeconds": 483.19704238,
+        "networkRecovered": false,
         "allPassed": true
       }
     ]
   },
   "runtimeQueue": {
     "paused": false,
-    "updatedAt": "2026-11-05T19:37:19.038Z",
+    "updatedAt": "2026-11-05T19:46:47.699Z",
     "items": [
-      {
-        "text": "Epoch 3 of 8: Novation Peak 8-Voice FPGA NCO Oscillator, 17-Wavetable, Ring/Noise Mixer & Analogue State-Variable Filter Domain Engine (Target: src/peak_synth.rs; Related: src/lib.rs, crates/synth-core). Implement the core 8-voice Novation Peak synthesis domain engine in src/peak_synth.rs and export in src/lib.rs, backed directly by synth_core::SynthPatch and synth_core::CommandHistory (zero duplicate wrapper or undo structs). Cover all 3 FPGA NCO oscillators per voice (Range CC3/37/65, Coarse CC14/17/20, Fine CC15/18/21, Shape/Wavetable interpolation CC12/39/71 across 17 wavetables x 5 waves, VSync CC34/42/44, Mod Env/LFO depth CCs, deterministic harmonic spectrum & wavetable slice calculator, voice divergence/drift), Mixer (Osc 1/2/3 levels CC23/24/25, Ring Mod 1x2 CC26, Noise mix CC27), and Analogue State-Variable Filter (12dB/24dB LP/BP/HP response curve calculator, Cutoff CC29, Key Tracking CC75, Osc 3 -> Filter FM CC76, Mod Env 1 -> Filter CC78, Resonance CC79, Pre-Filter Overdrive CC80, Post-Filter Drive CC36) with unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-003.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
-        "id": "q-1793906182440-8l6v",
-        "addedAt": "2026-11-05T19:16:22.440Z",
-        "targetProject": "/home/renick/antigravity/novation-peak-pigs"
-      },
       {
         "text": "Epoch 4 of 8: 3x ADSR Envelopes, Dual Tempo-Synced LFOs, 16-Slot Mod Matrix + 4-Slot FX Matrix, Animate 1/2 Macros, Arpeggiator & Master FX Chain (Target: src/peak_mod_fx.rs; Related: src/lib.rs, src/peak_synth.rs). Implement the complete Novation Peak modulation and effects engine in src/peak_mod_fx.rs and wire into src/lib.rs: 3 ADSR envelopes (Amp CC86-89, Mod 1 CC90-93, Mod 2 CC94/95/117/103 with deterministic ADSR curve generator), 2 LFOs (Rate CC30/31, Sync Rate CC81/84, Fade CC82/85, Range CC83, LFO->Pitch/Shape/Filter depths), 16-slot dual-source Modulation Matrix (Source A x Source B -> Destination with bipolar depth -64..+63) + 4-slot FX Mod Matrix, Animate 1 & 2 performance macro buttons (CC114/CC115) with live parameter offset preview, Arpeggiator gate/clock (CC116) & Glide (CC5/CC35), and Master FX chain (Analogue Distortion CC104, 3-mode Chorus CC105/107/118, Sync Delay CC108/109/110, 3-type Reverb CC112/113) with unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-004.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
         "id": "q-1793906182437-h346",
