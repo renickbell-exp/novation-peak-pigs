@@ -1741,9 +1741,9 @@
         "domain": "ARCHITECTURE",
         "subIntentId": null,
         "createdAt": "2026-11-05T20:22:59.680Z",
-        "completedAt": "2026-11-05T20:31:30.187Z",
-        "commitSha": null,
-        "txId": null
+        "completedAt": "2026-11-05T20:40:06.825Z",
+        "commitSha": "3cabe08bc0e4b1b8470896e11906ad5c718722db",
+        "txId": "tx-2026-11-05T20-31-30-187Z-p7o7"
       },
       {
         "id": "change-1793907439072-t45m",
@@ -2050,7 +2050,7 @@
         "subIntentId": null,
         "createdAt": "2026-11-05T20:31:30.103Z",
         "completedAt": "2026-11-05T20:31:30.187Z",
-        "commitSha": null,
+        "commitSha": "3cabe08bc0e4b1b8470896e11906ad5c718722db",
         "txId": null
       }
     ],
@@ -2465,7 +2465,7 @@
         {
           "phase": 1,
           "name": "Phase 1: Ingestion & Environment Alignment",
-          "status": "READY",
+          "status": "COMPLETED",
           "deliverables": [
             "Epoch 8 of 8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release"
           ],
@@ -2477,7 +2477,7 @@
         {
           "phase": 2,
           "name": "Phase 2: Local Core Mutation & Feature Implementation",
-          "status": "PENDING",
+          "status": "READY",
           "deliverables": [
             "Epoch 8 of 8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release"
           ],
@@ -2583,6 +2583,23 @@
         "txId": "tx-2026-11-05T20-22-59-705Z-oxrt",
         "archivedAt": "2026-11-05T20:31:30.039Z",
         "completedAt": "2026-11-05T20:31:30.039Z"
+      },
+      {
+        "id": "change:epoch-8-of-8-1-000-event-8-voice-polyphonic-cc-s",
+        "codeId": "CHANGE",
+        "subIntentId": null,
+        "subIntentCodeId": null,
+        "subIntentName": null,
+        "domain": "ARCHITECTURE",
+        "kind": "CHANGE",
+        "title": "Epoch 8 of 8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release Polish (Target: src/stress_bench.rs; Related: src/main.rs, README.md). Implement the 1,000-event 8-voice polyphonic note + 9-lane CC sweep stress benchmark in src/stress_bench.rs verifying zero dropped notes, 8-voice polyphony budget compliance, zero stuck voices on panic(), and strict safeSweepRange enforcement on CCs 29/36/79/80/104/110. Add non-blocking CLI flags (--verify-hardware, --dry-stress, --export-shared-schemas, --synth, --midi-in, --midi-out, --channel, --preset, --headless-server, --port) in src/main.rs, document the complete 5-synth architecture, 74-CC/NRPN/SysEx map, and konduktiva-peak live-coding API in README.md, and verify zero compiler warnings across all crates and Node.js packages. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-008.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+        "text": "Epoch 8 of 8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release Polish (Target: src/stress_bench.rs; Related: src/main.rs, README.md). Implement the 1,000-event 8-voice polyphonic note + 9-lane CC sweep stress benchmark in src/stress_bench.rs verifying zero dropped notes, 8-voice polyphony budget compliance, zero stuck voices on panic(), and strict safeSweepRange enforcement on CCs 29/36/79/80/104/110. Add non-blocking CLI flags (--verify-hardware, --dry-stress, --export-shared-schemas, --synth, --midi-in, --midi-out, --channel, --preset, --headless-server, --port) in src/main.rs, document the complete 5-synth architecture, 74-CC/NRPN/SysEx map, and konduktiva-peak live-coding API in README.md, and verify zero compiler warnings across all crates and Node.js packages. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-008.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+        "taskPrompt": "Epoch 8 of 8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release Polish (Target: src/stress_bench.rs; Related: src/main.rs, README.md). Implement the 1,000-event 8-voice polyphonic note + 9-lane CC sweep stress benchmark in src/stress_bench.rs verifying zero dropped notes, 8-voice polyphony budget compliance, zero stuck voices on panic(), and strict safeSweepRange enforcement on CCs 29/36/79/80/104/110. Add non-blocking CLI flags (--verify-hardware, --dry-stress, --export-shared-schemas, --synth, --midi-in, --midi-out, --channel, --preset, --headless-server, --port) in src/main.rs, document the complete 5-synth architecture, 74-CC/NRPN/SysEx map, and konduktiva-peak live-coding API in README.md, and verify zero compiler warnings across all crates and Node.js packages. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-008.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+        "status": "MET",
+        "commitSha": "3cabe08bc0e4b1b8470896e11906ad5c718722db",
+        "txId": "tx-2026-11-05T20-31-30-187Z-p7o7",
+        "archivedAt": "2026-11-05T20:40:06.825Z",
+        "completedAt": "2026-11-05T20:40:06.825Z"
       }
     ],
     "intentsReviewed": false,
@@ -4129,7 +4146,7 @@
               "status": "IMPLEMENTED",
               "isQueued": false,
               "failedLastRun": false,
-              "commitSha": null
+              "commitSha": "3cabe08bc0e4b1b8470896e11906ad5c718722db"
             },
             {
               "id": "task:I11:req-2",
@@ -4161,7 +4178,7 @@
               "status": "OUTSTANDING",
               "isQueued": false,
               "failedLastRun": false,
-              "commitSha": null
+              "commitSha": "3cabe08bc0e4b1b8470896e11906ad5c718722db"
             }
           ],
           "suggestions": [
@@ -4179,7 +4196,7 @@
               "status": "IMPLEMENTED",
               "isQueued": false,
               "failedLastRun": false,
-              "commitSha": null
+              "commitSha": "3cabe08bc0e4b1b8470896e11906ad5c718722db"
             },
             {
               "id": "task:I11:req-2",
@@ -4211,7 +4228,7 @@
               "status": "OUTSTANDING",
               "isQueued": false,
               "failedLastRun": false,
-              "commitSha": null
+              "commitSha": "3cabe08bc0e4b1b8470896e11906ad5c718722db"
             }
           ],
           "hasQueuedTasks": false,
@@ -4221,7 +4238,7 @@
               "codeId": "I11.1",
               "text": "Epoch 8/8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release",
               "status": "IMPLEMENTED",
-              "commitSha": null,
+              "commitSha": "3cabe08bc0e4b1b8470896e11906ad5c718722db",
               "timestamp": "2026-11-05T20:31:30.187Z",
               "txId": "tx-2026-11-05T20-31-30-187Z-p7o7",
               "failedLastRun": false
@@ -4245,7 +4262,7 @@
           "failedCount": 0,
           "totalRequirements": 2,
           "completionPct": 50,
-          "latestCommitSha": null,
+          "latestCommitSha": "3cabe08bc0e4b1b8470896e11906ad5c718722db",
           "latestVerifiedAt": "2026-11-05T20:31:30.187Z"
         },
         {
@@ -4830,9 +4847,9 @@
           "domain": "ARCHITECTURE",
           "subIntentId": null,
           "createdAt": "2026-11-05T20:22:59.680Z",
-          "completedAt": "2026-11-05T20:31:30.187Z",
-          "commitSha": null,
-          "txId": null
+          "completedAt": "2026-11-05T20:40:06.825Z",
+          "commitSha": "3cabe08bc0e4b1b8470896e11906ad5c718722db",
+          "txId": "tx-2026-11-05T20-31-30-187Z-p7o7"
         },
         {
           "id": "change-1793907439072-t45m",
@@ -5139,7 +5156,7 @@
           "subIntentId": null,
           "createdAt": "2026-11-05T20:31:30.103Z",
           "completedAt": "2026-11-05T20:31:30.187Z",
-          "commitSha": null,
+          "commitSha": "3cabe08bc0e4b1b8470896e11906ad5c718722db",
           "txId": null
         }
       ],
@@ -5194,6 +5211,23 @@
           "txId": "tx-2026-11-05T20-22-59-705Z-oxrt",
           "archivedAt": "2026-11-05T20:31:30.039Z",
           "completedAt": "2026-11-05T20:31:30.039Z"
+        },
+        {
+          "id": "change:epoch-8-of-8-1-000-event-8-voice-polyphonic-cc-s",
+          "codeId": "CHANGE",
+          "subIntentId": null,
+          "subIntentCodeId": null,
+          "subIntentName": null,
+          "domain": "ARCHITECTURE",
+          "kind": "CHANGE",
+          "title": "Epoch 8 of 8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release Polish (Target: src/stress_bench.rs; Related: src/main.rs, README.md). Implement the 1,000-event 8-voice polyphonic note + 9-lane CC sweep stress benchmark in src/stress_bench.rs verifying zero dropped notes, 8-voice polyphony budget compliance, zero stuck voices on panic(), and strict safeSweepRange enforcement on CCs 29/36/79/80/104/110. Add non-blocking CLI flags (--verify-hardware, --dry-stress, --export-shared-schemas, --synth, --midi-in, --midi-out, --channel, --preset, --headless-server, --port) in src/main.rs, document the complete 5-synth architecture, 74-CC/NRPN/SysEx map, and konduktiva-peak live-coding API in README.md, and verify zero compiler warnings across all crates and Node.js packages. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-008.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+          "text": "Epoch 8 of 8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release Polish (Target: src/stress_bench.rs; Related: src/main.rs, README.md). Implement the 1,000-event 8-voice polyphonic note + 9-lane CC sweep stress benchmark in src/stress_bench.rs verifying zero dropped notes, 8-voice polyphony budget compliance, zero stuck voices on panic(), and strict safeSweepRange enforcement on CCs 29/36/79/80/104/110. Add non-blocking CLI flags (--verify-hardware, --dry-stress, --export-shared-schemas, --synth, --midi-in, --midi-out, --channel, --preset, --headless-server, --port) in src/main.rs, document the complete 5-synth architecture, 74-CC/NRPN/SysEx map, and konduktiva-peak live-coding API in README.md, and verify zero compiler warnings across all crates and Node.js packages. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-008.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+          "taskPrompt": "Epoch 8 of 8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release Polish (Target: src/stress_bench.rs; Related: src/main.rs, README.md). Implement the 1,000-event 8-voice polyphonic note + 9-lane CC sweep stress benchmark in src/stress_bench.rs verifying zero dropped notes, 8-voice polyphony budget compliance, zero stuck voices on panic(), and strict safeSweepRange enforcement on CCs 29/36/79/80/104/110. Add non-blocking CLI flags (--verify-hardware, --dry-stress, --export-shared-schemas, --synth, --midi-in, --midi-out, --channel, --preset, --headless-server, --port) in src/main.rs, document the complete 5-synth architecture, 74-CC/NRPN/SysEx map, and konduktiva-peak live-coding API in README.md, and verify zero compiler warnings across all crates and Node.js packages. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-008.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+          "status": "MET",
+          "commitSha": "3cabe08bc0e4b1b8470896e11906ad5c718722db",
+          "txId": "tx-2026-11-05T20-31-30-187Z-p7o7",
+          "archivedAt": "2026-11-05T20:40:06.825Z",
+          "completedAt": "2026-11-05T20:40:06.825Z"
         }
       ],
       "deletedSubIntents": [],
@@ -5383,7 +5417,7 @@
       "intentsReviewed": false,
       "reviewedAt": null,
       "reviewNote": null,
-      "lastUpdated": "2026-11-05T20:31:30.160Z"
+      "lastUpdated": "2026-11-05T20:40:06.825Z"
     },
     "intentRevisionLog": [
       {
@@ -7345,7 +7379,8 @@
         },
         "durationSeconds": 499.74067901,
         "networkRecovered": false,
-        "allPassed": true
+        "allPassed": true,
+        "commitSha": "3cabe08bc0e4b1b8470896e11906ad5c718722db"
       }
     ]
   },
