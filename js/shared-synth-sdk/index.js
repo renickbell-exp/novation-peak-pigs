@@ -62,7 +62,13 @@ export const ACCENT_PROFILES = [
   'BassStationBlue',
   'AcidYellowTD3',
   'NordCrimson',
+  'NovationCyan',
 ];
+
+/**
+ * Novation Peak hardware illuminated cyan accent hex (#00D2BE).
+ */
+export const NOVATION_CYAN_HEX = '#00D2BE';
 
 /**
  * Clavia Nord Drum 2 hardware chassis crimson red accent hex (#E52521).

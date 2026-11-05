@@ -13,6 +13,7 @@ use crate::error::SynthError;
 use crate::param::{ParamAddress, ParamDescriptor, ResponseCurve, ValueRange};
 use crate::preset::SynthPatch;
 use serde::{Deserialize, Serialize};
+use std::ops::Deref;
 
 /// Category classification for synthesizer and controller hardware.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -1088,6 +1089,627 @@ impl DeviceSynthesizerProfile {
 
         p
     }
+
+    /// Novation Peak 8-voice polyphonic hybrid synthesizer profile.
+    ///
+    /// Covers 74 continuous controllers from `midi-cc-map.json`, 32 bipolar dual-CC pairs,
+    /// 14-bit NRPN descriptors, 3 Oxford FPGA NCO oscillators (17 wavetables),
+    /// multi-mode state-variable filter with pre/post drive, 3 ADSR envelopes,
+    /// 2 tempo-synced LFOs, 16-slot modulation matrix, Animate 1/2, arpeggiator gate,
+    /// and analogue distortion + chorus/delay/reverb effects.
+    pub fn novation_peak() -> Self {
+        NovationPeakProfile::device_profile()
+    }
+}
+
+/// Profile and specifications for the Novation Peak 8-Voice Polyphonic Hybrid Synthesizer.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct NovationPeakProfile {
+    pub profile: DeviceSynthesizerProfile,
+}
+
+impl NovationPeakProfile {
+    /// 17 Oxford FPGA NCO wavetables on Novation Peak.
+    pub const WAVETABLES: [&'static str; 17] = [
+        "Sine-Tri", "Sine-Saw", "Classic", "Saw-Pulse", "Harmonic 1", "Harmonic 2",
+        "Chebyshev", "Double", "Metal", "Resonant 1", "Resonant 2", "Formant 1",
+        "Formant 2", "Vocal", "Bell", "Organ", "Digi",
+    ];
+
+    /// 32 Bipolar dual-CC (MSB, LSB) pairs (CC 0..31 paired with CC 32..63).
+    pub const DUAL_CC_PAIRS: [(u8, u8); 32] = [
+        (0, 32), (1, 33), (2, 34), (3, 35), (4, 36), (5, 37), (6, 38), (7, 39),
+        (8, 40), (9, 41), (10, 42), (11, 43), (12, 44), (13, 45), (14, 46), (15, 47),
+        (16, 48), (17, 49), (18, 50), (19, 51), (20, 52), (21, 53), (22, 54), (23, 55),
+        (24, 56), (25, 57), (26, 58), (27, 59), (28, 60), (29, 61), (30, 62), (31, 63),
+    ];
+
+    /// Exact count of continuous controllers defined in `midi-cc-map.json`.
+    pub const CC_MAP_COUNT: usize = 74;
+
+    /// Number of modulation matrix routing slots on Novation Peak.
+    pub const MOD_MATRIX_SLOTS: usize = 16;
+
+    /// Returns the array of 17 wavetable names.
+    pub fn wavetables() -> &'static [&'static str; 17] {
+        &Self::WAVETABLES
+    }
+
+    /// Returns the 32 dual-CC pairs (MSB, LSB).
+    pub fn dual_cc_pairs() -> &'static [(u8, u8); 32] {
+        &Self::DUAL_CC_PAIRS
+    }
+
+    /// Returns whether a given CC belongs to the 0..63 dual-CC space.
+    pub fn is_dual_cc(cc: u8) -> bool {
+        cc <= 63
+    }
+
+    /// Returns the paired LSB CC for a given MSB CC in 0..31.
+    pub fn dual_cc_lsb_for(msb: u8) -> Option<u8> {
+        if msb <= 31 {
+            Some(msb + 32)
+        } else {
+            None
+        }
+    }
+
+    /// Returns the paired MSB CC for a given LSB CC in 32..63.
+    pub fn dual_cc_msb_for(lsb: u8) -> Option<u8> {
+        if (32..=63).contains(&lsb) {
+            Some(lsb - 32)
+        } else {
+            None
+        }
+    }
+
+    /// Conservative sweep range for Novation Peak parameters to prevent
+    /// loud blasts, overdrive clipping, or runaway self-oscillation.
+    pub fn safe_sweep_range(param_name: &str) -> (f64, f64) {
+        let lower = param_name.to_ascii_lowercase();
+        if lower.contains("resonance") || lower.contains("reso") {
+            (0.0, 62.0)
+        } else if lower.contains("distortion") {
+            (0.0, 48.0)
+        } else if lower.contains("overdrive") || lower.contains("drive") {
+            (0.0, 50.0)
+        } else if lower.contains("feedback") {
+            (0.0, 70.0)
+        } else if lower.contains("reverb")
+            || lower.contains("delay")
+            || lower.contains("chorus")
+            || lower.contains("fx")
+        {
+            (0.0, 90.0)
+        } else {
+            (0.0, 127.0)
+        }
+    }
+
+    /// Creates and returns the default device synthesizer profile for Novation Peak.
+    pub fn build_profile() -> DeviceSynthesizerProfile {
+        let mut p = DeviceSynthesizerProfile::new(
+            "novation_peak",
+            "Novation Peak",
+            "Novation",
+            "2.0",
+            DeviceCategory::Synthesizer,
+        )
+        .with_default_channel(0);
+
+        p.add_tag("hybrid");
+        p.add_tag("polyphonic");
+        p.add_tag("fpga_nco");
+        p.add_tag("analogue_filter");
+        p.add_tag("novation_peak");
+        p.add_tag("8_voice");
+
+        let step_range = |min: f64, max: f64, def: f64, step: f64, unit: &str| {
+            ValueRange::new(min, max, def, step, unit)
+                .unwrap_or_else(|_| ValueRange::midi_cc7(def))
+        };
+
+        // ---------------------------------------------------------------------
+        // 74 CC Parameters from midi-cc-map.json
+        // ---------------------------------------------------------------------
+
+        // CC 1: Mod Wheel
+        p.add_parameter(ParamDescriptor::new("mod_wheel", "Performance", ParamAddress::cc7(1), ValueRange::midi_cc7(0.0)));
+        // CC 3: Osc 1 Range
+        p.add_parameter(ParamDescriptor::new("osc_1_range", "Oscillator 1", ParamAddress::cc7(3), step_range(0.0, 3.0, 1.0, 1.0, "oct")));
+        // CC 5: Glide Time
+        p.add_parameter(ParamDescriptor::new("glide_time", "Performance", ParamAddress::cc7(5), ValueRange::midi_cc7(0.0)).with_curve(ResponseCurve::Exponential));
+        // CC 9: Osc 1 Mod 2 Pitch
+        p.add_parameter(ParamDescriptor::new("osc_1_mod_2_pitch", "Oscillator 1", ParamAddress::cc7(9), ValueRange::bipolar(-64.0, 63.0, 0.0, "")));
+        // CC 12: Osc 1 Shape
+        p.add_parameter(ParamDescriptor::new("osc_1_shape", "Oscillator 1", ParamAddress::cc7(12), ValueRange::midi_cc7(64.0)));
+        // CC 14: Osc 1 Coarse
+        p.add_parameter(ParamDescriptor::new("osc_1_coarse", "Oscillator 1", ParamAddress::cc7(14), ValueRange::bipolar(-12.0, 12.0, 0.0, "st")));
+        // CC 15: Osc 1 Fine
+        p.add_parameter(ParamDescriptor::new("osc_1_fine", "Oscillator 1", ParamAddress::cc7(15), ValueRange::bipolar(-100.0, 100.0, 0.0, "cents")));
+        // CC 16: Osc 1 LFO 2 Pitch
+        p.add_parameter(ParamDescriptor::new("osc_1_lfo_2_pitch", "Oscillator 1", ParamAddress::cc7(16), ValueRange::bipolar(-64.0, 63.0, 0.0, "")));
+        // CC 17: Osc 2 Coarse
+        p.add_parameter(ParamDescriptor::new("osc_2_coarse", "Oscillator 2", ParamAddress::cc7(17), ValueRange::bipolar(-12.0, 12.0, 0.0, "st")));
+        // CC 18: Osc 2 Fine
+        p.add_parameter(ParamDescriptor::new("osc_2_fine", "Oscillator 2", ParamAddress::cc7(18), ValueRange::bipolar(-100.0, 100.0, 0.0, "cents")));
+        // CC 19: Osc 2 LFO 2 Pitch
+        p.add_parameter(ParamDescriptor::new("osc_2_lfo_2_pitch", "Oscillator 2", ParamAddress::cc7(19), ValueRange::bipolar(-64.0, 63.0, 0.0, "")));
+        // CC 20: Osc 3 Coarse
+        p.add_parameter(ParamDescriptor::new("osc_3_coarse", "Oscillator 3", ParamAddress::cc7(20), ValueRange::bipolar(-12.0, 12.0, 0.0, "st")));
+        // CC 21: Osc 3 Fine
+        p.add_parameter(ParamDescriptor::new("osc_3_fine", "Oscillator 3", ParamAddress::cc7(21), ValueRange::bipolar(-100.0, 100.0, 0.0, "cents")));
+        // CC 22: Osc 3 LFO 2 Pitch
+        p.add_parameter(ParamDescriptor::new("osc_3_lfo_2_pitch", "Oscillator 3", ParamAddress::cc7(22), ValueRange::bipolar(-64.0, 63.0, 0.0, "")));
+        // CC 23: Osc 1 Mix
+        p.add_parameter(ParamDescriptor::new("osc_1_mix", "Mixer", ParamAddress::cc7(23), ValueRange::midi_cc7(127.0)));
+        // CC 24: Osc 2 Mix
+        p.add_parameter(ParamDescriptor::new("osc_2_mix", "Mixer", ParamAddress::cc7(24), ValueRange::midi_cc7(0.0)));
+        // CC 25: Osc 3 Mix
+        p.add_parameter(ParamDescriptor::new("osc_3_mix", "Mixer", ParamAddress::cc7(25), ValueRange::midi_cc7(0.0)));
+        // CC 26: Ring Mod Mix
+        p.add_parameter(ParamDescriptor::new("ring_mod_mix", "Mixer", ParamAddress::cc7(26), ValueRange::midi_cc7(0.0)));
+        // CC 27: Noise Mix
+        p.add_parameter(ParamDescriptor::new("noise_mix", "Mixer", ParamAddress::cc7(27), ValueRange::midi_cc7(0.0)));
+        // CC 28: LFO 1 -> Filter Depth
+        p.add_parameter(ParamDescriptor::new("lfo_1_to_filter_depth", "Filter", ParamAddress::cc7(28), ValueRange::bipolar(-64.0, 63.0, 0.0, "")));
+        // CC 29: Filter Cutoff (Frequency)
+        p.add_parameter(ParamDescriptor::new("filter_cutoff", "Filter", ParamAddress::cc7(29), ValueRange::midi_cc7(127.0)).with_curve(ResponseCurve::Exponential));
+        // CC 30: LFO 1 Rate
+        p.add_parameter(ParamDescriptor::new("lfo_1_rate", "LFO 1", ParamAddress::cc7(30), ValueRange::midi_cc7(64.0)));
+        // CC 31: LFO 2 Rate
+        p.add_parameter(ParamDescriptor::new("lfo_2_rate", "LFO 2", ParamAddress::cc7(31), ValueRange::midi_cc7(64.0)));
+        // CC 33: Osc 1 LFO 1 Shape
+        p.add_parameter(ParamDescriptor::new("osc_1_lfo_1_shape", "Oscillator 1", ParamAddress::cc7(33), ValueRange::bipolar(-64.0, 63.0, 0.0, "")));
+        // CC 34: Osc 1 VSync
+        p.add_parameter(ParamDescriptor::new("osc_1_vsync", "Oscillator 1", ParamAddress::cc7(34), ValueRange::midi_cc7(0.0)));
+        // CC 35: Glide On
+        p.add_parameter(ParamDescriptor::new("glide_on", "Performance", ParamAddress::cc7(35), step_range(0.0, 1.0, 0.0, 1.0, "")));
+        // CC 36: Filter Post Drive
+        p.add_parameter(ParamDescriptor::new("filter_post_drive", "Filter", ParamAddress::cc7(36), ValueRange::midi_cc7(0.0)));
+        // CC 37: Osc 2 Range
+        p.add_parameter(ParamDescriptor::new("osc_2_range", "Oscillator 2", ParamAddress::cc7(37), step_range(0.0, 3.0, 1.0, 1.0, "oct")));
+        // CC 38: Osc 2 Mod 2 Pitch
+        p.add_parameter(ParamDescriptor::new("osc_2_mod_2_pitch", "Oscillator 2", ParamAddress::cc7(38), ValueRange::bipolar(-64.0, 63.0, 0.0, "")));
+        // CC 39: Osc 2 Shape
+        p.add_parameter(ParamDescriptor::new("osc_2_shape", "Oscillator 2", ParamAddress::cc7(39), ValueRange::midi_cc7(64.0)));
+        // CC 40: Osc 2 Mod 1 Shape
+        p.add_parameter(ParamDescriptor::new("osc_2_mod_1_shape", "Oscillator 2", ParamAddress::cc7(40), ValueRange::bipolar(-64.0, 63.0, 0.0, "")));
+        // CC 41: Osc 2 LFO 1 Shape
+        p.add_parameter(ParamDescriptor::new("osc_2_lfo_1_shape", "Oscillator 2", ParamAddress::cc7(41), ValueRange::bipolar(-64.0, 63.0, 0.0, "")));
+        // CC 42: Osc 2 VSync
+        p.add_parameter(ParamDescriptor::new("osc_2_vsync", "Oscillator 2", ParamAddress::cc7(42), ValueRange::midi_cc7(0.0)));
+        // CC 43: Osc 3 Mod 2 Pitch
+        p.add_parameter(ParamDescriptor::new("osc_3_mod_2_pitch", "Oscillator 3", ParamAddress::cc7(43), ValueRange::bipolar(-64.0, 63.0, 0.0, "")));
+        // CC 44: Osc 3 VSync
+        p.add_parameter(ParamDescriptor::new("osc_3_vsync", "Oscillator 3", ParamAddress::cc7(44), ValueRange::midi_cc7(0.0)));
+        // CC 65: Osc 3 Range
+        p.add_parameter(ParamDescriptor::new("osc_3_range", "Oscillator 3", ParamAddress::cc7(65), step_range(0.0, 3.0, 1.0, 1.0, "oct")));
+        // CC 71: Osc 3 Shape
+        p.add_parameter(ParamDescriptor::new("osc_3_shape", "Oscillator 3", ParamAddress::cc7(71), ValueRange::midi_cc7(64.0)));
+        // CC 72: Osc 3 Mod 1 Pitch
+        p.add_parameter(ParamDescriptor::new("osc_3_mod_1_pitch", "Oscillator 3", ParamAddress::cc7(72), ValueRange::bipolar(-64.0, 63.0, 0.0, "")));
+        // CC 73: Osc 3 LFO 1 Shape
+        p.add_parameter(ParamDescriptor::new("osc_3_lfo_1_shape", "Oscillator 3", ParamAddress::cc7(73), ValueRange::bipolar(-64.0, 63.0, 0.0, "")));
+        // CC 75: Filter Track
+        p.add_parameter(ParamDescriptor::new("filter_track", "Filter", ParamAddress::cc7(75), ValueRange::midi_cc7(127.0)));
+        // CC 76: Osc 3 -> Filter
+        p.add_parameter(ParamDescriptor::new("osc_3_to_filter", "Filter", ParamAddress::cc7(76), ValueRange::midi_cc7(0.0)));
+        // CC 78: Mod 1 -> Filter
+        p.add_parameter(ParamDescriptor::new("mod_1_to_filter", "Filter", ParamAddress::cc7(78), ValueRange::bipolar(-64.0, 63.0, 0.0, "")));
+        // CC 79: Filter Resonance
+        p.add_parameter(ParamDescriptor::new("filter_resonance", "Filter", ParamAddress::cc7(79), ValueRange::midi_cc7(0.0)));
+        // CC 80: Filter Overdrive
+        p.add_parameter(ParamDescriptor::new("filter_overdrive", "Filter", ParamAddress::cc7(80), ValueRange::midi_cc7(0.0)));
+        // CC 81: LFO 1 Sync Rate
+        p.add_parameter(ParamDescriptor::new("lfo_1_sync_rate", "LFO 1", ParamAddress::cc7(81), ValueRange::midi_cc7(0.0)));
+        // CC 82: LFO 1 Fade
+        p.add_parameter(ParamDescriptor::new("lfo_1_fade", "LFO 1", ParamAddress::cc7(82), ValueRange::midi_cc7(0.0)));
+        // CC 83: LFO 2 Range
+        p.add_parameter(ParamDescriptor::new("lfo_2_range", "LFO 2", ParamAddress::cc7(83), step_range(0.0, 1.0, 0.0, 1.0, "")));
+        // CC 84: LFO 2 Sync Rate
+        p.add_parameter(ParamDescriptor::new("lfo_2_sync_rate", "LFO 2", ParamAddress::cc7(84), ValueRange::midi_cc7(0.0)));
+        // CC 85: LFO 2 Fade
+        p.add_parameter(ParamDescriptor::new("lfo_2_fade", "LFO 2", ParamAddress::cc7(85), ValueRange::midi_cc7(0.0)));
+        // CC 86: Amp Envelope Attack
+        p.add_parameter(ParamDescriptor::new("amp_envelope_attack", "Amp Envelope", ParamAddress::cc7(86), ValueRange::midi_cc7(0.0)).with_curve(ResponseCurve::Exponential));
+        // CC 87: Amp Envelope Decay
+        p.add_parameter(ParamDescriptor::new("amp_envelope_decay", "Amp Envelope", ParamAddress::cc7(87), ValueRange::midi_cc7(64.0)).with_curve(ResponseCurve::Exponential));
+        // CC 88: Amp Envelope Sustain
+        p.add_parameter(ParamDescriptor::new("amp_envelope_sustain", "Amp Envelope", ParamAddress::cc7(88), ValueRange::midi_cc7(127.0)));
+        // CC 89: Amp Envelope Release
+        p.add_parameter(ParamDescriptor::new("amp_envelope_release", "Amp Envelope", ParamAddress::cc7(89), ValueRange::midi_cc7(32.0)).with_curve(ResponseCurve::Exponential));
+        // CC 90: Mod Envelope 1 Attack
+        p.add_parameter(ParamDescriptor::new("mod_envelope_1_attack", "Mod Envelope 1", ParamAddress::cc7(90), ValueRange::midi_cc7(0.0)).with_curve(ResponseCurve::Exponential));
+        // CC 91: Mod Envelope 1 Decay
+        p.add_parameter(ParamDescriptor::new("mod_envelope_1_decay", "Mod Envelope 1", ParamAddress::cc7(91), ValueRange::midi_cc7(64.0)).with_curve(ResponseCurve::Exponential));
+        // CC 92: Mod Envelope 1 Sustain
+        p.add_parameter(ParamDescriptor::new("mod_envelope_1_sustain", "Mod Envelope 1", ParamAddress::cc7(92), ValueRange::midi_cc7(0.0)));
+        // CC 93: Mod Envelope 1 Release
+        p.add_parameter(ParamDescriptor::new("mod_envelope_1_release", "Mod Envelope 1", ParamAddress::cc7(93), ValueRange::midi_cc7(32.0)).with_curve(ResponseCurve::Exponential));
+        // CC 94: Mod Envelope 2 Attack
+        p.add_parameter(ParamDescriptor::new("mod_envelope_2_attack", "Mod Envelope 2", ParamAddress::cc7(94), ValueRange::midi_cc7(0.0)).with_curve(ResponseCurve::Exponential));
+        // CC 95: Mod Envelope 2 Decay
+        p.add_parameter(ParamDescriptor::new("mod_envelope_2_decay", "Mod Envelope 2", ParamAddress::cc7(95), ValueRange::midi_cc7(64.0)).with_curve(ResponseCurve::Exponential));
+        // CC 103: Mod Envelope 2 Release
+        p.add_parameter(ParamDescriptor::new("mod_envelope_2_release", "Mod Envelope 2", ParamAddress::cc7(103), ValueRange::midi_cc7(32.0)).with_curve(ResponseCurve::Exponential));
+        // CC 104: Distortion Level
+        p.add_parameter(ParamDescriptor::new("distortion_level", "Effects", ParamAddress::cc7(104), ValueRange::midi_cc7(0.0)));
+        // CC 105: Chorus Level
+        p.add_parameter(ParamDescriptor::new("chorus_level", "Effects", ParamAddress::cc7(105), ValueRange::midi_cc7(0.0)));
+        // CC 107: Chorus Feedback
+        p.add_parameter(ParamDescriptor::new("chorus_feedback", "Effects", ParamAddress::cc7(107), ValueRange::midi_cc7(0.0)));
+        // CC 108: Delay Level
+        p.add_parameter(ParamDescriptor::new("delay_level", "Effects", ParamAddress::cc7(108), ValueRange::midi_cc7(0.0)));
+        // CC 109: Delay Time
+        p.add_parameter(ParamDescriptor::new("delay_time", "Effects", ParamAddress::cc7(109), ValueRange::midi_cc7(64.0)));
+        // CC 110: Delay Feedback
+        p.add_parameter(ParamDescriptor::new("delay_feedback", "Effects", ParamAddress::cc7(110), ValueRange::midi_cc7(0.0)));
+        // CC 112: Reverb Level
+        p.add_parameter(ParamDescriptor::new("reverb_level", "Effects", ParamAddress::cc7(112), ValueRange::midi_cc7(0.0)));
+        // CC 113: Reverb Time
+        p.add_parameter(ParamDescriptor::new("reverb_time", "Effects", ParamAddress::cc7(113), ValueRange::midi_cc7(64.0)));
+        // CC 114: Animate 1 Hold
+        p.add_parameter(ParamDescriptor::new("animate_1_hold", "Performance", ParamAddress::cc7(114), ValueRange::midi_cc7(0.0)));
+        // CC 115: Animate 2 Hold
+        p.add_parameter(ParamDescriptor::new("animate_2_hold", "Performance", ParamAddress::cc7(115), ValueRange::midi_cc7(0.0)));
+        // CC 116: Arp Clock Gate
+        p.add_parameter(ParamDescriptor::new("arp_clock_gate", "Arpeggiator", ParamAddress::cc7(116), ValueRange::midi_cc7(64.0)));
+        // CC 117: Mod Envelope 2 Sustain
+        p.add_parameter(ParamDescriptor::new("mod_envelope_2_sustain", "Mod Envelope 2", ParamAddress::cc7(117), ValueRange::midi_cc7(0.0)));
+        // CC 118: Chorus Rate
+        p.add_parameter(ParamDescriptor::new("chorus_rate", "Effects", ParamAddress::cc7(118), ValueRange::midi_cc7(64.0)));
+        // CC 119: Osc 1 Mod 1 Shape
+        p.add_parameter(ParamDescriptor::new("osc_1_mod_1_shape", "Oscillator 1", ParamAddress::cc7(119), ValueRange::bipolar(-64.0, 63.0, 0.0, "")));
+
+        // ---------------------------------------------------------------------
+        // 32 Bipolar Dual-CC Pairs (MSB 0..31, LSB 32..63)
+        // ---------------------------------------------------------------------
+        for &(msb, lsb) in &Self::DUAL_CC_PAIRS {
+            let id = format!("dual_cc_{}_{}", msb, lsb);
+            let mut desc = ParamDescriptor::new(
+                id,
+                "Dual-CC Pairs",
+                ParamAddress::cc14(msb, lsb),
+                ValueRange::midi_cc14(8192.0),
+            );
+            if msb == 29 {
+                desc = desc.with_curve(ResponseCurve::Exponential);
+            }
+            p.add_parameter(desc);
+        }
+
+        // ---------------------------------------------------------------------
+        // 14-bit NRPN Descriptors: Oscillators, Filter, Envelopes, LFOs, Arp, FX
+        // ---------------------------------------------------------------------
+
+        // Oscillators 1..3 Waveform Selection (4 Analog Shapes + 17 Wavetables = 21 options)
+        p.add_parameter(ParamDescriptor::new("osc_1_waveform", "Oscillator 1", ParamAddress::nrpn(0, 64), step_range(0.0, 20.0, 2.0, 1.0, "wave")));
+        p.add_parameter(ParamDescriptor::new("osc_1_density", "Oscillator 1", ParamAddress::nrpn(0, 66), ValueRange::midi_cc7(0.0)));
+        p.add_parameter(ParamDescriptor::new("osc_1_density_detune", "Oscillator 1", ParamAddress::nrpn(0, 67), ValueRange::midi_cc7(0.0)));
+
+        p.add_parameter(ParamDescriptor::new("osc_2_waveform", "Oscillator 2", ParamAddress::nrpn(0, 80), step_range(0.0, 20.0, 3.0, 1.0, "wave")));
+        p.add_parameter(ParamDescriptor::new("osc_2_density", "Oscillator 2", ParamAddress::nrpn(0, 82), ValueRange::midi_cc7(0.0)));
+        p.add_parameter(ParamDescriptor::new("osc_2_density_detune", "Oscillator 2", ParamAddress::nrpn(0, 83), ValueRange::midi_cc7(0.0)));
+
+        p.add_parameter(ParamDescriptor::new("osc_3_waveform", "Oscillator 3", ParamAddress::nrpn(0, 96), step_range(0.0, 20.0, 0.0, 1.0, "wave")));
+        p.add_parameter(ParamDescriptor::new("osc_3_density", "Oscillator 3", ParamAddress::nrpn(0, 98), ValueRange::midi_cc7(0.0)));
+        p.add_parameter(ParamDescriptor::new("osc_3_density_detune", "Oscillator 3", ParamAddress::nrpn(0, 99), ValueRange::midi_cc7(0.0)));
+
+        // Filter Type (LP, BP, HP) & Slope (12dB, 24dB)
+        p.add_parameter(ParamDescriptor::new("filter_type", "Filter", ParamAddress::nrpn(0, 48), step_range(0.0, 2.0, 0.0, 1.0, "type")));
+        p.add_parameter(ParamDescriptor::new("filter_slope", "Filter", ParamAddress::nrpn(0, 49), step_range(0.0, 1.0, 1.0, 1.0, "slope")));
+        p.add_parameter(ParamDescriptor::new("filter_cutoff_14bit_nrpn", "Filter", ParamAddress::nrpn(0, 50), ValueRange::midi_cc14(16383.0)).with_curve(ResponseCurve::Exponential));
+        p.add_parameter(ParamDescriptor::new("filter_resonance_nrpn", "Filter", ParamAddress::nrpn(0, 51), ValueRange::midi_cc7(0.0)));
+
+        // LFO 1 & 2 Waveforms & Slew
+        p.add_parameter(ParamDescriptor::new("lfo_1_waveform", "LFO 1", ParamAddress::nrpn(0, 110), step_range(0.0, 3.0, 1.0, 1.0, "wave")));
+        p.add_parameter(ParamDescriptor::new("lfo_1_slew", "LFO 1", ParamAddress::nrpn(0, 111), ValueRange::midi_cc7(0.0)));
+        p.add_parameter(ParamDescriptor::new("lfo_2_waveform", "LFO 2", ParamAddress::nrpn(0, 112), step_range(0.0, 3.0, 0.0, 1.0, "wave")));
+        p.add_parameter(ParamDescriptor::new("lfo_2_slew", "LFO 2", ParamAddress::nrpn(0, 113), ValueRange::midi_cc7(0.0)));
+
+        // Arpeggiator Settings
+        p.add_parameter(ParamDescriptor::new("arp_mode", "Arpeggiator", ParamAddress::nrpn(0, 120), step_range(0.0, 6.0, 0.0, 1.0, "mode")));
+        p.add_parameter(ParamDescriptor::new("arp_division", "Arpeggiator", ParamAddress::nrpn(0, 121), step_range(0.0, 15.0, 3.0, 1.0, "div")));
+        p.add_parameter(ParamDescriptor::new("arp_octaves", "Arpeggiator", ParamAddress::nrpn(0, 122), step_range(1.0, 4.0, 1.0, 1.0, "oct")));
+
+        // ---------------------------------------------------------------------
+        // 16 Modulation Matrix Slots (4 NRPN parameters each = 64 parameters)
+        // ---------------------------------------------------------------------
+        for slot in 1..=Self::MOD_MATRIX_SLOTS {
+            let base_nrpn = ((slot - 1) * 4) as u8;
+            p.add_parameter(ParamDescriptor::new(
+                format!("mod_matrix_slot_{}_source_1", slot),
+                "Modulation Matrix",
+                ParamAddress::nrpn(1, base_nrpn),
+                step_range(0.0, 17.0, 0.0, 1.0, "src"),
+            ));
+            p.add_parameter(ParamDescriptor::new(
+                format!("mod_matrix_slot_{}_source_2", slot),
+                "Modulation Matrix",
+                ParamAddress::nrpn(1, base_nrpn + 1),
+                step_range(0.0, 17.0, 0.0, 1.0, "src"),
+            ));
+            p.add_parameter(ParamDescriptor::new(
+                format!("mod_matrix_slot_{}_depth", slot),
+                "Modulation Matrix",
+                ParamAddress::nrpn(1, base_nrpn + 2),
+                ValueRange::bipolar(-64.0, 63.0, 0.0, ""),
+            ));
+            p.add_parameter(ParamDescriptor::new(
+                format!("mod_matrix_slot_{}_destination", slot),
+                "Modulation Matrix",
+                ParamAddress::nrpn(1, base_nrpn + 3),
+                step_range(0.0, 36.0, 0.0, 1.0, "dest"),
+            ));
+        }
+
+        // ---------------------------------------------------------------------
+        // Tactile Control Surface Panel Elements
+        // ---------------------------------------------------------------------
+        p.add_control(
+            PhysicalControlDescriptor::new(
+                "animate_1",
+                "Animate 1 Button",
+                ControlElementKind::PushButton,
+                114,
+                "Performance",
+            )
+            .with_led(114),
+        );
+        p.add_control(
+            PhysicalControlDescriptor::new(
+                "animate_2",
+                "Animate 2 Button",
+                ControlElementKind::PushButton,
+                115,
+                "Performance",
+            )
+            .with_led(115),
+        );
+        p.add_control(PhysicalControlDescriptor::new(
+            "filter_cutoff_knob",
+            "Filter Frequency Knob",
+            ControlElementKind::RotaryKnob,
+            29,
+            "Filter",
+        ));
+        p.add_control(PhysicalControlDescriptor::new(
+            "filter_resonance_knob",
+            "Filter Resonance Knob",
+            ControlElementKind::RotaryKnob,
+            79,
+            "Filter",
+        ));
+        p.add_control(PhysicalControlDescriptor::new(
+            "filter_overdrive_knob",
+            "Filter Overdrive Knob",
+            ControlElementKind::RotaryKnob,
+            80,
+            "Filter",
+        ));
+        p.add_control(PhysicalControlDescriptor::new(
+            "filter_post_drive_knob",
+            "Filter Post Drive Knob",
+            ControlElementKind::RotaryKnob,
+            36,
+            "Filter",
+        ));
+        p.add_control(PhysicalControlDescriptor::new(
+            "distortion_knob",
+            "Distortion Level Knob",
+            ControlElementKind::RotaryKnob,
+            104,
+            "Effects",
+        ));
+        p.add_control(PhysicalControlDescriptor::new(
+            "chorus_knob",
+            "Chorus Level Knob",
+            ControlElementKind::RotaryKnob,
+            105,
+            "Effects",
+        ));
+        p.add_control(PhysicalControlDescriptor::new(
+            "delay_knob",
+            "Delay Level Knob",
+            ControlElementKind::RotaryKnob,
+            108,
+            "Effects",
+        ));
+        p.add_control(PhysicalControlDescriptor::new(
+            "reverb_knob",
+            "Reverb Level Knob",
+            ControlElementKind::RotaryKnob,
+            112,
+            "Effects",
+        ));
+        p.add_control(PhysicalControlDescriptor::new(
+            "osc1_mix_knob",
+            "Osc 1 Mix Knob",
+            ControlElementKind::RotaryKnob,
+            23,
+            "Mixer",
+        ));
+        p.add_control(PhysicalControlDescriptor::new(
+            "osc2_mix_knob",
+            "Osc 2 Mix Knob",
+            ControlElementKind::RotaryKnob,
+            24,
+            "Mixer",
+        ));
+        p.add_control(PhysicalControlDescriptor::new(
+            "osc3_mix_knob",
+            "Osc 3 Mix Knob",
+            ControlElementKind::RotaryKnob,
+            25,
+            "Mixer",
+        ));
+        p.add_control(PhysicalControlDescriptor::new(
+            "ring_mod_knob",
+            "Ring Mod Mix Knob",
+            ControlElementKind::RotaryKnob,
+            26,
+            "Mixer",
+        ));
+        p.add_control(PhysicalControlDescriptor::new(
+            "noise_knob",
+            "Noise Mix Knob",
+            ControlElementKind::RotaryKnob,
+            27,
+            "Mixer",
+        ));
+        p.add_control(PhysicalControlDescriptor::new(
+            "amp_attack_slider",
+            "Amp Attack Slider",
+            ControlElementKind::LinearSlider,
+            86,
+            "Amp Envelope",
+        ));
+        p.add_control(PhysicalControlDescriptor::new(
+            "amp_decay_slider",
+            "Amp Decay Slider",
+            ControlElementKind::LinearSlider,
+            87,
+            "Amp Envelope",
+        ));
+        p.add_control(PhysicalControlDescriptor::new(
+            "amp_sustain_slider",
+            "Amp Sustain Slider",
+            ControlElementKind::LinearSlider,
+            88,
+            "Amp Envelope",
+        ));
+        p.add_control(PhysicalControlDescriptor::new(
+            "amp_release_slider",
+            "Amp Release Slider",
+            ControlElementKind::LinearSlider,
+            89,
+            "Amp Envelope",
+        ));
+        p.add_control(PhysicalControlDescriptor::new(
+            "lfo1_rate_knob",
+            "LFO 1 Rate Knob",
+            ControlElementKind::RotaryKnob,
+            30,
+            "LFO 1",
+        ));
+        p.add_control(PhysicalControlDescriptor::new(
+            "lfo2_rate_knob",
+            "LFO 2 Rate Knob",
+            ControlElementKind::RotaryKnob,
+            31,
+            "LFO 2",
+        ));
+        p.add_control(PhysicalControlDescriptor::new(
+            "arp_gate_knob",
+            "Arp Gate Knob",
+            ControlElementKind::RotaryKnob,
+            116,
+            "Arpeggiator",
+        ));
+
+        p
+    }
+
+    /// Convenience getter returning the underlying `DeviceSynthesizerProfile`.
+    pub fn device_profile() -> DeviceSynthesizerProfile {
+        Self::build_profile()
+    }
+
+    /// Creates an instance wrapping the `DeviceSynthesizerProfile`.
+    pub fn new() -> Self {
+        Self {
+            profile: Self::build_profile(),
+        }
+    }
+}
+
+impl Default for NovationPeakProfile {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Deref for NovationPeakProfile {
+    type Target = DeviceSynthesizerProfile;
+    fn deref(&self) -> &Self::Target {
+        &self.profile
+    }
+}
+
+/// Unified 5-Synthesizer Ecosystem Schema Bundle.
+///
+/// Contains canonical profiles for all 5 synthesizers / controller platforms in the ecosystem:
+/// 1. ASM Hydrasynth (Polyphonic Digital Wavetable)
+/// 2. Korg nanoKONTROL2 / Akai MIDImix (nkEditor Controller Surfaces)
+/// 3. Novation Bass Station II / Behringer TD-3-MD (Analog Monosynths)
+/// 4. Clavia Nord Drum 2 (6-Voice Physical Modeling Percussion Synthesizer)
+/// 5. Novation Peak (8-Voice Polyphonic Hybrid Synthesizer)
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct UnifiedEcosystemSchemaBundle {
+    pub version: String,
+    pub ecosystem_name: String,
+    pub synths: Vec<DeviceSynthesizerProfile>,
+}
+
+impl UnifiedEcosystemSchemaBundle {
+    /// Creates the standard 5-synth ecosystem bundle.
+    pub fn new() -> Self {
+        Self {
+            version: "1.0.0".to_string(),
+            ecosystem_name: "Five-Synth Ecosystem (Hydra, nkEditor, BS2/TD-3, ND2, Peak)".to_string(),
+            synths: vec![
+                DeviceSynthesizerProfile::asm_hydrasynth(),
+                DeviceSynthesizerProfile::korg_nanokontrol2(),
+                DeviceSynthesizerProfile::akai_midimix(),
+                DeviceSynthesizerProfile::novation_bass_station_2(),
+                DeviceSynthesizerProfile::behringer_td3_md(),
+                DeviceSynthesizerProfile::clavia_nord_drum_2(),
+                DeviceSynthesizerProfile::novation_peak(),
+            ],
+        }
+    }
+
+    /// Returns the number of profiles registered in the bundle.
+    pub fn len(&self) -> usize {
+        self.synths.len()
+    }
+
+    /// Returns whether the bundle contains any profiles.
+    pub fn is_empty(&self) -> bool {
+        self.synths.is_empty()
+    }
+
+    /// Looks up a synthesizer profile by identifier.
+    pub fn get_profile(&self, id: &str) -> Option<&DeviceSynthesizerProfile> {
+        self.synths.iter().find(|s| s.id == id)
+    }
+
+    /// Returns all profiles belonging to the Synthesizer category.
+    pub fn synthesizer_profiles(&self) -> Vec<&DeviceSynthesizerProfile> {
+        self.synths.iter().filter(|s| s.category == DeviceCategory::Synthesizer).collect()
+    }
+
+    /// Returns all profiles belonging to the ControllerSurface category.
+    pub fn controller_profiles(&self) -> Vec<&DeviceSynthesizerProfile> {
+        self.synths.iter().filter(|s| s.category == DeviceCategory::ControllerSurface).collect()
+    }
+
+    /// Serializes bundle to JSON string.
+    pub fn to_json(&self) -> Result<String, SynthError> {
+        serde_json::to_string_pretty(self).map_err(|e| SynthError::SerializationError(e.to_string()))
+    }
+
+    /// Deserializes bundle from JSON string.
+    pub fn from_json(json_str: &str) -> Result<Self, SynthError> {
+        serde_json::from_str(json_str).map_err(|e| SynthError::SerializationError(e.to_string()))
+    }
+}
+
+impl Default for UnifiedEcosystemSchemaBundle {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 // =============================================================================
@@ -1385,6 +2007,12 @@ pub fn export_all_schemas(dir: &std::path::Path) -> Result<(), std::io::Error> {
     if let Ok(json) = DeviceSynthesizerProfile::clavia_nord_drum_2().to_json() {
         let _ = std::fs::write(dir.join("clavia-nord-drum-2.profile.json"), json);
     }
+    if let Ok(json) = DeviceSynthesizerProfile::novation_peak().to_json() {
+        let _ = std::fs::write(dir.join("novation-peak.profile.json"), json);
+    }
+    if let Ok(json) = UnifiedEcosystemSchemaBundle::new().to_json() {
+        let _ = std::fs::write(dir.join("unified-ecosystem-bundle.json"), json);
+    }
     if let Ok(json) = serde_json::to_string_pretty(&ControllerSurfaceMapping::nanokontrol2_nord_drum_2()) {
         let _ = std::fs::write(dir.join("korg-nanokontrol2-nd2.mapping.json"), json);
     }
@@ -1657,7 +2285,14 @@ mod tests {
         assert_eq!(nd2_restored.id, "clavia_nord_drum_2");
         assert_eq!(nd2_restored.parameters.len(), 202);
 
-        // Verify Schema Exporter writes all 9 files across all 4 projects
+        // 5. Novation Peak Profile (8-Voice Polyphonic Hybrid)
+        let peak = DeviceSynthesizerProfile::novation_peak();
+        let peak_json = peak.to_json().expect("Peak JSON serialize failed");
+        let peak_restored = validate_profile_json(&peak_json).expect("Peak JSON parse failed");
+        assert_eq!(peak_restored.id, "novation_peak");
+        assert_eq!(peak_restored.parameters.len(), peak.parameters.len());
+
+        // Verify Schema Exporter writes all 12 files across all 5 projects
         let temp_dir = std::env::temp_dir().join(format!("synth_core_schema_test_{}", uuid::Uuid::new_v4()));
         export_all_schemas(&temp_dir).expect("export_all_schemas failed");
 
@@ -1670,8 +2305,129 @@ mod tests {
         assert!(temp_dir.join("novation-bass-station-2.profile.json").exists());
         assert!(temp_dir.join("behringer-td3-md.profile.json").exists());
         assert!(temp_dir.join("clavia-nord-drum-2.profile.json").exists());
+        assert!(temp_dir.join("novation-peak.profile.json").exists());
+        assert!(temp_dir.join("unified-ecosystem-bundle.json").exists());
         assert!(temp_dir.join("korg-nanokontrol2-nd2.mapping.json").exists());
 
         let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_novation_peak_profile_completeness() {
+        let peak = NovationPeakProfile::new();
+        assert_eq!(peak.id, "novation_peak");
+        assert_eq!(peak.category, DeviceCategory::Synthesizer);
+        assert_eq!(peak.manufacturer, "Novation");
+
+        // Verify 74 CC parameters
+        assert_eq!(NovationPeakProfile::CC_MAP_COUNT, 74);
+        assert!(peak.get_param("filter_cutoff").is_some());
+        assert!(peak.get_param("filter_resonance").is_some());
+        assert!(peak.get_param("filter_overdrive").is_some());
+        assert!(peak.get_param("filter_post_drive").is_some());
+        assert!(peak.get_param("mod_wheel").is_some());
+        assert!(peak.get_param("glide_time").is_some());
+        assert!(peak.get_param("glide_on").is_some());
+        assert!(peak.get_param("animate_1_hold").is_some());
+        assert!(peak.get_param("animate_2_hold").is_some());
+        assert!(peak.get_param("arp_clock_gate").is_some());
+        assert!(peak.get_param("distortion_level").is_some());
+        assert!(peak.get_param("chorus_level").is_some());
+        assert!(peak.get_param("delay_level").is_some());
+        assert!(peak.get_param("reverb_level").is_some());
+        assert!(peak.get_param("ring_mod_mix").is_some());
+        assert!(peak.get_param("noise_mix").is_some());
+
+        // Verify 3 Oscillators with 17 Wavetables
+        assert_eq!(NovationPeakProfile::wavetables().len(), 17);
+        assert_eq!(NovationPeakProfile::wavetables()[0], "Sine-Tri");
+        assert_eq!(NovationPeakProfile::wavetables()[16], "Digi");
+        assert!(peak.get_param("osc_1_waveform").is_some());
+        assert!(peak.get_param("osc_2_waveform").is_some());
+        assert!(peak.get_param("osc_3_waveform").is_some());
+        assert!(peak.get_param("osc_1_shape").is_some());
+        assert!(peak.get_param("osc_2_shape").is_some());
+        assert!(peak.get_param("osc_3_shape").is_some());
+        assert!(peak.get_param("osc_1_vsync").is_some());
+        assert!(peak.get_param("osc_2_vsync").is_some());
+        assert!(peak.get_param("osc_3_vsync").is_some());
+
+        // Verify 32 Dual-CC pairs
+        assert_eq!(NovationPeakProfile::dual_cc_pairs().len(), 32);
+        assert!(NovationPeakProfile::is_dual_cc(0));
+        assert!(NovationPeakProfile::is_dual_cc(29));
+        assert!(NovationPeakProfile::is_dual_cc(63));
+        assert!(!NovationPeakProfile::is_dual_cc(64));
+        assert_eq!(NovationPeakProfile::dual_cc_lsb_for(29), Some(61));
+        assert_eq!(NovationPeakProfile::dual_cc_msb_for(61), Some(29));
+        assert!(peak.get_param("dual_cc_29_61").is_some());
+        assert!(peak.get_param("dual_cc_23_55").is_some());
+
+        // Verify 16 Modulation Matrix slots (64 parameters)
+        assert_eq!(NovationPeakProfile::MOD_MATRIX_SLOTS, 16);
+        for slot in 1..=16 {
+            assert!(peak.get_param(&format!("mod_matrix_slot_{}_source_1", slot)).is_some());
+            assert!(peak.get_param(&format!("mod_matrix_slot_{}_source_2", slot)).is_some());
+            assert!(peak.get_param(&format!("mod_matrix_slot_{}_depth", slot)).is_some());
+            assert!(peak.get_param(&format!("mod_matrix_slot_{}_destination", slot)).is_some());
+        }
+
+        // Verify 3 ADSR Envelopes
+        assert!(peak.get_param("amp_envelope_attack").is_some());
+        assert!(peak.get_param("mod_envelope_1_attack").is_some());
+        assert!(peak.get_param("mod_envelope_2_attack").is_some());
+        assert!(peak.get_param("mod_envelope_2_sustain").is_some());
+        assert!(peak.get_param("mod_envelope_2_release").is_some());
+
+        // Verify 2 LFOs
+        assert!(peak.get_param("lfo_1_rate").is_some());
+        assert!(peak.get_param("lfo_1_sync_rate").is_some());
+        assert!(peak.get_param("lfo_1_waveform").is_some());
+        assert!(peak.get_param("lfo_2_rate").is_some());
+        assert!(peak.get_param("lfo_2_waveform").is_some());
+
+        // Verify Physical Panel Controls
+        assert_eq!(peak.controller_controls.len(), 22);
+        assert!(peak.controller_controls.iter().any(|c| c.id == "animate_1" && c.has_led));
+        assert!(peak.controller_controls.iter().any(|c| c.id == "animate_2" && c.has_led));
+        assert!(peak.controller_controls.iter().any(|c| c.id == "filter_cutoff_knob"));
+
+        // Verify Safe Sweep Ranges
+        let res_sweep = NovationPeakProfile::safe_sweep_range("resonance");
+        assert_eq!(res_sweep, (0.0, 62.0));
+        let dist_sweep = NovationPeakProfile::safe_sweep_range("distortion_level");
+        assert_eq!(dist_sweep, (0.0, 48.0));
+        let od_sweep = NovationPeakProfile::safe_sweep_range("filter_overdrive");
+        assert_eq!(od_sweep, (0.0, 50.0));
+        let fb_sweep = NovationPeakProfile::safe_sweep_range("delay_feedback");
+        assert_eq!(fb_sweep, (0.0, 70.0));
+        let fx_sweep = NovationPeakProfile::safe_sweep_range("reverb_level");
+        assert_eq!(fx_sweep, (0.0, 90.0));
+        let normal_sweep = NovationPeakProfile::safe_sweep_range("filter_cutoff");
+        assert_eq!(normal_sweep, (0.0, 127.0));
+    }
+
+    #[test]
+    fn test_unified_ecosystem_schema_bundle() {
+        let bundle = UnifiedEcosystemSchemaBundle::new();
+        assert_eq!(bundle.len(), 7); // 5 synth families (Hydra, BS2, TD-3, ND2, Peak) + 2 controller surfaces (nk2, midimix)
+        assert!(!bundle.is_empty());
+
+        let synths = bundle.synthesizer_profiles();
+        assert_eq!(synths.len(), 5); // ASM Hydra, Novation BS2, Behringer TD-3, Clavia ND2, Novation Peak
+
+        let controllers = bundle.controller_profiles();
+        assert_eq!(controllers.len(), 2); // Korg nanoKONTROL2, Akai MIDImix
+
+        // Verify Novation Peak in bundle
+        let peak = bundle.get_profile("novation_peak").expect("Peak missing from ecosystem bundle");
+        assert_eq!(peak.name, "Novation Peak");
+
+        // Verify JSON roundtrip
+        let json_str = bundle.to_json().expect("Bundle serialization failed");
+        let restored = UnifiedEcosystemSchemaBundle::from_json(&json_str).expect("Bundle deserialization failed");
+        assert_eq!(restored.version, bundle.version);
+        assert_eq!(restored.len(), 7);
+        assert!(restored.get_profile("novation_peak").is_some());
     }
 }

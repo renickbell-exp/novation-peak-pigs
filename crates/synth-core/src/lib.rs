@@ -29,7 +29,8 @@ pub use profiles::{
     controller_mapping_json_schema, device_profile_json_schema, export_all_schemas,
     preset_json_schema, validate_controller_mapping_json, validate_preset_json,
     validate_profile_json, ControlElementKind, ControllerSurfaceMapping, DeviceCategory,
-    DeviceSynthesizerProfile, PhysicalControlDescriptor, SurfaceBankMapping, SurfaceControlBinding,
+    DeviceSynthesizerProfile, NovationPeakProfile, PhysicalControlDescriptor, SurfaceBankMapping,
+    SurfaceControlBinding, UnifiedEcosystemSchemaBundle,
 };
 pub use randomizer::{LockShieldedRandomizer, RandomizeScope};
 
@@ -412,7 +413,7 @@ mod tests {
     }
 
     #[test]
-    fn test_four_synth_profiles_in_synth_core() {
+    fn test_five_synth_profiles_in_synth_core() {
         // 1. nkEditor / Korg nanoKONTROL2
         let nano = DeviceSynthesizerProfile::korg_nanokontrol2();
         assert_eq!(nano.id, "korg_nanokontrol2");
@@ -440,6 +441,13 @@ mod tests {
         assert_eq!(nd2.category, DeviceCategory::Synthesizer);
         assert_eq!(nd2.parameters.len(), 202); // 186 voice params (31 x 6) + 16 global kit params
         assert_eq!(nd2.controller_controls.len(), 8); // 6 channel buttons + main dial + trig button
+
+        // 5. Novation Peak
+        let peak = DeviceSynthesizerProfile::novation_peak();
+        assert_eq!(peak.id, "novation_peak");
+        assert_eq!(peak.category, DeviceCategory::Synthesizer);
+        assert!(peak.parameters.len() >= 190);
+        assert_eq!(peak.controller_controls.len(), 22);
     }
 
     #[test]
@@ -618,5 +626,152 @@ mod tests {
         history.redo(&mut patch).expect("Redo 2 failed");
         assert_eq!(patch.get_param("voice_3_mix_balance"), Some(100.0));
         assert_eq!(patch.get_param("voice_6_echo_feedback"), Some(24.0));
+    }
+
+    #[test]
+    fn test_novation_peak_synth_patch_crud_and_preset_library() {
+        let profile = NovationPeakProfile::device_profile();
+        let mut patch = profile.create_default_patch("Oxford Ambient Pad");
+
+        assert_eq!(patch.meta.name, "Oxford Ambient Pad");
+        assert!(patch.parameters.len() >= 190);
+
+        // Verify initial parameter defaults
+        assert_eq!(patch.get_param("filter_cutoff"), Some(127.0));
+        assert_eq!(patch.get_param("filter_resonance"), Some(0.0));
+        assert_eq!(patch.get_param("osc_1_mix"), Some(127.0));
+        assert_eq!(patch.get_param("osc_2_mix"), Some(0.0));
+        assert_eq!(patch.get_param("osc_3_mix"), Some(0.0));
+        assert_eq!(patch.get_param("distortion_level"), Some(0.0));
+        assert_eq!(patch.get_param("reverb_level"), Some(0.0));
+
+        // Mutate patch
+        patch.meta.category = "Pad".to_string();
+        patch.meta.bank = "A".to_string();
+        patch.meta.slot = 42;
+        patch.add_tag("ambient");
+        patch.add_tag("peak");
+        patch.set_param("filter_cutoff", 75.0);
+        patch.set_param("reverb_level", 64.0);
+
+        let mut lib = PresetLibrary::new();
+        lib.add_patch(patch.clone()).expect("Add patch failed");
+        assert_eq!(lib.len(), 1);
+
+        // Search & Filter
+        let found = lib.search("ambient");
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].meta.name, "Oxford Ambient Pad");
+
+        // JSON serialization roundtrip
+        let json = patch.to_json().expect("Patch to JSON failed");
+        let restored = SynthPatch::from_json(&json).expect("From JSON failed");
+        assert_eq!(restored.meta.name, "Oxford Ambient Pad");
+        assert_eq!(restored.get_param("filter_cutoff"), Some(75.0));
+        assert_eq!(restored.get_param("reverb_level"), Some(64.0));
+    }
+
+    #[test]
+    fn test_novation_peak_patch_diff_and_selective_merge() {
+        let profile = NovationPeakProfile::device_profile();
+        let patch_a = profile.create_default_patch("Peak Init A");
+        let mut patch_b = profile.create_default_patch("Peak Init B");
+
+        // Mutate oscillator 1 and filter parameters in patch B
+        patch_b.set_param("filter_cutoff", 60.0);
+        patch_b.set_param("filter_overdrive", 40.0);
+        patch_b.set_param("osc_1_shape", 95.0);
+        patch_b.set_param("distortion_level", 25.0);
+
+        let diff = PatchDiff::compare(&patch_a, &patch_b, 0.001);
+        assert_eq!(diff.total_differences(), 4);
+
+        // Selectively merge only filter parameters from B into A
+        let merged = selective_merge_matching(&patch_a, &patch_b, |k| k.starts_with("filter_"));
+        assert_eq!(merged.get_param("filter_cutoff"), Some(60.0));
+        assert_eq!(merged.get_param("filter_overdrive"), Some(40.0));
+        // Osc 1 and distortion should remain at patch A defaults
+        assert_eq!(merged.get_param("osc_1_shape"), Some(64.0));
+        assert_eq!(merged.get_param("distortion_level"), Some(0.0));
+    }
+
+    #[test]
+    fn test_novation_peak_lock_shielded_randomizer() {
+        let profile = NovationPeakProfile::device_profile();
+        let mut randomizer = LockShieldedRandomizer::new();
+
+        for p in &profile.parameters {
+            randomizer.register_descriptor(p.clone());
+        }
+
+        // Lock filter frequency and master controls
+        randomizer.lock_param("filter_cutoff");
+        randomizer.lock_section("Performance");
+
+        assert!(randomizer.is_shielded("filter_cutoff"));
+        assert!(randomizer.is_shielded("mod_wheel"));
+        assert!(randomizer.is_shielded("glide_time"));
+        assert!(!randomizer.is_shielded("osc_1_shape"));
+
+        let base_patch = profile.create_default_patch("Base Patch");
+        let randomized = randomizer.randomize_global(&base_patch, 100.0, 100.0, Some(777));
+
+        // Shielded params must be untouched
+        assert_eq!(
+            randomized.get_param("filter_cutoff"),
+            base_patch.get_param("filter_cutoff")
+        );
+        assert_eq!(
+            randomized.get_param("mod_wheel"),
+            base_patch.get_param("mod_wheel")
+        );
+
+        // Unshielded parameter changed
+        let new_shape = randomized.get_param("osc_1_shape").unwrap_or(0.0);
+        let orig_shape = base_patch.get_param("osc_1_shape").unwrap_or(0.0);
+        assert!((new_shape - orig_shape).abs() > f64::EPSILON);
+    }
+
+    #[test]
+    fn test_novation_peak_command_history() {
+        let profile = NovationPeakProfile::device_profile();
+        let mut patch = profile.create_default_patch("Peak Undo Patch");
+        let mut history = CommandHistory::new(10);
+
+        // Command 1: Move filter cutoff 127 -> 64
+        let cmd1 = Box::new(SetParamCommand::new("filter_cutoff", 127.0, 64.0));
+        history.push_and_apply(cmd1, &mut patch).expect("cmd1 failed");
+        assert_eq!(patch.get_param("filter_cutoff"), Some(64.0));
+
+        // Command 2: Batch adjust FX
+        let batch = vec![
+            ("distortion_level".to_string(), 0.0, 30.0),
+            ("reverb_level".to_string(), 0.0, 80.0),
+        ];
+        let cmd2 = Box::new(BatchSetParamsCommand::new(batch, "Engage Distortion and Reverb"));
+        history.push_and_apply(cmd2, &mut patch).expect("cmd2 failed");
+        assert_eq!(patch.get_param("distortion_level"), Some(30.0));
+        assert_eq!(patch.get_param("reverb_level"), Some(80.0));
+
+        // Undo batch
+        let undo_desc = history.undo(&mut patch).expect("undo failed");
+        assert_eq!(undo_desc.as_deref(), Some("Engage Distortion and Reverb"));
+        assert_eq!(patch.get_param("distortion_level"), Some(0.0));
+        assert_eq!(patch.get_param("reverb_level"), Some(0.0));
+        assert_eq!(patch.get_param("filter_cutoff"), Some(64.0));
+
+        // Undo single
+        history.undo(&mut patch).expect("undo failed");
+        assert_eq!(patch.get_param("filter_cutoff"), Some(127.0));
+    }
+
+    #[test]
+    fn test_novation_peak_bundle_registration() {
+        let bundle = UnifiedEcosystemSchemaBundle::new();
+        let peak = bundle.get_profile("novation_peak").expect("Peak not found in bundle");
+        assert_eq!(peak.id, "novation_peak");
+        assert_eq!(peak.name, "Novation Peak");
+        assert_eq!(peak.manufacturer, "Novation");
+        assert_eq!(bundle.synthesizer_profiles().len(), 5);
     }
 }
