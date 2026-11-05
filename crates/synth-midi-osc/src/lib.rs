@@ -11,27 +11,37 @@ pub mod routing;
 
 // Re-export hardware types and functions
 pub use hardware::{
-    build_deep_panic_packet, build_panic_packet, scan_hardware_devices,
+    build_deep_panic_packet, build_panic_packet, parse_proc_asound_cards,
+    parse_proc_asound_cards_str, scan_hardware_devices,
     scan_hardware_devices_with_roots, stored_device_profile_json_schema,
-    validate_stored_device_profile_json, DeviceFingerprint, DeviceLifecycleEvent,
-    HardwareFingerprint, MidiCodec, MidiCodecError, MultiDeviceManager, NrpnMessage,
-    NrpnParser, PortRateLimiter, StoredDeviceProfile, SupportedDeviceType, SysExPacket,
+    validate_stored_device_profile_json, AsoundCardEntry, DeviceFingerprint,
+    DeviceLifecycleEvent, HardwareFingerprint, MidiCodec, MidiCodecError,
+    MultiDeviceManager, NrpnMessage, NrpnParser, PeakPatchDump, PeakSysExCodec,
+    PortRateLimiter, StoredDeviceProfile, SupportedDeviceType, SysExPacket,
+    NOVATION_MANUFACTURER_ID, PEAK_SYSEX_CMD_SOUND_DUMP, PEAK_SYSEX_DEVICE_ID,
 };
 
 // Re-export OSC types and functions
 pub use osc::{
-    OscBridge, OscBroadcaster, OscConfig, OscError, OscIncomingMessage, OscServer,
+    parse_peak_address, OscBridge, OscBroadcaster, OscConfig, OscError,
+    OscIncomingMessage, OscServer, PeakOscBridge, PeakOscTarget,
 };
 
-// Re-export Nord Drum 2 routing, ALSA discovery, and Anti-Choke scheduling
+// Re-export Nord Drum 2 and Novation Peak routing, ALSA discovery, and Anti-Choke scheduling
 pub use routing::{
-    discover_nord_drum_hardware, discover_nord_drum_hardware_with_roots,
-    dual_midi_router_json_schema, export_midi_osc_schemas, validate_dual_midi_router_json,
+    clamp_cc_value, discover_nord_drum_hardware, discover_nord_drum_hardware_with_roots,
+    discover_peak_hardware, discover_peak_hardware_with_roots,
+    dual_midi_router_json_schema, export_midi_osc_schemas,
+    peak_midi_router_json_schema, safe_sweep_range, safe_sweep_range_by_name,
+    validate_dual_midi_router_json, validate_peak_midi_router_json,
     AlsaPortEndpoint, AntiChokeScheduler, DualMidiRouter, MidiControlMode,
-    MidiPacket, MidiSafetyMode, NordDrumDiscoveryResult, SchedulerMetrics,
-    DEFAULT_CC_THROTTLE_MS, DEFAULT_GLOBAL_CHANNEL, DEFAULT_TRIGGER_NOTES,
-    GLOBAL_FOCUS_CC, NANOKONTROL2_ALSA_DEVICE, NORD_DRUM_2_MODEL_ID,
-    UMC1820_ALSA_DEVICE, VOICE_COUNT,
+    MidiPacket, MidiSafetyMode, NordDrumDiscoveryResult, PeakDiscoveryResult,
+    PeakMidiRouter, SchedulerMetrics, DEFAULT_CC_THROTTLE_MS,
+    DEFAULT_GLOBAL_CHANNEL, DEFAULT_TRIGGER_NOTES, GLOBAL_FOCUS_CC,
+    NANOKONTROL2_ALSA_DEVICE, NORD_DRUM_2_MODEL_ID, PEAK_ALSA_DEVICE,
+    PEAK_ALSA_SEQ_CLIENT, PEAK_ALSA_SEQ_PORT, PEAK_PORT_NAME,
+    PEAK_USB_PRODUCT_ID, PEAK_USB_VENDOR_ID, UMC1820_ALSA_DEVICE,
+    VOICE_COUNT,
 };
 
 #[cfg(test)]
@@ -92,6 +102,16 @@ mod tests {
             assert_eq!(umc.alsa_card_index, 0);
             assert_eq!(umc.alsa_seq_client, Some(16));
         }
+
+        if let Some(peak) = devices
+            .iter()
+            .find(|d| d.device_type == SupportedDeviceType::NovationPeak)
+        {
+            assert_eq!(peak.vendor_id, "1235");
+            assert_eq!(peak.product_id, "007e");
+            assert_eq!(peak.alsa_card_index, 3);
+            assert_eq!(peak.alsa_seq_client, Some(28));
+        }
     }
 
     #[test]
@@ -142,6 +162,8 @@ mod tests {
         assert!(temp_dir.join("korg-nanokontrol2.hardware.json").exists());
         assert!(temp_dir.join("novation-bs2.hardware.json").exists());
         assert!(temp_dir.join("clavia-nord-drum-2.hardware.json").exists());
+        assert!(temp_dir.join("peak-midi-router.schema.json").exists());
+        assert!(temp_dir.join("novation-peak.hardware.json").exists());
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }

@@ -113,6 +113,7 @@ impl DeviceFingerprint {
 /// Recognized synthesizer and controller hardware models.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum SupportedDeviceType {
+    NovationPeak,
     NovationBassStation2,
     BehringerTd3,
     BehringerTd3Mo,
@@ -133,6 +134,9 @@ impl SupportedDeviceType {
         let card_lower = card_name.to_ascii_lowercase();
 
         // Check vendor and product ID signatures first
+        if v == "1235" && (p == "007e" || p == "7e") {
+            return Self::NovationPeak;
+        }
         if v == "1235" && (p == "0018" || p == "18") {
             return Self::NovationBassStation2;
         }
@@ -162,7 +166,9 @@ impl SupportedDeviceType {
         }
 
         // Secondary fallback checking card and client name strings
-        if card_lower.contains("nord drum") || card_lower.contains("norddrum") {
+        if card_lower.contains("peak") {
+            Self::NovationPeak
+        } else if card_lower.contains("nord drum") || card_lower.contains("norddrum") {
             Self::ClaviaNordDrum2
         } else if card_lower.contains("bass station") || card_lower.contains("bassstation") {
             Self::NovationBassStation2
@@ -188,6 +194,7 @@ impl SupportedDeviceType {
     /// User-friendly display name of the device.
     pub fn display_name(&self) -> &'static str {
         match self {
+            Self::NovationPeak => "Novation Peak",
             Self::NovationBassStation2 => "Novation Bass Station II",
             Self::BehringerTd3 => "Behringer TD-3",
             Self::BehringerTd3Mo => "Behringer TD-3-MO",
@@ -205,7 +212,8 @@ impl SupportedDeviceType {
     pub fn is_synthesizer(&self) -> bool {
         matches!(
             self,
-            Self::NovationBassStation2
+            Self::NovationPeak
+                | Self::NovationBassStation2
                 | Self::BehringerTd3
                 | Self::BehringerTd3Mo
                 | Self::BehringerTd3Md
@@ -619,9 +627,11 @@ pub enum MidiCodecError {
     TruncatedPacket { expected: usize, actual: usize },
     InvalidDataByte(u8),
     InvalidChannel(u8),
+    InvalidValue(u16),
     SysExMissingStart,
     SysExMissingEnd,
     SysExInvalidData(u8),
+    SysExManufacturerMismatch { expected: Vec<u8>, actual: Vec<u8> },
 }
 
 impl fmt::Display for MidiCodecError {
@@ -638,9 +648,17 @@ impl fmt::Display for MidiCodecError {
             }
             Self::InvalidDataByte(b) => write!(f, "Invalid MIDI 7-bit data byte: 0x{:02X}", b),
             Self::InvalidChannel(c) => write!(f, "Invalid MIDI channel {} (must be 0..=15)", c),
+            Self::InvalidValue(v) => write!(f, "Invalid MIDI value {}", v),
             Self::SysExMissingStart => write!(f, "SysEx packet missing 0xF0 start delimiter"),
             Self::SysExMissingEnd => write!(f, "SysEx packet missing 0xF7 end delimiter"),
             Self::SysExInvalidData(b) => write!(f, "SysEx payload byte has MSB set: 0x{:02X}", b),
+            Self::SysExManufacturerMismatch { expected, actual } => {
+                write!(
+                    f,
+                    "SysEx manufacturer ID mismatch: expected {:02x?}, got {:02x?}",
+                    expected, actual
+                )
+            }
         }
     }
 }
@@ -918,6 +936,165 @@ impl MidiCodec {
             payload,
             raw: bytes.to_vec(),
         })
+    }
+}
+
+/// Novation 3-byte System Exclusive Manufacturer ID: [0x00, 0x20, 0x29].
+pub const NOVATION_MANUFACTURER_ID: [u8; 3] = [0x00, 0x20, 0x29];
+
+/// Novation Peak / Summit device family identifier.
+pub const PEAK_SYSEX_DEVICE_ID: u8 = 0x03;
+
+/// Sound Dump command byte for Novation Peak.
+pub const PEAK_SYSEX_CMD_SOUND_DUMP: u8 = 0x01;
+
+/// Structured Novation Peak System Exclusive Patch Dump.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PeakPatchDump {
+    /// Sound bank (0 = Bank A, 1 = Bank B, 2 = Bank C, 3 = Bank D, 0x7F = Edit Buffer).
+    pub bank: u8,
+    /// Patch index within bank (0..127).
+    pub patch_index: u8,
+    /// Human-readable patch name (up to 16 ASCII characters).
+    pub name: String,
+    /// 7-bit patch parameter payload.
+    pub payload: Vec<u8>,
+}
+
+/// System Exclusive encoder and decoder for Novation Peak / Focusrite hardware.
+pub struct PeakSysExCodec;
+
+impl PeakSysExCodec {
+    /// Encodes a `PeakPatchDump` into standard Novation SysEx frame bytes:
+    /// `[0xF0, 0x00, 0x20, 0x29, 0x03, 0x01, bank, patch_index, ...16 ASCII chars..., ...payload..., 0xF7]`
+    pub fn encode(dump: &PeakPatchDump) -> Result<Vec<u8>, MidiCodecError> {
+        for &b in &dump.payload {
+            if b > 0x7F {
+                return Err(MidiCodecError::SysExInvalidData(b));
+            }
+        }
+
+        let mut frame = Vec::with_capacity(25 + dump.payload.len());
+        frame.push(0xF0);
+        frame.extend_from_slice(&NOVATION_MANUFACTURER_ID);
+        frame.push(PEAK_SYSEX_DEVICE_ID);
+        frame.push(PEAK_SYSEX_CMD_SOUND_DUMP);
+        frame.push(dump.bank & 0x7F);
+        frame.push(dump.patch_index & 0x7F);
+
+        // 16-byte fixed-width ASCII patch name padded with spaces
+        let name_bytes = dump.name.as_bytes();
+        for i in 0..16 {
+            let b = if i < name_bytes.len() {
+                name_bytes[i] & 0x7F
+            } else {
+                b' '
+            };
+            frame.push(b);
+        }
+
+        frame.extend_from_slice(&dump.payload);
+        frame.push(0xF7);
+        Ok(frame)
+    }
+
+    /// Decodes a raw Novation SysEx frame into a `PeakPatchDump`.
+    pub fn decode(bytes: &[u8]) -> Result<PeakPatchDump, MidiCodecError> {
+        if bytes.is_empty() {
+            return Err(MidiCodecError::EmptyPacket);
+        }
+        if bytes.len() < 25 {
+            return Err(MidiCodecError::TruncatedPacket {
+                expected: 25,
+                actual: bytes.len(),
+            });
+        }
+        if bytes[0] != 0xF0 {
+            return Err(MidiCodecError::SysExMissingStart);
+        }
+        if *bytes.last().unwrap_or(&0) != 0xF7 {
+            return Err(MidiCodecError::SysExMissingEnd);
+        }
+
+        // Check manufacturer ID (bytes 1..4: 00 20 29)
+        if &bytes[1..4] != &NOVATION_MANUFACTURER_ID {
+            return Err(MidiCodecError::SysExManufacturerMismatch {
+                expected: NOVATION_MANUFACTURER_ID.to_vec(),
+                actual: bytes[1..4].to_vec(),
+            });
+        }
+
+        let bank = bytes[6] & 0x7F;
+        let patch_index = bytes[7] & 0x7F;
+        let name_slice = &bytes[8..24];
+        for &b in name_slice {
+            if b > 0x7F {
+                return Err(MidiCodecError::SysExInvalidData(b));
+            }
+        }
+        let name = String::from_utf8_lossy(name_slice).trim().to_string();
+
+        let payload = bytes[24..bytes.len() - 1].to_vec();
+        for &b in &payload {
+            if b > 0x7F {
+                return Err(MidiCodecError::SysExInvalidData(b));
+            }
+        }
+
+        Ok(PeakPatchDump {
+            bank,
+            patch_index,
+            name,
+            payload,
+        })
+    }
+
+    /// Encodes a `SynthPatch` into a Novation Peak SysEx dump frame.
+    pub fn encode_synth_patch(patch: &synth_core::preset::SynthPatch) -> Result<Vec<u8>, MidiCodecError> {
+        let bank = match patch.meta.bank.to_ascii_uppercase().as_str() {
+            "A" | "BANK A" | "0" => 0,
+            "B" | "BANK B" | "1" => 1,
+            "C" | "BANK C" | "2" => 2,
+            "D" | "BANK D" | "3" => 3,
+            _ => 0,
+        };
+        let patch_index = (patch.meta.slot & 0x7F) as u8;
+
+        let payload = if let Some(raw) = &patch.sysex.raw_dump {
+            raw.iter().copied().filter(|&b| b <= 0x7F).collect()
+        } else {
+            let mut data = Vec::new();
+            for (_key, &val) in &patch.parameters {
+                let val7 = (val.clamp(0.0, 127.0).round() as u8) & 0x7F;
+                data.push(val7);
+            }
+            data
+        };
+
+        let dump = PeakPatchDump {
+            bank,
+            patch_index,
+            name: patch.meta.name.clone(),
+            payload,
+        };
+        Self::encode(&dump)
+    }
+
+    /// Decodes a Novation Peak SysEx frame into a `SynthPatch`.
+    pub fn decode_synth_patch(bytes: &[u8]) -> Result<synth_core::preset::SynthPatch, MidiCodecError> {
+        let dump = Self::decode(bytes)?;
+        let mut patch = synth_core::preset::SynthPatch::new(&dump.name);
+        let bank_letter = match dump.bank {
+            0 => "A",
+            1 => "B",
+            2 => "C",
+            3 => "D",
+            _ => "A",
+        };
+        patch.meta.bank = format!("Bank {}", bank_letter);
+        patch.meta.slot = dump.patch_index as u32;
+        patch.sysex.raw_dump = Some(dump.payload);
+        Ok(patch)
     }
 }
 
@@ -1226,6 +1403,85 @@ fn match_seq_client(card_name: &str, clients: &[SeqClientEntry]) -> (Option<u32>
     (None, None)
 }
 
+/// Parsed sound card entry from Linux `/proc/asound/cards`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AsoundCardEntry {
+    pub card_index: u32,
+    pub card_id: String,
+    pub driver: String,
+    pub short_name: String,
+    pub long_name: String,
+    pub usb_location: Option<String>,
+}
+
+/// Parses read-only `/proc/asound/cards` file into structured `AsoundCardEntry` records.
+pub fn parse_proc_asound_cards(path: &Path) -> Vec<AsoundCardEntry> {
+    match fs::read_to_string(path) {
+        Ok(content) => parse_proc_asound_cards_str(&content),
+        Err(_) => Vec::new(),
+    }
+}
+
+/// Parses `/proc/asound/cards` string content.
+pub fn parse_proc_asound_cards_str(content: &str) -> Vec<AsoundCardEntry> {
+    let mut entries = Vec::new();
+    let lines: Vec<&str> = content.lines().collect();
+    let mut i = 0;
+    while i < lines.len() {
+        let line = lines[i];
+        let trimmed = line.trim_start();
+        if let Some(bracket_open) = trimmed.find('[') {
+            let prefix = trimmed[..bracket_open].trim();
+            if let Ok(card_index) = prefix.parse::<u32>() {
+                if let Some(bracket_close) = trimmed.find(']') {
+                    let card_id = trimmed[bracket_open + 1..bracket_close].trim().to_string();
+                    let rest = &trimmed[bracket_close + 1..].trim_start();
+                    let rest = rest.strip_prefix(':').unwrap_or(rest).trim();
+                    let (driver, short_name) = if let Some(sep_pos) = rest.find(" - ") {
+                        (
+                            rest[..sep_pos].trim().to_string(),
+                            rest[sep_pos + 3..].trim().to_string(),
+                        )
+                    } else if let Some(dash_pos) = rest.rfind('-') {
+                        (
+                            rest[..dash_pos].trim().to_string(),
+                            rest[dash_pos + 1..].trim().to_string(),
+                        )
+                    } else {
+                        (rest.to_string(), rest.to_string())
+                    };
+
+                    let mut long_name = short_name.clone();
+                    let mut usb_location = None;
+                    if i + 1 < lines.len()
+                        && (lines[i + 1].starts_with("  ") || lines[i + 1].starts_with('\t'))
+                    {
+                        let next_line = lines[i + 1].trim();
+                        if let Some(at_pos) = next_line.find(" at ") {
+                            long_name = next_line[..at_pos].trim().to_string();
+                            usb_location = Some(next_line[at_pos + 4..].trim().to_string());
+                        } else {
+                            long_name = next_line.to_string();
+                        }
+                        i += 1;
+                    }
+
+                    entries.push(AsoundCardEntry {
+                        card_index,
+                        card_id,
+                        driver,
+                        short_name,
+                        long_name,
+                        usb_location,
+                    });
+                }
+            }
+        }
+        i += 1;
+    }
+    entries
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1422,5 +1678,105 @@ mod tests {
         let delay = limiter.calculate_delay_needed(50);
         assert!(delay.is_some());
         assert!(delay.unwrap().as_secs_f64() > 0.0);
+    }
+
+    #[test]
+    fn novation_peak_device_recognition_and_display() {
+        let peak_type = SupportedDeviceType::from_vendor_product("1235", "007e", "Peak");
+        assert_eq!(peak_type, SupportedDeviceType::NovationPeak);
+        assert_eq!(peak_type.display_name(), "Novation Peak");
+        assert!(peak_type.is_synthesizer());
+        assert!(!peak_type.is_controller());
+        assert!(!peak_type.is_audio_interface());
+
+        // Test fallback matching by card name
+        let peak_fallback = SupportedDeviceType::from_vendor_product("0000", "0000", "Focusrite A.E Peak");
+        assert_eq!(peak_fallback, SupportedDeviceType::NovationPeak);
+
+        let fp = DeviceFingerprint::new("1235", "007e", None, "Peak", 3)
+            .with_seq_address(28, 0);
+        assert_eq!(fp.identity_key(), "1235:007e:none:Peak");
+        assert_eq!(fp.device_type(), SupportedDeviceType::NovationPeak);
+        assert_eq!(fp.alsa_seq_client, Some(28));
+        assert_eq!(fp.alsa_seq_port, Some(0));
+    }
+
+    #[test]
+    fn parse_proc_asound_cards_live_and_mock() {
+        let mock_cards = r#"
+ 0 [UMC1820        ]: USB-Audio - UMC1820
+                      BEHRINGER UMC1820 at usb-0000:00:14.0-6, high speed
+ 1 [PCH            ]: HDA-Intel - HDA Intel PCH
+                      HDA Intel PCH at 0x2fff020000 irq 144
+ 2 [nanoKONTROL2   ]: USB-Audio - nanoKONTROL2
+                      KORG INC. nanoKONTROL2 at usb-0000:00:14.0-5.3, full speed
+ 3 [Peak           ]: USB-Audio - Peak
+                      Focusrite A.E Peak at usb-0000:00:14.0-8, full speed
+"#;
+        let entries = parse_proc_asound_cards_str(mock_cards);
+        assert_eq!(entries.len(), 4);
+
+        let umc = &entries[0];
+        assert_eq!(umc.card_index, 0);
+        assert_eq!(umc.card_id, "UMC1820");
+        assert_eq!(umc.driver, "USB-Audio");
+        assert_eq!(umc.short_name, "UMC1820");
+        assert_eq!(umc.long_name, "BEHRINGER UMC1820");
+        assert_eq!(
+            umc.usb_location.as_deref(),
+            Some("usb-0000:00:14.0-6, high speed")
+        );
+
+        let nk2 = &entries[2];
+        assert_eq!(nk2.card_index, 2);
+        assert_eq!(nk2.card_id, "nanoKONTROL2");
+        assert_eq!(nk2.long_name, "KORG INC. nanoKONTROL2");
+
+        let peak = &entries[3];
+        assert_eq!(peak.card_index, 3);
+        assert_eq!(peak.card_id, "Peak");
+        assert_eq!(peak.long_name, "Focusrite A.E Peak");
+        assert_eq!(
+            peak.usb_location.as_deref(),
+            Some("usb-0000:00:14.0-8, full speed")
+        );
+    }
+
+    #[test]
+    fn peak_sysex_patch_dump_codec_roundtrip() {
+        let dump = PeakPatchDump {
+            bank: 1, // Bank B
+            patch_index: 42,
+            name: "Lush Blade Lead".to_string(),
+            payload: vec![0x10, 0x20, 0x30, 0x40, 0x50, 0x7F],
+        };
+
+        let raw = PeakSysExCodec::encode(&dump).expect("SysEx encode failed");
+        assert_eq!(raw[0], 0xF0);
+        assert_eq!(&raw[1..4], &NOVATION_MANUFACTURER_ID); // 00 20 29
+        assert_eq!(raw[4], PEAK_SYSEX_DEVICE_ID); // 03
+        assert_eq!(raw[5], PEAK_SYSEX_CMD_SOUND_DUMP); // 01
+        assert_eq!(raw[6], 1); // Bank B
+        assert_eq!(raw[7], 42); // Patch index
+        assert_eq!(*raw.last().unwrap(), 0xF7);
+
+        let decoded = PeakSysExCodec::decode(&raw).expect("SysEx decode failed");
+        assert_eq!(decoded.bank, 1);
+        assert_eq!(decoded.patch_index, 42);
+        assert_eq!(decoded.name, "Lush Blade Lead");
+        assert_eq!(decoded.payload, vec![0x10, 0x20, 0x30, 0x40, 0x50, 0x7F]);
+
+        // Test with synth_core::SynthPatch
+        let mut patch = synth_core::preset::SynthPatch::new("Init Oxford");
+        patch.meta.bank = "Bank C".to_string();
+        patch.meta.slot = 15;
+        patch.parameters.insert("filter_cutoff".to_string(), 85.0);
+        patch.parameters.insert("filter_resonance".to_string(), 40.0);
+
+        let patch_sysex = PeakSysExCodec::encode_synth_patch(&patch).expect("SynthPatch encode failed");
+        let restored_patch = PeakSysExCodec::decode_synth_patch(&patch_sysex).expect("SynthPatch decode failed");
+        assert_eq!(restored_patch.meta.name, "Init Oxford");
+        assert_eq!(restored_patch.meta.bank, "Bank C");
+        assert_eq!(restored_patch.meta.slot, 15);
     }
 }

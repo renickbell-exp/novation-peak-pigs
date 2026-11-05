@@ -10,6 +10,8 @@ use std::io;
 use std::net::{SocketAddr, UdpSocket};
 use std::sync::{Arc, RwLock};
 
+use crate::routing::{MidiPacket, PeakMidiRouter};
+
 /// Configuration for the OSC server and subscriber broadcaster.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct OscConfig {
@@ -103,6 +105,11 @@ impl OscIncomingMessage {
     /// Returns true if this message is a subscriber deregistration command.
     pub fn is_unsubscribe(&self) -> bool {
         self.address == "/unsubscribe" || self.address == "/synth/unsubscribe"
+    }
+
+    /// Returns true if this message targets the Novation Peak `/peak/...` namespace.
+    pub fn is_peak(&self) -> bool {
+        self.address.starts_with("/peak/") || self.address == "/peak"
     }
 
     /// Parses `/synth/{device}/param/{param_id}` into `(device, param_id)`.
@@ -432,6 +439,471 @@ impl OscBridge {
     }
 }
 
+// =============================================================================
+// Novation Peak Bidirectional OSC Server & Dispatcher
+// =============================================================================
+
+/// Parsed destination targets within the Novation Peak `/peak/...` OSC namespace.
+#[derive(Debug, Clone, PartialEq)]
+pub enum PeakOscTarget {
+    /// `/peak/osc/{1..3}/{param}`
+    Osc { osc_idx: u8, param: String },
+    /// `/peak/filter/{param}`
+    Filter { param: String },
+    /// `/peak/env/{amp|mod1|mod2}/{param}`
+    Env { env_name: String, param: String },
+    /// `/peak/lfo/{1..2}/{param}`
+    Lfo { lfo_idx: u8, param: String },
+    /// `/peak/fx/{distortion|chorus|delay|reverb}/{param}`
+    Fx { fx_name: String, param: String },
+    /// `/peak/animate/{1|2}`
+    Animate { button_idx: u8 },
+    /// `/peak/panic`
+    Panic,
+    /// Subscription command
+    Subscribe { target_port: Option<u16> },
+    /// Unsubscription command
+    Unsubscribe,
+    /// Other unhandled address within `/peak`
+    Other(String),
+}
+
+/// Parses an inbound OSC address pattern into a typed `PeakOscTarget`.
+pub fn parse_peak_address(addr: &str) -> Option<PeakOscTarget> {
+    let trimmed = addr.trim_matches('/');
+    let parts: Vec<&str> = trimmed.split('/').collect();
+    if parts.is_empty() {
+        return None;
+    }
+
+    if parts[0] == "subscribe"
+        || (parts.len() == 2 && parts[0] == "peak" && parts[1] == "subscribe")
+    {
+        return Some(PeakOscTarget::Subscribe { target_port: None });
+    }
+    if parts[0] == "unsubscribe"
+        || (parts.len() == 2 && parts[0] == "peak" && parts[1] == "unsubscribe")
+    {
+        return Some(PeakOscTarget::Unsubscribe);
+    }
+
+    if parts[0] != "peak" {
+        return None;
+    }
+
+    if parts.len() < 2 {
+        return None;
+    }
+
+    match parts[1] {
+        "panic" => Some(PeakOscTarget::Panic),
+        "animate" => {
+            let idx = parts.get(2).and_then(|s| s.parse::<u8>().ok()).unwrap_or(1);
+            Some(PeakOscTarget::Animate { button_idx: idx })
+        }
+        "filter" => {
+            let param = parts.get(2).copied().unwrap_or("cutoff").to_string();
+            Some(PeakOscTarget::Filter { param })
+        }
+        "osc" => {
+            let osc_idx = parts.get(2).and_then(|s| s.parse::<u8>().ok()).unwrap_or(1);
+            let param = parts.get(3).copied().unwrap_or("shape").to_string();
+            Some(PeakOscTarget::Osc { osc_idx, param })
+        }
+        "env" => {
+            let env_name = parts.get(2).copied().unwrap_or("amp").to_string();
+            let param = parts.get(3).copied().unwrap_or("attack").to_string();
+            Some(PeakOscTarget::Env { env_name, param })
+        }
+        "lfo" => {
+            let lfo_idx = parts.get(2).and_then(|s| s.parse::<u8>().ok()).unwrap_or(1);
+            let param = parts.get(3).copied().unwrap_or("rate").to_string();
+            Some(PeakOscTarget::Lfo { lfo_idx, param })
+        }
+        "fx" => {
+            let fx_name = parts.get(2).copied().unwrap_or("distortion").to_string();
+            let param = parts.get(3).copied().unwrap_or("level").to_string();
+            Some(PeakOscTarget::Fx { fx_name, param })
+        }
+        _ => Some(PeakOscTarget::Other(parts[1..].join("/"))),
+    }
+}
+
+/// Bidirectional UDP OSC Server for the Novation Peak synthesizer.
+///
+/// Implements inbound parsing and safety clamping for:
+/// - `/peak/osc/{1..3}/*`
+/// - `/peak/filter/*`
+/// - `/peak/env/*`
+/// - `/peak/lfo/*`
+/// - `/peak/fx/*`
+/// - `/peak/animate/{1,2}`
+/// - `/peak/panic`
+///
+/// And outbound subscriber broadcasting for telemetry and live-coding feedback.
+#[derive(Debug)]
+pub struct PeakOscBridge {
+    server: OscServer,
+    broadcaster: OscBroadcaster,
+    pub router: PeakMidiRouter,
+}
+
+impl PeakOscBridge {
+    /// Creates a new `PeakOscBridge` using the specified configuration and router.
+    pub fn new(config: &OscConfig, router: PeakMidiRouter) -> Result<Self, OscError> {
+        let server = OscServer::bind(&config.bind_host, config.listen_port)?;
+        let broadcaster = OscBroadcaster::new(&config.bind_host, config.broadcast_port)?;
+        Ok(Self {
+            server,
+            broadcaster,
+            router,
+        })
+    }
+
+    /// Creates an ephemeral `PeakOscBridge` bound to localhost port 0 for headless unit testing.
+    pub fn new_ephemeral(router: PeakMidiRouter) -> Result<Self, OscError> {
+        let server = OscServer::bind("127.0.0.1", 0)?;
+        let broadcaster = OscBroadcaster::new("127.0.0.1", 0)?;
+        Ok(Self {
+            server,
+            broadcaster,
+            router,
+        })
+    }
+
+    /// Inbound UDP OSC server component.
+    #[must_use]
+    pub fn server(&self) -> &OscServer {
+        &self.server
+    }
+
+    /// Outbound subscriber broadcaster component.
+    #[must_use]
+    pub fn broadcaster(&self) -> &OscBroadcaster {
+        &self.broadcaster
+    }
+
+    /// Dispatches an incoming OSC message to Novation Peak MIDI packets,
+    /// enforcing safety clamping on self-oscillating / loud CCs.
+    pub fn dispatch_incoming(&self, msg: &OscIncomingMessage) -> Vec<MidiPacket> {
+        let target = match parse_peak_address(&msg.address) {
+            Some(t) => t,
+            None => return Vec::new(),
+        };
+
+        let val_f32 = msg.param_float().unwrap_or(0.0);
+        let val_7bit = if val_f32 <= 1.0 && val_f32 >= 0.0 {
+            (val_f32 * 127.0).round().clamp(0.0, 127.0) as u8
+        } else {
+            val_f32.clamp(0.0, 127.0).round() as u8
+        };
+
+        match target {
+            PeakOscTarget::Panic => self.router.route_panic(),
+            PeakOscTarget::Animate { button_idx } => {
+                let cc = if button_idx == 1 { 114 } else { 115 };
+                let val = if val_f32 > 0.0 { 127 } else { 0 };
+                vec![self.router.route_cc(cc, val)]
+            }
+            PeakOscTarget::Filter { param } => {
+                let cc = match param.to_ascii_lowercase().as_str() {
+                    "cutoff" | "frequency" | "freq" => 29,
+                    "resonance" | "reso" => 79,
+                    "overdrive" | "drive" => 80,
+                    "post_drive" | "postdrive" => 36,
+                    "lfo1_depth" => 28,
+                    _ => 29,
+                };
+                vec![self.router.route_cc(cc, val_7bit)]
+            }
+            PeakOscTarget::Osc { osc_idx, param } => {
+                let cc = match (osc_idx, param.to_ascii_lowercase().as_str()) {
+                    (1, "shape") => 20,
+                    (2, "shape") => 39,
+                    (3, "shape") => 75,
+                    (1, "mix") | (1, "level") => 23,
+                    (2, "mix") | (2, "level") => 24,
+                    (3, "mix") | (3, "level") => 25,
+                    (1, "vsync") => 34,
+                    _ => 20,
+                };
+                vec![self.router.route_cc(cc, val_7bit)]
+            }
+            PeakOscTarget::Env { env_name, param } => {
+                let cc = match (
+                    env_name.to_ascii_lowercase().as_str(),
+                    param.to_ascii_lowercase().as_str(),
+                ) {
+                    ("amp", "attack") => 86,
+                    ("amp", "decay") => 87,
+                    ("amp", "sustain") => 88,
+                    ("amp", "release") => 89,
+                    ("mod1", "attack") => 90,
+                    ("mod1", "decay") => 91,
+                    ("mod1", "sustain") => 92,
+                    ("mod1", "release") => 93,
+                    ("mod2", "attack") => 94,
+                    ("mod2", "decay") => 95,
+                    ("mod2", "sustain") => 117,
+                    ("mod2", "release") => 103,
+                    _ => 86,
+                };
+                vec![self.router.route_cc(cc, val_7bit)]
+            }
+            PeakOscTarget::Lfo { lfo_idx, param } => {
+                let cc = match (lfo_idx, param.to_ascii_lowercase().as_str()) {
+                    (1, "rate") => 30,
+                    (1, "sync_rate") | (1, "sync") => 81,
+                    (1, "fade") => 82,
+                    (2, "rate") => 31,
+                    (2, "range") => 83,
+                    _ => 30,
+                };
+                vec![self.router.route_cc(cc, val_7bit)]
+            }
+            PeakOscTarget::Fx { fx_name, param } => {
+                let cc = match (
+                    fx_name.to_ascii_lowercase().as_str(),
+                    param.to_ascii_lowercase().as_str(),
+                ) {
+                    ("distortion", _) => 104,
+                    ("chorus", "level") | ("chorus", "") => 105,
+                    ("chorus", "feedback") => 107,
+                    ("delay", "level") | ("delay", "") => 108,
+                    ("delay", "time") => 109,
+                    ("delay", "feedback") => 110,
+                    ("reverb", "level") | ("reverb", "") => 112,
+                    ("reverb", "time") => 113,
+                    _ => 104,
+                };
+                vec![self.router.route_cc(cc, val_7bit)]
+            }
+            _ => Vec::new(),
+        }
+    }
+
+    /// Polls incoming OSC messages, handles subscriptions, and converts Peak OSC messages to MIDI packets.
+    pub fn poll(&self) -> Result<Vec<(OscIncomingMessage, Vec<MidiPacket>)>, OscError> {
+        let incoming = self.server.poll_incoming()?;
+        let mut results = Vec::with_capacity(incoming.len());
+
+        for msg in incoming {
+            if let Some(target) = parse_peak_address(&msg.address) {
+                match target {
+                    PeakOscTarget::Subscribe { .. } => {
+                        let target_addr = if let Some(OscType::Int(port)) = msg.args.first() {
+                            SocketAddr::new(msg.sender.ip(), *port as u16)
+                        } else {
+                            msg.sender
+                        };
+                        self.broadcaster.add_subscriber(target_addr);
+                        results.push((msg, Vec::new()));
+                    }
+                    PeakOscTarget::Unsubscribe => {
+                        self.broadcaster.remove_subscriber(&msg.sender);
+                        results.push((msg, Vec::new()));
+                    }
+                    _ => {
+                        let pkts = self.dispatch_incoming(&msg);
+                        results.push((msg, pkts));
+                    }
+                }
+            } else if msg.is_subscribe() {
+                let target_addr = if let Some(OscType::Int(port)) = msg.args.first() {
+                    SocketAddr::new(msg.sender.ip(), *port as u16)
+                } else {
+                    msg.sender
+                };
+                self.broadcaster.add_subscriber(target_addr);
+                results.push((msg, Vec::new()));
+            } else if msg.is_unsubscribe() {
+                self.broadcaster.remove_subscriber(&msg.sender);
+                results.push((msg, Vec::new()));
+            } else {
+                results.push((msg, Vec::new()));
+            }
+        }
+
+        Ok(results)
+    }
+
+    /// Broadcasts an OSC parameter update under `/peak/{section}/{param}`.
+    pub fn broadcast_peak(&self, section: &str, param: &str, value: f32) -> Result<usize, OscError> {
+        let addr = format!("/peak/{}/{}", section, param);
+        let msg = OscMessage {
+            addr,
+            args: vec![OscType::Float(value)],
+        };
+        self.broadcaster.broadcast_message(msg)
+    }
+
+    /// Broadcasts filter parameter: `/peak/filter/{param}`.
+    pub fn broadcast_filter(&self, param: &str, value: f32) -> Result<usize, OscError> {
+        self.broadcast_peak("filter", param, value)
+    }
+
+    /// Broadcasts oscillator parameter: `/peak/osc/{osc_idx}/{param}`.
+    pub fn broadcast_osc(&self, osc_idx: u8, param: &str, value: f32) -> Result<usize, OscError> {
+        let addr = format!("/peak/osc/{}/{}", osc_idx, param);
+        let msg = OscMessage {
+            addr,
+            args: vec![OscType::Float(value)],
+        };
+        self.broadcaster.broadcast_message(msg)
+    }
+
+    /// Broadcasts envelope parameter: `/peak/env/{env_name}/{param}`.
+    pub fn broadcast_env(&self, env_name: &str, param: &str, value: f32) -> Result<usize, OscError> {
+        let addr = format!("/peak/env/{}/{}", env_name, param);
+        let msg = OscMessage {
+            addr,
+            args: vec![OscType::Float(value)],
+        };
+        self.broadcaster.broadcast_message(msg)
+    }
+
+    /// Broadcasts LFO parameter: `/peak/lfo/{lfo_idx}/{param}`.
+    pub fn broadcast_lfo(&self, lfo_idx: u8, param: &str, value: f32) -> Result<usize, OscError> {
+        let addr = format!("/peak/lfo/{}/{}", lfo_idx, param);
+        let msg = OscMessage {
+            addr,
+            args: vec![OscType::Float(value)],
+        };
+        self.broadcaster.broadcast_message(msg)
+    }
+
+    /// Broadcasts FX parameter: `/peak/fx/{fx_name}/{param}`.
+    pub fn broadcast_fx(&self, fx_name: &str, param: &str, value: f32) -> Result<usize, OscError> {
+        let addr = format!("/peak/fx/{}/{}", fx_name, param);
+        let msg = OscMessage {
+            addr,
+            args: vec![OscType::Float(value)],
+        };
+        self.broadcaster.broadcast_message(msg)
+    }
+
+    /// Broadcasts Animate hold button: `/peak/animate/{button_idx}`.
+    pub fn broadcast_animate(&self, button_idx: u8, value: f32) -> Result<usize, OscError> {
+        let addr = format!("/peak/animate/{}", button_idx);
+        let msg = OscMessage {
+            addr,
+            args: vec![OscType::Float(value)],
+        };
+        self.broadcaster.broadcast_message(msg)
+    }
+
+    /// Broadcasts emergency panic: `/peak/panic`.
+    pub fn broadcast_panic(&self) -> Result<usize, OscError> {
+        let msg = OscMessage {
+            addr: "/peak/panic".to_string(),
+            args: Vec::new(),
+        };
+        self.broadcaster.broadcast_message(msg)
+    }
+
+    /// Executes an in-memory loopback verification test over local UDP sockets
+    /// verifying full bidirectional OSC communication.
+    pub fn run_loopback_test() -> Result<(), OscError> {
+        let router = PeakMidiRouter::new();
+        let bridge = Self::new_ephemeral(router)?;
+        let bridge_server_addr = bridge.server().local_addr()?;
+
+        // Client UDP socket
+        let client_socket = UdpSocket::bind("127.0.0.1:0")?;
+        client_socket.set_nonblocking(true)?;
+        let client_addr = client_socket.local_addr()?;
+
+        // 1. Client subscribes
+        let sub_msg = OscPacket::Message(OscMessage {
+            addr: "/peak/subscribe".to_string(),
+            args: vec![OscType::Int(client_addr.port() as i32)],
+        });
+        client_socket.send_to(&encoder::encode(&sub_msg)?, bridge_server_addr)?;
+
+        // Bridge polls subscription
+        let msgs = bridge.poll()?;
+        if msgs.is_empty() {
+            return Err(OscError::Serialization("Expected subscribe message".to_string()));
+        }
+        if bridge.broadcaster().subscriber_count() == 0 {
+            return Err(OscError::Serialization("Subscriber count should be 1".to_string()));
+        }
+
+        // 2. Client sends /peak/filter/cutoff 0.8
+        let cutoff_msg = OscPacket::Message(OscMessage {
+            addr: "/peak/filter/cutoff".to_string(),
+            args: vec![OscType::Float(0.8)],
+        });
+        client_socket.send_to(&encoder::encode(&cutoff_msg)?, bridge_server_addr)?;
+
+        let msgs2 = bridge.poll()?;
+        if msgs2.is_empty() {
+            return Err(OscError::Serialization("Expected cutoff message".to_string()));
+        }
+        let (_, pkts) = &msgs2[0];
+        if pkts.is_empty() {
+            return Err(OscError::Serialization("Expected MIDI packet for cutoff".to_string()));
+        }
+        assert_eq!(
+            pkts[0],
+            MidiPacket::ControlChange {
+                channel: 0,
+                cc: 29,
+                value: 102,
+            }
+        );
+
+        // 3. Bridge broadcasts /peak/filter/resonance 0.5
+        let sent = bridge.broadcast_filter("resonance", 0.5)?;
+        if sent == 0 {
+            return Err(OscError::Serialization("Broadcast count was 0".to_string()));
+        }
+
+        // Client receives broadcast
+        let mut buf = [0u8; 1024];
+        let mut received = false;
+        for _ in 0..50 {
+            match client_socket.recv_from(&mut buf) {
+                Ok((len, _)) => {
+                    let (_, packet) = decoder::decode_udp(&buf[..len])?;
+                    if let OscPacket::Message(msg) = packet {
+                        if msg.addr == "/peak/filter/resonance" {
+                            received = true;
+                            break;
+                        }
+                    }
+                }
+                Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
+                    std::thread::sleep(std::time::Duration::from_millis(5));
+                }
+                Err(e) => return Err(OscError::Io(e)),
+            }
+        }
+
+        if !received {
+            return Err(OscError::Serialization("Failed to receive broadcast".to_string()));
+        }
+
+        // 4. Client sends /peak/panic
+        let panic_msg = OscPacket::Message(OscMessage {
+            addr: "/peak/panic".to_string(),
+            args: Vec::new(),
+        });
+        client_socket.send_to(&encoder::encode(&panic_msg)?, bridge_server_addr)?;
+
+        let msgs3 = bridge.poll()?;
+        if msgs3.is_empty() {
+            return Err(OscError::Serialization("Expected panic message".to_string()));
+        }
+        let (_, panic_pkts) = &msgs3[0];
+        if panic_pkts.len() != 4 {
+            return Err(OscError::Serialization("Expected 4 panic packets".to_string()));
+        }
+
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -486,5 +958,160 @@ mod tests {
         broadcaster.remove_subscriber(&addr1);
         assert_eq!(broadcaster.subscriber_count(), 1);
         assert_eq!(broadcaster.subscribers(), vec![addr2]);
+    }
+
+    #[test]
+    fn peak_osc_address_parsing_and_categories() {
+        assert_eq!(
+            parse_peak_address("/peak/filter/cutoff"),
+            Some(PeakOscTarget::Filter { param: "cutoff".to_string() })
+        );
+        assert_eq!(
+            parse_peak_address("/peak/filter/resonance"),
+            Some(PeakOscTarget::Filter { param: "resonance".to_string() })
+        );
+        assert_eq!(
+            parse_peak_address("/peak/osc/1/shape"),
+            Some(PeakOscTarget::Osc { osc_idx: 1, param: "shape".to_string() })
+        );
+        assert_eq!(
+            parse_peak_address("/peak/osc/2/mix"),
+            Some(PeakOscTarget::Osc { osc_idx: 2, param: "mix".to_string() })
+        );
+        assert_eq!(
+            parse_peak_address("/peak/env/amp/attack"),
+            Some(PeakOscTarget::Env { env_name: "amp".to_string(), param: "attack".to_string() })
+        );
+        assert_eq!(
+            parse_peak_address("/peak/lfo/1/rate"),
+            Some(PeakOscTarget::Lfo { lfo_idx: 1, param: "rate".to_string() })
+        );
+        assert_eq!(
+            parse_peak_address("/peak/fx/distortion"),
+            Some(PeakOscTarget::Fx { fx_name: "distortion".to_string(), param: "level".to_string() })
+        );
+        assert_eq!(
+            parse_peak_address("/peak/animate/1"),
+            Some(PeakOscTarget::Animate { button_idx: 1 })
+        );
+        assert_eq!(
+            parse_peak_address("/peak/animate/2"),
+            Some(PeakOscTarget::Animate { button_idx: 2 })
+        );
+        assert_eq!(
+            parse_peak_address("/peak/panic"),
+            Some(PeakOscTarget::Panic)
+        );
+        assert_eq!(
+            parse_peak_address("/peak/subscribe"),
+            Some(PeakOscTarget::Subscribe { target_port: None })
+        );
+    }
+
+    #[test]
+    fn peak_osc_dispatch_safety_clamping() {
+        let dummy_addr: SocketAddr = "127.0.0.1:9000".parse().unwrap();
+        let router = PeakMidiRouter::new().with_safety_clamp(true);
+        let bridge = PeakOscBridge::new_ephemeral(router).unwrap();
+
+        // 1. Resonance clamped from 1.0 (127) down to safe max 62
+        let reso_msg = OscIncomingMessage {
+            sender: dummy_addr,
+            address: "/peak/filter/resonance".to_string(),
+            args: vec![OscType::Float(1.0)],
+        };
+        let reso_pkts = bridge.dispatch_incoming(&reso_msg);
+        assert_eq!(reso_pkts.len(), 1);
+        assert_eq!(
+            reso_pkts[0],
+            MidiPacket::ControlChange {
+                channel: 0,
+                cc: 79,
+                value: 62,
+            }
+        );
+
+        // 2. Distortion clamped from 1.0 (127) down to safe max 48
+        let dist_msg = OscIncomingMessage {
+            sender: dummy_addr,
+            address: "/peak/fx/distortion".to_string(),
+            args: vec![OscType::Float(1.0)],
+        };
+        let dist_pkts = bridge.dispatch_incoming(&dist_msg);
+        assert_eq!(dist_pkts.len(), 1);
+        assert_eq!(
+            dist_pkts[0],
+            MidiPacket::ControlChange {
+                channel: 0,
+                cc: 104,
+                value: 48,
+            }
+        );
+
+        // 3. Post-drive clamped from 1.0 (127) down to safe max 50
+        let drive_msg = OscIncomingMessage {
+            sender: dummy_addr,
+            address: "/peak/filter/post_drive".to_string(),
+            args: vec![OscType::Float(1.0)],
+        };
+        let drive_pkts = bridge.dispatch_incoming(&drive_msg);
+        assert_eq!(drive_pkts.len(), 1);
+        assert_eq!(
+            drive_pkts[0],
+            MidiPacket::ControlChange {
+                channel: 0,
+                cc: 36,
+                value: 50,
+            }
+        );
+
+        // 4. Cutoff at 0.5 maps to CC 29 with 64
+        let cutoff_msg = OscIncomingMessage {
+            sender: dummy_addr,
+            address: "/peak/filter/cutoff".to_string(),
+            args: vec![OscType::Float(0.5)],
+        };
+        let cutoff_pkts = bridge.dispatch_incoming(&cutoff_msg);
+        assert_eq!(cutoff_pkts.len(), 1);
+        assert_eq!(
+            cutoff_pkts[0],
+            MidiPacket::ControlChange {
+                channel: 0,
+                cc: 29,
+                value: 64,
+            }
+        );
+
+        // 5. Animate 1 hold button
+        let anim_msg = OscIncomingMessage {
+            sender: dummy_addr,
+            address: "/peak/animate/1".to_string(),
+            args: vec![OscType::Float(1.0)],
+        };
+        let anim_pkts = bridge.dispatch_incoming(&anim_msg);
+        assert_eq!(anim_pkts.len(), 1);
+        assert_eq!(
+            anim_pkts[0],
+            MidiPacket::ControlChange {
+                channel: 0,
+                cc: 114,
+                value: 127,
+            }
+        );
+
+        // 6. Panic
+        let panic_msg = OscIncomingMessage {
+            sender: dummy_addr,
+            address: "/peak/panic".to_string(),
+            args: vec![],
+        };
+        let panic_pkts = bridge.dispatch_incoming(&panic_msg);
+        assert_eq!(panic_pkts.len(), 4);
+    }
+
+    #[test]
+    fn peak_osc_bridge_loopback_test() {
+        let res = PeakOscBridge::run_loopback_test();
+        assert!(res.is_ok(), "Peak OSC loopback test failed: {:?}", res.err());
     }
 }

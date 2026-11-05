@@ -45,6 +45,24 @@ pub const UMC1820_ALSA_DEVICE: &str = "hw:0,0,0";
 /// Default ALSA RawMIDI device path for the Korg nanoKONTROL2 control surface.
 pub const NANOKONTROL2_ALSA_DEVICE: &str = "hw:2,0,0";
 
+/// Default ALSA RawMIDI device path for the Novation Peak synthesizer.
+pub const PEAK_ALSA_DEVICE: &str = "hw:3,0,0";
+
+/// Default ALSA Sequencer client ID for Novation Peak.
+pub const PEAK_ALSA_SEQ_CLIENT: u32 = 28;
+
+/// Default ALSA Sequencer port ID for Novation Peak.
+pub const PEAK_ALSA_SEQ_PORT: u32 = 0;
+
+/// Default ALSA Sequencer port name for Novation Peak.
+pub const PEAK_PORT_NAME: &str = "Peak MIDI 1";
+
+/// USB Vendor ID for Focusrite / Novation (0x1235).
+pub const PEAK_USB_VENDOR_ID: &str = "1235";
+
+/// USB Product ID for Novation Peak (0x007e).
+pub const PEAK_USB_PRODUCT_ID: &str = "007e";
+
 /// Default hardware anti-choke rate thinning interval per (voice, CC) pair in milliseconds.
 pub const DEFAULT_CC_THROTTLE_MS: u64 = 2;
 
@@ -116,6 +134,8 @@ pub enum MidiPacket {
     NoteOn { channel: u8, note: u8, velocity: u8 },
     /// Note Off trigger message: `[0x8n | channel, note, velocity]`. Channel is 0-indexed [0..15].
     NoteOff { channel: u8, note: u8, velocity: u8 },
+    /// Program Change message: `[0xCn | channel, program]`. Channel is 0-indexed [0..15].
+    ProgramChange { channel: u8, program: u8 },
     /// Raw System Exclusive frame: `[0xF0, ..., 0xF7]`.
     SysEx(Vec<u8>),
 }
@@ -133,6 +153,9 @@ impl MidiPacket {
             }
             Self::NoteOff { channel, note, velocity } => {
                 vec![0x80 | (channel & 0x0F), note & 0x7F, velocity & 0x7F]
+            }
+            Self::ProgramChange { channel, program } => {
+                vec![0xC0 | (channel & 0x0F), program & 0x7F]
             }
             Self::SysEx(raw) => raw.clone(),
         }
@@ -408,6 +431,303 @@ pub fn validate_dual_midi_router_json(
         .map_err(|e| synth_core::SynthError::SerializationError(e.to_string()))
 }
 
+// =============================================================================
+// Novation Peak Safety Clamping & MIDI Channel 1 Router
+// =============================================================================
+
+/// Returns the conservative safe sweep range `(min, max)` for a Novation Peak CC number.
+///
+/// Prevents screaming self-oscillation, runaway delay feedback, and dangerous volume jumps:
+/// - CC 29 (Filter Cutoff / Frequency): `(0, 127)`
+/// - CC 36 (Filter Post-Drive): `(0, 50)`
+/// - CC 79 (Filter Resonance): `(0, 62)`
+/// - CC 80 (Filter Overdrive / Pre-Drive): `(0, 50)`
+/// - CC 104 (Analogue Distortion Level): `(0, 48)`
+/// - CC 110 (Delay Feedback): `(0, 70)`
+/// - CC 105 (Chorus Level), CC 108 (Delay Level), CC 112 (Reverb Level): `(0, 90)`
+/// - Other CCs: `(0, 127)`
+#[must_use]
+pub const fn safe_sweep_range(cc: u8) -> (u8, u8) {
+    match cc {
+        29 => (0, 127),
+        36 => (0, 50),
+        79 => (0, 62),
+        80 => (0, 50),
+        104 => (0, 48),
+        110 => (0, 70),
+        105 | 108 | 112 => (0, 90),
+        _ => (0, 127),
+    }
+}
+
+/// Returns the safe sweep range for a parameter by name (case-insensitive substring match).
+#[must_use]
+pub fn safe_sweep_range_by_name(name: &str) -> (u8, u8) {
+    let n = name.to_ascii_lowercase();
+    if n.contains("resonance") || n.contains("reso") {
+        (0, 62)
+    } else if n.contains("distortion") {
+        (0, 48)
+    } else if n.contains("overdrive") || n.contains("drive") {
+        (0, 50)
+    } else if n.contains("feedback") {
+        (0, 70)
+    } else if n.contains("reverb") || n.contains("delay") || n.contains("chorus") || n.contains("fx") {
+        (0, 90)
+    } else {
+        (0, 127)
+    }
+}
+
+/// Clamps a 7-bit CC value to its safe operating range.
+#[must_use]
+pub fn clamp_cc_value(cc: u8, value: u8) -> u8 {
+    let (lo, hi) = safe_sweep_range(cc);
+    value.clamp(lo, hi)
+}
+
+/// Novation Peak MIDI Channel 1 Router.
+///
+/// Dispatches 7-bit CC, +32 high-resolution and bipolar dual-CC pairs, 14-bit NRPNs,
+/// Bank Select CC0/CC32 + Program Change, and emergency panic sequences with safe defaults.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PeakMidiRouter {
+    /// 0-indexed MIDI channel (0 = Channel 1, default 0).
+    pub channel: u8,
+    /// Operational safety mode (VirtualLoopback, DryRun, LiveHardwareArmed).
+    pub safety_mode: MidiSafetyMode,
+    /// Enables safety clamping on self-oscillating / loud CCs (29, 36, 79, 80, 104, 110).
+    pub safety_clamp: bool,
+    /// Configured ALSA RawMIDI path (default: "hw:3,0,0").
+    pub alsa_device: String,
+    /// Configured ALSA Sequencer client ID (default: Some(28)).
+    pub seq_client: Option<u32>,
+    /// Configured ALSA Sequencer port ID (default: Some(0)).
+    pub seq_port: Option<u32>,
+}
+
+impl Default for PeakMidiRouter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl PeakMidiRouter {
+    /// Creates a new Novation Peak router defaulting to MIDI Channel 1 (wire index 0)
+    /// in safe Virtual Loopback mode with safety clamping active.
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
+            channel: 0,
+            safety_mode: MidiSafetyMode::VirtualLoopback,
+            safety_clamp: true,
+            alsa_device: PEAK_ALSA_DEVICE.to_string(),
+            seq_client: Some(PEAK_ALSA_SEQ_CLIENT),
+            seq_port: Some(PEAK_ALSA_SEQ_PORT),
+        }
+    }
+
+    /// Sets the MIDI channel (1-based [1..16] converted to 0-based wire index [0..15]).
+    #[must_use]
+    pub fn with_channel(mut self, channel: u8) -> Self {
+        self.channel = if channel == 0 { 0 } else { (channel - 1).min(15) };
+        self
+    }
+
+    /// Sets the operational safety mode.
+    #[must_use]
+    pub fn with_safety_mode(mut self, mode: MidiSafetyMode) -> Self {
+        self.safety_mode = mode;
+        self
+    }
+
+    /// Configures whether safety clamping on dangerous CCs is active.
+    #[must_use]
+    pub fn with_safety_clamp(mut self, enabled: bool) -> Self {
+        self.safety_clamp = enabled;
+        self
+    }
+
+    /// Configures the ALSA RawMIDI device path.
+    #[must_use]
+    pub fn with_alsa_device(mut self, dev: impl Into<String>) -> Self {
+        self.alsa_device = dev.into();
+        self
+    }
+
+    /// Routes a standard 7-bit Continuous Controller message.
+    ///
+    /// Clamps value using `safe_sweep_range` when `safety_clamp` is active.
+    #[must_use]
+    pub fn route_cc(&self, cc: u8, value: u8) -> MidiPacket {
+        let val = if self.safety_clamp {
+            clamp_cc_value(cc, value)
+        } else {
+            value & 0x7F
+        };
+        MidiPacket::ControlChange {
+            channel: self.channel,
+            cc: cc & 0x7F,
+            value: val,
+        }
+    }
+
+    /// Routes a 7-bit CC message without applying safety clamping.
+    #[must_use]
+    pub fn route_cc_unclamped(&self, cc: u8, value: u8) -> MidiPacket {
+        MidiPacket::ControlChange {
+            channel: self.channel,
+            cc: cc & 0x7F,
+            value: value & 0x7F,
+        }
+    }
+
+    /// Routes a +32 high-resolution 14-bit dual-CC pair `(MSB, LSB)`.
+    ///
+    /// The primary parameter is `msb_cc` (0..31), and the fine parameter is `msb_cc + 32`.
+    #[must_use]
+    pub fn route_dual_cc(&self, msb_cc: u8, value14: u16) -> (MidiPacket, MidiPacket) {
+        let base_cc = msb_cc & 0x1F;
+        let lsb_cc = base_cc + 32;
+        let clamped14 = if self.safety_clamp {
+            let (lo7, hi7) = safe_sweep_range(base_cc);
+            let min14 = (lo7 as u16) << 7;
+            let max14 = ((hi7 as u16) << 7) | 0x7F;
+            value14.clamp(min14, max14)
+        } else {
+            value14.min(16383)
+        };
+
+        let msb_val = ((clamped14 >> 7) & 0x7F) as u8;
+        let lsb_val = (clamped14 & 0x7F) as u8;
+
+        (
+            MidiPacket::ControlChange {
+                channel: self.channel,
+                cc: base_cc,
+                value: msb_val,
+            },
+            MidiPacket::ControlChange {
+                channel: self.channel,
+                cc: lsb_cc,
+                value: lsb_val,
+            },
+        )
+    }
+
+    /// Routes a +32 bipolar dual-CC pair centered around zero `[-8192..8191]`.
+    #[must_use]
+    pub fn route_bipolar_dual_cc(&self, msb_cc: u8, bipolar_val: i16) -> (MidiPacket, MidiPacket) {
+        let offset14 = (bipolar_val as i32 + 8192).clamp(0, 16383) as u16;
+        self.route_dual_cc(msb_cc, offset14)
+    }
+
+    /// Routes a 14-bit or 7-bit Non-Registered Parameter Number (NRPN) sequence.
+    ///
+    /// Emits CC 99 (MSB), CC 98 (LSB), CC 6 (Data MSB), and optionally CC 38 (Data LSB).
+    #[must_use]
+    pub fn route_nrpn(&self, param: u16, value: u16, is_14bit: bool) -> Vec<MidiPacket> {
+        let ch = self.channel;
+        let p_msb = ((param >> 7) & 0x7F) as u8;
+        let p_lsb = (param & 0x7F) as u8;
+
+        if is_14bit {
+            let v_msb = ((value >> 7) & 0x7F) as u8;
+            let v_lsb = (value & 0x7F) as u8;
+            vec![
+                MidiPacket::ControlChange { channel: ch, cc: 99, value: p_msb },
+                MidiPacket::ControlChange { channel: ch, cc: 98, value: p_lsb },
+                MidiPacket::ControlChange { channel: ch, cc: 6, value: v_msb },
+                MidiPacket::ControlChange { channel: ch, cc: 38, value: v_lsb },
+            ]
+        } else {
+            let v_7bit = (value & 0x7F) as u8;
+            vec![
+                MidiPacket::ControlChange { channel: ch, cc: 99, value: p_msb },
+                MidiPacket::ControlChange { channel: ch, cc: 98, value: p_lsb },
+                MidiPacket::ControlChange { channel: ch, cc: 6, value: v_7bit },
+            ]
+        }
+    }
+
+    /// Routes Bank Select (CC 0 = 0, CC 32 = bank 0..3) followed by Program Change (0..127).
+    ///
+    /// - Bank 0 = Bank A
+    /// - Bank 1 = Bank B
+    /// - Bank 2 = Bank C
+    /// - Bank 3 = Bank D
+    #[must_use]
+    pub fn route_bank_program(&self, bank: u8, program: u8) -> Vec<MidiPacket> {
+        let ch = self.channel;
+        let b = bank.clamp(0, 3);
+        let p = program.clamp(0, 127);
+        vec![
+            MidiPacket::ControlChange { channel: ch, cc: 0, value: 0 },
+            MidiPacket::ControlChange { channel: ch, cc: 32, value: b },
+            MidiPacket::ProgramChange { channel: ch, program: p },
+        ]
+    }
+
+    /// Routes a Note-On trigger.
+    #[must_use]
+    pub fn route_note_on(&self, note: u8, velocity: u8) -> MidiPacket {
+        MidiPacket::NoteOn {
+            channel: self.channel,
+            note: note & 0x7F,
+            velocity: velocity.clamp(1, 127),
+        }
+    }
+
+    /// Routes a Note-Off trigger.
+    #[must_use]
+    pub fn route_note_off(&self, note: u8, velocity: u8) -> MidiPacket {
+        MidiPacket::NoteOff {
+            channel: self.channel,
+            note: note & 0x7F,
+            velocity: velocity & 0x7F,
+        }
+    }
+
+    /// Builds an All-Notes-Off panic packet for Channel 1.
+    #[must_use]
+    pub fn route_panic(&self) -> Vec<MidiPacket> {
+        let ch = self.channel;
+        vec![
+            MidiPacket::ControlChange { channel: ch, cc: 120, value: 0 },
+            MidiPacket::ControlChange { channel: ch, cc: 121, value: 0 },
+            MidiPacket::ControlChange { channel: ch, cc: 123, value: 0 },
+            MidiPacket::ControlChange { channel: ch, cc: 64, value: 0 },
+        ]
+    }
+}
+
+/// Generates standard JSON Schema (Draft-07) for `PeakMidiRouter`.
+pub fn peak_midi_router_json_schema() -> serde_json::Value {
+    serde_json::json!({
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "PeakMidiRouter",
+        "description": "Novation Peak MIDI Channel 1 router and safety mode configuration",
+        "type": "object",
+        "required": ["channel", "safety_mode", "safety_clamp", "alsa_device"],
+        "properties": {
+            "channel": { "type": "integer", "minimum": 0, "maximum": 15 },
+            "safety_mode": { "type": "string", "enum": ["VirtualLoopback", "DryRun", "LiveHardwareArmed"] },
+            "safety_clamp": { "type": "boolean" },
+            "alsa_device": { "type": "string" },
+            "seq_client": { "type": ["integer", "null"] },
+            "seq_port": { "type": ["integer", "null"] }
+        }
+    })
+}
+
+/// Validates and parses JSON into a `PeakMidiRouter`.
+pub fn validate_peak_midi_router_json(
+    json_str: &str,
+) -> Result<PeakMidiRouter, synth_core::SynthError> {
+    serde_json::from_str(json_str)
+        .map_err(|e| synth_core::SynthError::SerializationError(e.to_string()))
+}
+
 /// Exports MIDI and OSC schemas and canonical hardware profiles across the 4 synth projects.
 pub fn export_midi_osc_schemas(dir: &std::path::Path) -> Result<(), std::io::Error> {
     std::fs::create_dir_all(dir)?;
@@ -416,6 +736,9 @@ pub fn export_midi_osc_schemas(dir: &std::path::Path) -> Result<(), std::io::Err
     }
     if let Ok(json) = serde_json::to_string_pretty(&dual_midi_router_json_schema()) {
         let _ = std::fs::write(dir.join("dual-midi-router.schema.json"), json);
+    }
+    if let Ok(json) = serde_json::to_string_pretty(&peak_midi_router_json_schema()) {
+        let _ = std::fs::write(dir.join("peak-midi-router.schema.json"), json);
     }
     // 1. ASM Hydrasynth profile
     let hydra_hw = crate::hardware::StoredDeviceProfile {
@@ -475,6 +798,24 @@ pub fn export_midi_osc_schemas(dir: &std::path::Path) -> Result<(), std::io::Err
     let nd2_router = DualMidiRouter::new();
     if let Ok(json) = serde_json::to_string_pretty(&nd2_router) {
         let _ = std::fs::write(dir.join("clavia-nord-drum-2.hardware.json"), json);
+    }
+    // 5. Novation Peak hardware profile
+    let peak_hw = crate::hardware::StoredDeviceProfile {
+        identity_key: "novation_peak_usb".to_string(),
+        vendor_id: PEAK_USB_VENDOR_ID.to_string(),
+        product_id: PEAK_USB_PRODUCT_ID.to_string(),
+        serial: None,
+        card_name: "Peak".to_string(),
+        device_type: crate::hardware::SupportedDeviceType::NovationPeak,
+        custom_alias: Some("Novation Peak 8-Voice Hybrid Synthesizer".to_string()),
+        last_known_card_index: Some(3),
+        last_known_seq_address: Some((PEAK_ALSA_SEQ_CLIENT, PEAK_ALSA_SEQ_PORT)),
+        last_known_usb_path: Some("1-1.8:1.0".to_string()),
+        reconnect_count: 1,
+        is_active: false,
+    };
+    if let Ok(json) = serde_json::to_string_pretty(&peak_hw) {
+        let _ = std::fs::write(dir.join("novation-peak.hardware.json"), json);
     }
     Ok(())
 }
@@ -823,6 +1164,148 @@ pub fn discover_nord_drum_hardware_with_roots(
     }
 }
 
+/// Consolidated discovery status for Novation Peak workstation hardware.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PeakDiscoveryResult {
+    pub peak: Option<AlsaPortEndpoint>,
+    pub umc1820: Option<AlsaPortEndpoint>,
+    pub nanokontrol2: Option<AlsaPortEndpoint>,
+    pub total_devices_scanned: usize,
+    pub safety_mode: MidiSafetyMode,
+}
+
+impl PeakDiscoveryResult {
+    /// Returns true if physical or simulated Novation Peak port is discovered.
+    #[must_use]
+    pub const fn has_peak_port(&self) -> bool {
+        self.peak.is_some()
+    }
+
+    /// Returns true if physical or simulated UMC1820 port is discovered.
+    #[must_use]
+    pub const fn has_umc1820_port(&self) -> bool {
+        self.umc1820.is_some()
+    }
+
+    /// Returns true if physical or simulated nanoKONTROL2 surface is discovered.
+    #[must_use]
+    pub const fn has_controller(&self) -> bool {
+        self.nanokontrol2.is_some()
+    }
+}
+
+/// Performs non-invasive ALSA port discovery for Novation Peak ecosystem.
+///
+/// In `VirtualLoopback` mode, returns simulated loopback endpoints without querying
+/// live host devices, ensuring automated builds and tests remain 100% safe.
+/// In `DryRun` or `LiveHardwareArmed` mode, non-invasively inspects `/sys/class/sound`
+/// and `/proc/asound/seq/clients` without sending hardware signals.
+pub fn discover_peak_hardware(safety_mode: MidiSafetyMode) -> PeakDiscoveryResult {
+    if safety_mode == MidiSafetyMode::VirtualLoopback {
+        return PeakDiscoveryResult {
+            peak: Some(AlsaPortEndpoint {
+                card_index: 3,
+                rawmidi_device: PEAK_ALSA_DEVICE.to_string(),
+                seq_client: Some(PEAK_ALSA_SEQ_CLIENT),
+                seq_port: Some(PEAK_ALSA_SEQ_PORT),
+                card_name: "Peak".to_string(),
+                device_type: SupportedDeviceType::NovationPeak,
+                is_virtual_mock: true,
+            }),
+            umc1820: Some(AlsaPortEndpoint {
+                card_index: 0,
+                rawmidi_device: UMC1820_ALSA_DEVICE.to_string(),
+                seq_client: Some(16),
+                seq_port: Some(0),
+                card_name: "UMC1820".to_string(),
+                device_type: SupportedDeviceType::BehringerUmc1820,
+                is_virtual_mock: true,
+            }),
+            nanokontrol2: Some(AlsaPortEndpoint {
+                card_index: 2,
+                rawmidi_device: NANOKONTROL2_ALSA_DEVICE.to_string(),
+                seq_client: Some(24),
+                seq_port: Some(0),
+                card_name: "nanoKONTROL2".to_string(),
+                device_type: SupportedDeviceType::KorgNanoKontrol2,
+                is_virtual_mock: true,
+            }),
+            total_devices_scanned: 3,
+            safety_mode: MidiSafetyMode::VirtualLoopback,
+        };
+    }
+
+    discover_peak_hardware_with_roots(
+        Path::new("/sys/class/sound"),
+        Path::new("/dev/snd/by-id"),
+        Path::new("/dev/snd/by-path"),
+        Path::new("/proc/asound/seq/clients"),
+        safety_mode,
+    )
+}
+
+/// Performs non-invasive ALSA port discovery for Novation Peak with customizable filesystem roots.
+pub fn discover_peak_hardware_with_roots(
+    sys_class_sound: &Path,
+    dev_snd_by_id: &Path,
+    dev_snd_by_path: &Path,
+    proc_asound_seq_clients: &Path,
+    safety_mode: MidiSafetyMode,
+) -> PeakDiscoveryResult {
+    let devices = scan_hardware_devices_with_roots(
+        sys_class_sound,
+        dev_snd_by_id,
+        dev_snd_by_path,
+        proc_asound_seq_clients,
+    );
+
+    let mut peak_endpoint = None;
+    let mut umc_endpoint = None;
+    let mut nk2_endpoint = None;
+
+    for dev in &devices {
+        if dev.device_type == SupportedDeviceType::NovationPeak {
+            peak_endpoint = Some(AlsaPortEndpoint {
+                card_index: dev.alsa_card_index,
+                rawmidi_device: format!("hw:{},0,0", dev.alsa_card_index),
+                seq_client: dev.alsa_seq_client,
+                seq_port: dev.alsa_seq_port,
+                card_name: dev.card_name.clone(),
+                device_type: dev.device_type,
+                is_virtual_mock: false,
+            });
+        } else if dev.device_type == SupportedDeviceType::BehringerUmc1820 {
+            umc_endpoint = Some(AlsaPortEndpoint {
+                card_index: dev.alsa_card_index,
+                rawmidi_device: format!("hw:{},0,0", dev.alsa_card_index),
+                seq_client: dev.alsa_seq_client,
+                seq_port: dev.alsa_seq_port,
+                card_name: dev.card_name.clone(),
+                device_type: dev.device_type,
+                is_virtual_mock: false,
+            });
+        } else if dev.device_type == SupportedDeviceType::KorgNanoKontrol2 {
+            nk2_endpoint = Some(AlsaPortEndpoint {
+                card_index: dev.alsa_card_index,
+                rawmidi_device: format!("hw:{},0,0", dev.alsa_card_index),
+                seq_client: dev.alsa_seq_client,
+                seq_port: dev.alsa_seq_port,
+                card_name: dev.card_name.clone(),
+                device_type: dev.device_type,
+                is_virtual_mock: false,
+            });
+        }
+    }
+
+    PeakDiscoveryResult {
+        peak: peak_endpoint,
+        umc1820: umc_endpoint,
+        nanokontrol2: nk2_endpoint,
+        total_devices_scanned: devices.len(),
+        safety_mode,
+    }
+}
+
 // =============================================================================
 // Unit Tests
 // =============================================================================
@@ -1133,5 +1616,247 @@ mod tests {
             velocity: 0,
         };
         assert_eq!(note_off.to_bytes(), vec![0x80, 60, 0]);
+
+        let pc = MidiPacket::ProgramChange {
+            channel: 0,
+            program: 42,
+        };
+        assert_eq!(pc.to_bytes(), vec![0xC0, 42]);
+    }
+
+    #[test]
+    fn peak_hardware_discovery_virtual_loopback_and_dry_run() {
+        let res = discover_peak_hardware(MidiSafetyMode::VirtualLoopback);
+        assert_eq!(res.safety_mode, MidiSafetyMode::VirtualLoopback);
+        assert!(res.has_peak_port());
+        assert!(res.has_umc1820_port());
+        assert!(res.has_controller());
+        assert_eq!(res.total_devices_scanned, 3);
+
+        let peak = res.peak.unwrap();
+        assert_eq!(peak.card_index, 3);
+        assert_eq!(peak.rawmidi_device, "hw:3,0,0");
+        assert_eq!(peak.seq_client, Some(28));
+        assert_eq!(peak.seq_port, Some(0));
+        assert_eq!(peak.device_type, SupportedDeviceType::NovationPeak);
+        assert!(peak.is_virtual_mock);
+
+        let umc = res.umc1820.unwrap();
+        assert_eq!(umc.card_index, 0);
+        assert_eq!(umc.rawmidi_device, "hw:0,0,0");
+        assert_eq!(umc.seq_client, Some(16));
+        assert!(umc.is_virtual_mock);
+
+        let nk2 = res.nanokontrol2.unwrap();
+        assert_eq!(nk2.card_index, 2);
+        assert_eq!(nk2.rawmidi_device, "hw:2,0,0");
+        assert_eq!(nk2.seq_client, Some(24));
+        assert!(nk2.is_virtual_mock);
+    }
+
+    #[test]
+    fn peak_safety_clamp_ranges_on_dangerous_ccs() {
+        // Test CC 29 (Cutoff)
+        assert_eq!(safe_sweep_range(29), (0, 127));
+        assert_eq!(clamp_cc_value(29, 120), 120);
+
+        // Test CC 36 (Filter Post-Drive) -> (0, 50)
+        assert_eq!(safe_sweep_range(36), (0, 50));
+        assert_eq!(clamp_cc_value(36, 100), 50);
+        assert_eq!(clamp_cc_value(36, 30), 30);
+
+        // Test CC 79 (Filter Resonance) -> (0, 62)
+        assert_eq!(safe_sweep_range(79), (0, 62));
+        assert_eq!(clamp_cc_value(79, 127), 62);
+        assert_eq!(clamp_cc_value(79, 50), 50);
+
+        // Test CC 80 (Filter Overdrive / Pre-Drive) -> (0, 50)
+        assert_eq!(safe_sweep_range(80), (0, 50));
+        assert_eq!(clamp_cc_value(80, 80), 50);
+
+        // Test CC 104 (Analogue Distortion Level) -> (0, 48)
+        assert_eq!(safe_sweep_range(104), (0, 48));
+        assert_eq!(clamp_cc_value(104, 127), 48);
+
+        // Test CC 110 (Delay Feedback) -> (0, 70)
+        assert_eq!(safe_sweep_range(110), (0, 70));
+        assert_eq!(clamp_cc_value(110, 115), 70);
+
+        // Test FX sends (CC 105, 108, 112) -> (0, 90)
+        assert_eq!(safe_sweep_range(105), (0, 90));
+        assert_eq!(safe_sweep_range(108), (0, 90));
+        assert_eq!(safe_sweep_range(112), (0, 90));
+
+        // Test by name
+        assert_eq!(safe_sweep_range_by_name("filter_resonance"), (0, 62));
+        assert_eq!(safe_sweep_range_by_name("distortion_level"), (0, 48));
+        assert_eq!(safe_sweep_range_by_name("filter_overdrive"), (0, 50));
+        assert_eq!(safe_sweep_range_by_name("delay_feedback"), (0, 70));
+        assert_eq!(safe_sweep_range_by_name("reverb_level"), (0, 90));
+        assert_eq!(safe_sweep_range_by_name("filter_cutoff"), (0, 127));
+    }
+
+    #[test]
+    fn peak_midi_router_cc_dual_cc_nrpn_and_bank_program() {
+        let router = PeakMidiRouter::new();
+        assert_eq!(router.channel, 0); // MIDI Channel 1
+        assert_eq!(router.safety_mode, MidiSafetyMode::VirtualLoopback);
+        assert!(router.safety_clamp);
+
+        // 1. 7-bit CC with safety clamp
+        let cc_reso = router.route_cc(79, 127);
+        assert_eq!(
+            cc_reso,
+            MidiPacket::ControlChange {
+                channel: 0,
+                cc: 79,
+                value: 62, // Clamped from 127 to 62
+            }
+        );
+
+        let cc_drive = router.route_cc(80, 100);
+        assert_eq!(
+            cc_drive,
+            MidiPacket::ControlChange {
+                channel: 0,
+                cc: 80,
+                value: 50, // Clamped from 100 to 50
+            }
+        );
+
+        // Unclamped override
+        let cc_unclamped = router.route_cc_unclamped(79, 127);
+        assert_eq!(
+            cc_unclamped,
+            MidiPacket::ControlChange {
+                channel: 0,
+                cc: 79,
+                value: 127,
+            }
+        );
+
+        // 2. +32 bipolar and 14-bit dual-CC pairs
+        // Filter cutoff dual-CC (CC 29 MSB + CC 61 LSB)
+        let (msb_pkt, lsb_pkt) = router.route_dual_cc(29, 8192);
+        assert_eq!(
+            msb_pkt,
+            MidiPacket::ControlChange {
+                channel: 0,
+                cc: 29,
+                value: 64,
+            }
+        );
+        assert_eq!(
+            lsb_pkt,
+            MidiPacket::ControlChange {
+                channel: 0,
+                cc: 61,
+                value: 0,
+            }
+        );
+
+        // Bipolar dual-CC: 0 center maps to 8192 (MSB 64, LSB 0)
+        let (b_msb, b_lsb) = router.route_bipolar_dual_cc(29, 0);
+        assert_eq!(
+            b_msb,
+            MidiPacket::ControlChange {
+                channel: 0,
+                cc: 29,
+                value: 64,
+            }
+        );
+        assert_eq!(
+            b_lsb,
+            MidiPacket::ControlChange {
+                channel: 0,
+                cc: 61,
+                value: 0,
+            }
+        );
+
+        // 3. 14-bit NRPN
+        let nrpn_pkts = router.route_nrpn(150, 12000, true);
+        assert_eq!(nrpn_pkts.len(), 4);
+        assert_eq!(
+            nrpn_pkts[0],
+            MidiPacket::ControlChange {
+                channel: 0,
+                cc: 99,
+                value: (150 >> 7) as u8,
+            }
+        );
+        assert_eq!(
+            nrpn_pkts[1],
+            MidiPacket::ControlChange {
+                channel: 0,
+                cc: 98,
+                value: (150 & 0x7F) as u8,
+            }
+        );
+        assert_eq!(
+            nrpn_pkts[2],
+            MidiPacket::ControlChange {
+                channel: 0,
+                cc: 6,
+                value: ((12000 >> 7) & 0x7F) as u8,
+            }
+        );
+        assert_eq!(
+            nrpn_pkts[3],
+            MidiPacket::ControlChange {
+                channel: 0,
+                cc: 38,
+                value: (12000 & 0x7F) as u8,
+            }
+        );
+
+        // 4. Bank Select CC0 / CC32 + Program Change
+        // Select Bank B (bank index 1), Program 35
+        let bank_prog_pkts = router.route_bank_program(1, 35);
+        assert_eq!(bank_prog_pkts.len(), 3);
+        assert_eq!(
+            bank_prog_pkts[0],
+            MidiPacket::ControlChange {
+                channel: 0,
+                cc: 0,
+                value: 0, // Bank MSB
+            }
+        );
+        assert_eq!(
+            bank_prog_pkts[1],
+            MidiPacket::ControlChange {
+                channel: 0,
+                cc: 32,
+                value: 1, // Bank LSB (Bank B)
+            }
+        );
+        assert_eq!(
+            bank_prog_pkts[2],
+            MidiPacket::ProgramChange {
+                channel: 0,
+                program: 35, // Program 35
+            }
+        );
+
+        // 5. Emergency panic packet
+        let panic_pkts = router.route_panic();
+        assert_eq!(panic_pkts.len(), 4);
+        assert!(panic_pkts.iter().any(|p| matches!(p, MidiPacket::ControlChange { cc: 120, .. })));
+        assert!(panic_pkts.iter().any(|p| matches!(p, MidiPacket::ControlChange { cc: 123, .. })));
+    }
+
+    #[test]
+    fn peak_midi_router_schema_and_validation() {
+        let schema = peak_midi_router_json_schema();
+        assert_eq!(schema["title"], "PeakMidiRouter");
+
+        let router = PeakMidiRouter::new()
+            .with_channel(1)
+            .with_safety_clamp(true);
+        let json_str = serde_json::to_string(&router).unwrap();
+        let restored = validate_peak_midi_router_json(&json_str).unwrap();
+        assert_eq!(restored.channel, 0);
+        assert!(restored.safety_clamp);
+        assert_eq!(restored.safety_mode, MidiSafetyMode::VirtualLoopback);
     }
 }
