@@ -1,0 +1,1863 @@
+{
+  "meta": {
+    "projectId": "novation-peak-manager",
+    "version": "0.1.0",
+    "epoch": 1,
+    "runtimeEnvironment": {
+      "platform": "linux",
+      "target": "rust-and-node",
+      "strictMode": true,
+      "deterministicSeeds": true,
+      "maxParallelJobs": 2
+    }
+  },
+  "ontology": {
+    "entities": {
+      "entity:novation-peak-pigs:synth-core": {
+        "id": "entity:novation-peak-pigs:synth-core",
+        "type": "CRATE",
+        "path": "crates/synth-core",
+        "purpose": "Shared parameter, preset, patch diff, randomization, and command history library",
+        "responsibilities": [
+          "Exports ParamDiff, PatchDiff, compare, total_differences, selective_merge, selective_merge_section in crates/synth-core/src/diff.rs",
+          "Exports SynthError in crates/synth-core/src/error.rs",
+          "Exports PatchCommand, SetParamCommand, new, BatchSetParamsCommand, ReplacePatchCommand, CommandHistory in crates/synth-core/src/history.rs",
+          "Exports diff, error, history, param, preset, profiles in crates/synth-core/src/lib.rs",
+          "Exports ParamId, new, from_name, as_str, into_inner, ParamAddress in crates/synth-core/src/param.rs",
+          "Exports PatchMeta, PatchSysex, SynthPatch, new, with_category, with_bank_slot in crates/synth-core/src/preset.rs",
+          "Exports DeviceCategory, ControlElementKind, PhysicalControlDescriptor, new, with_channel, with_led in crates/synth-core/src/profiles.rs",
+          "Exports RandomizeScope, LockShieldedRandomizer, new, lock_param, unlock_param, is_param_locked in crates/synth-core/src/randomizer.rs"
+        ],
+        "exposedInterfaces": [
+          "ParamDiff",
+          "PatchDiff",
+          "compare",
+          "total_differences",
+          "selective_merge",
+          "selective_merge_section",
+          "SynthError",
+          "PatchCommand",
+          "SetParamCommand",
+          "new",
+          "BatchSetParamsCommand",
+          "ReplacePatchCommand",
+          "CommandHistory",
+          "diff"
+        ],
+        "dependencies": [],
+        "blackboxConstraints": {},
+        "structuralOutline": [
+          "L10: pub struct ParamDiff {",
+          "L20: pub struct PatchDiff {",
+          "L36: impl PatchDiff {",
+          "L38: pub fn compare(a: &SynthPatch, b: &SynthPatch, epsilon: f64) -> Self {",
+          "L57: match (val_a, val_b) {",
+          "L118: pub fn total_differences(&self) -> usize {",
+          "L124: pub fn selective_merge(",
+          "L140: pub fn selective_merge_section(",
+          "L149: pub fn selective_merge_matching<F>(",
+          "L8: pub enum SynthError {",
+          "L27: impl fmt::Display for SynthError {",
+          "L28: fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {",
+          "L42: impl std::error::Error for SynthError {}",
+          "L9: pub trait PatchCommand: Send + Sync + fmt::Debug {",
+          "L11: fn execute(&self, patch: &mut SynthPatch) -> Result<(), SynthError>;",
+          "L14: fn undo(&self, patch: &mut SynthPatch) -> Result<(), SynthError>;",
+          "L17: fn description(&self) -> &str;",
+          "L22: pub struct SetParamCommand {",
+          "L29: impl SetParamCommand {",
+          "L31: pub fn new(key: impl Into<String>, old_val: f64, new_val: f64) -> Self {",
+          "L43: impl PatchCommand for SetParamCommand {",
+          "L44: fn execute(&self, patch: &mut SynthPatch) -> Result<(), SynthError> {",
+          "L49: fn undo(&self, patch: &mut SynthPatch) -> Result<(), SynthError> {",
+          "L54: fn description(&self) -> &str {",
+          "L61: pub struct BatchSetParamsCommand {",
+          "L67: impl BatchSetParamsCommand {",
+          "L69: pub fn new(changes: Vec<(String, f64, f64)>, description: impl Into<String>) -> Self {",
+          "L77: impl PatchCommand for BatchSetParamsCommand {",
+          "L78: fn execute(&self, patch: &mut SynthPatch) -> Result<(), SynthError> {",
+          "L86: fn undo(&self, patch: &mut SynthPatch) -> Result<(), SynthError> {",
+          "L94: fn description(&self) -> &str {",
+          "L101: pub struct ReplacePatchCommand {",
+          "L107: impl ReplacePatchCommand {",
+          "L109: pub fn new(",
+          "L122: impl PatchCommand for ReplacePatchCommand {",
+          "L123: fn execute(&self, patch: &mut SynthPatch) -> Result<(), SynthError> {",
+          "L128: fn undo(&self, patch: &mut SynthPatch) -> Result<(), SynthError> {",
+          "L133: fn description(&self) -> &str {",
+          "L8: pub mod diff;",
+          "L9: pub mod error;"
+        ]
+      },
+      "entity:novation-peak-pigs:synth-core-diff": {
+        "id": "entity:novation-peak-pigs:synth-core-diff",
+        "type": "CORE_ENGINE",
+        "path": "crates/synth-core/src/diff.rs",
+        "purpose": "A/B Synthesizer patch comparison and selective parameter merging. Difference record for a single parameter between two patches. Comparison result holding parameter additions, removals, and modifications between Patch A and Patch B. Keys present in B but not in A.",
+        "responsibilities": [
+          "Exports ParamDiff, PatchDiff, compare, total_differences, selective_merge, selective_merge_section in crates/synth-core/src/diff.rs"
+        ],
+        "exposedInterfaces": [
+          "ParamDiff",
+          "PatchDiff",
+          "compare",
+          "total_differences",
+          "selective_merge",
+          "selective_merge_section"
+        ],
+        "dependencies": [],
+        "blackboxConstraints": {},
+        "structuralOutline": [
+          "L10: pub struct ParamDiff {",
+          "L20: pub struct PatchDiff {",
+          "L36: impl PatchDiff {",
+          "L38: pub fn compare(a: &SynthPatch, b: &SynthPatch, epsilon: f64) -> Self {",
+          "L57: match (val_a, val_b) {",
+          "L118: pub fn total_differences(&self) -> usize {",
+          "L124: pub fn selective_merge(",
+          "L140: pub fn selective_merge_section(",
+          "L149: pub fn selective_merge_matching<F>("
+        ]
+      },
+      "entity:novation-peak-pigs:synth-core-error": {
+        "id": "entity:novation-peak-pigs:synth-core-error",
+        "type": "CORE_ENGINE",
+        "path": "crates/synth-core/src/error.rs",
+        "purpose": "Error types for synth-core domain operations. Errors that can occur during synthesizer parameter, patch, or history manipulation. The parameter identifier was invalid or malformed. A value range definition was mathematically invalid.",
+        "responsibilities": [
+          "Exports SynthError in crates/synth-core/src/error.rs"
+        ],
+        "exposedInterfaces": [
+          "SynthError"
+        ],
+        "dependencies": [],
+        "blackboxConstraints": {},
+        "structuralOutline": [
+          "L8: pub enum SynthError {",
+          "L27: impl fmt::Display for SynthError {",
+          "L28: fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {",
+          "L42: impl std::error::Error for SynthError {}"
+        ]
+      },
+      "entity:novation-peak-pigs:synth-core-history": {
+        "id": "entity:novation-peak-pigs:synth-core-history",
+        "type": "CORE_ENGINE",
+        "path": "crates/synth-core/src/history.rs",
+        "purpose": "Multi-step undo/redo command stack for synthesizer patches and parameters. Trait defining an undoable and redoable patch command. Applies the forward action of the command to the patch. Inverts and rolls back the action of the command on the patch.",
+        "responsibilities": [
+          "Exports PatchCommand, SetParamCommand, new, BatchSetParamsCommand, ReplacePatchCommand, CommandHistory in crates/synth-core/src/history.rs"
+        ],
+        "exposedInterfaces": [
+          "PatchCommand",
+          "SetParamCommand",
+          "new",
+          "BatchSetParamsCommand",
+          "ReplacePatchCommand",
+          "CommandHistory"
+        ],
+        "dependencies": [],
+        "blackboxConstraints": {},
+        "structuralOutline": [
+          "L9: pub trait PatchCommand: Send + Sync + fmt::Debug {",
+          "L11: fn execute(&self, patch: &mut SynthPatch) -> Result<(), SynthError>;",
+          "L14: fn undo(&self, patch: &mut SynthPatch) -> Result<(), SynthError>;",
+          "L17: fn description(&self) -> &str;",
+          "L22: pub struct SetParamCommand {",
+          "L29: impl SetParamCommand {",
+          "L31: pub fn new(key: impl Into<String>, old_val: f64, new_val: f64) -> Self {",
+          "L43: impl PatchCommand for SetParamCommand {",
+          "L44: fn execute(&self, patch: &mut SynthPatch) -> Result<(), SynthError> {",
+          "L49: fn undo(&self, patch: &mut SynthPatch) -> Result<(), SynthError> {",
+          "L54: fn description(&self) -> &str {",
+          "L61: pub struct BatchSetParamsCommand {",
+          "L67: impl BatchSetParamsCommand {",
+          "L69: pub fn new(changes: Vec<(String, f64, f64)>, description: impl Into<String>) -> Self {",
+          "L77: impl PatchCommand for BatchSetParamsCommand {",
+          "L78: fn execute(&self, patch: &mut SynthPatch) -> Result<(), SynthError> {",
+          "L86: fn undo(&self, patch: &mut SynthPatch) -> Result<(), SynthError> {",
+          "L94: fn description(&self) -> &str {",
+          "L101: pub struct ReplacePatchCommand {",
+          "L107: impl ReplacePatchCommand {",
+          "L109: pub fn new(",
+          "L122: impl PatchCommand for ReplacePatchCommand {",
+          "L123: fn execute(&self, patch: &mut SynthPatch) -> Result<(), SynthError> {",
+          "L128: fn undo(&self, patch: &mut SynthPatch) -> Result<(), SynthError> {",
+          "L133: fn description(&self) -> &str {"
+        ]
+      },
+      "entity:novation-peak-pigs:synth-core-param": {
+        "id": "entity:novation-peak-pigs:synth-core-param",
+        "type": "CORE_ENGINE",
+        "path": "crates/synth-core/src/param.rs",
+        "purpose": "Synthesizer parameter descriptors, addressing, scaling, response curves, and hardware controller soft-takeover state handling. Strongly-typed synthesizer parameter identifier. Converts human-readable names (e.g., \"Filter 1 Cutoff\") to normalized JSON-safe keys",
+        "responsibilities": [
+          "Exports ParamId, new, from_name, as_str, into_inner, ParamAddress in crates/synth-core/src/param.rs"
+        ],
+        "exposedInterfaces": [
+          "ParamId",
+          "new",
+          "from_name",
+          "as_str",
+          "into_inner",
+          "ParamAddress"
+        ],
+        "dependencies": [],
+        "blackboxConstraints": {},
+        "structuralOutline": [
+          "L15: pub struct ParamId(String);",
+          "L17: impl ParamId {",
+          "L19: pub fn new(key: impl Into<String>) -> Self {",
+          "L28: pub fn from_name(name: &str) -> Self {",
+          "L50: pub fn as_str(&self) -> &str {",
+          "L55: pub fn into_inner(self) -> String {",
+          "L60: impl Deref for ParamId {",
+          "L62: fn deref(&self) -> &Self::Target {",
+          "L67: impl fmt::Display for ParamId {",
+          "L68: fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {",
+          "L73: impl From<&str> for ParamId {",
+          "L74: fn from(s: &str) -> Self {",
+          "L79: impl From<String> for ParamId {",
+          "L80: fn from(s: String) -> Self {",
+          "L88: pub enum ParamAddress {",
+          "L101: impl ParamAddress {",
+          "L103: pub fn cc7(cc: u8) -> Self {",
+          "L108: pub fn none() -> Self {",
+          "L113: pub fn cc14(msb: u8, lsb: u8) -> Self {",
+          "L118: pub fn nrpn(msb: u8, lsb: u8) -> Self {",
+          "L123: pub fn sysex(offset: usize, size: usize) -> Self {",
+          "L128: pub fn is_cc7(&self) -> bool {",
+          "L133: pub fn is_cc14(&self) -> bool {",
+          "L138: pub fn is_nrpn(&self) -> bool {",
+          "L143: pub fn is_sysex(&self) -> bool {"
+        ]
+      },
+      "entity:novation-peak-pigs:synth-core-preset": {
+        "id": "entity:novation-peak-pigs:synth-core-preset",
+        "type": "CORE_ENGINE",
+        "path": "crates/synth-core/src/preset.rs",
+        "purpose": "Synthesizer patch representation and preset library CRUD manager. Helper returning current ISO 8601 UTC timestamp string. Metadata attributes for a synthesizer preset patch.",
+        "responsibilities": [
+          "Exports PatchMeta, PatchSysex, SynthPatch, new, with_category, with_bank_slot in crates/synth-core/src/preset.rs"
+        ],
+        "exposedInterfaces": [
+          "PatchMeta",
+          "PatchSysex",
+          "SynthPatch",
+          "new",
+          "with_category",
+          "with_bank_slot"
+        ],
+        "dependencies": [],
+        "blackboxConstraints": {},
+        "structuralOutline": [
+          "L11: fn current_timestamp() -> String {",
+          "L15: fn default_category() -> String {",
+          "L19: fn default_color() -> String {",
+          "L23: fn default_bank() -> String {",
+          "L29: pub struct PatchMeta {",
+          "L62: impl Default for PatchMeta {",
+          "L63: fn default() -> Self {",
+          "L84: pub struct PatchSysex {",
+          "L96: pub struct SynthPatch {",
+          "L104: impl SynthPatch {",
+          "L106: pub fn new(name: impl Into<String>) -> Self {",
+          "L119: pub fn with_category(mut self, category: impl Into<String>) -> Self {",
+          "L125: pub fn with_bank_slot(mut self, bank: impl Into<String>, slot: u32) -> Self {",
+          "L132: pub fn set_param(&mut self, key: impl Into<String>, value: f64) {",
+          "L138: pub fn get_param(&self, key: &str) -> Option<f64> {",
+          "L143: pub fn remove_param(&mut self, key: &str) -> Option<f64> {",
+          "L152: pub fn has_param(&self, key: &str) -> bool {",
+          "L158: pub fn voice_param_key(voice: u8, param: &str) -> String {",
+          "L169: pub fn get_voice_param(&self, voice: u8, param: &str) -> Option<f64> {",
+          "L175: pub fn set_voice_param(&mut self, voice: u8, param: &str, value: f64) {",
+          "L182: pub fn voice_params(&self, voice: u8) -> BTreeMap<String, f64> {",
+          "L194: pub fn copy_voice(&mut self, src_voice: u8, dst_voice: u8) {",
+          "L207: pub fn swap_voices(&mut self, voice_a: u8, voice_b: u8) {",
+          "L229: pub fn add_tag(&mut self, tag: impl Into<String>) {",
+          "L238: pub fn remove_tag(&mut self, tag: &str) {"
+        ]
+      },
+      "entity:novation-peak-pigs:synth-core-profiles": {
+        "id": "entity:novation-peak-pigs:synth-core-profiles",
+        "type": "CORE_ENGINE",
+        "path": "crates/synth-core/src/profiles.rs",
+        "purpose": "Synthesizer device profile abstraction, controller surface layouts, and portable JSON schema interchange for cross-project integration. Provides canonical specifications for: - ASM Hydrasynth (Oscillators, Mutators, Filters 1/2, Envelopes 1-5, LFOs 1-5, Macros 1-8, Ribbon, FX)",
+        "responsibilities": [
+          "Exports DeviceCategory, ControlElementKind, PhysicalControlDescriptor, new, with_channel, with_led in crates/synth-core/src/profiles.rs"
+        ],
+        "exposedInterfaces": [
+          "DeviceCategory",
+          "ControlElementKind",
+          "PhysicalControlDescriptor",
+          "new",
+          "with_channel",
+          "with_led"
+        ],
+        "dependencies": [],
+        "blackboxConstraints": {},
+        "structuralOutline": [
+          "L20: pub enum DeviceCategory {",
+          "L32: pub enum ControlElementKind {",
+          "L43: pub struct PhysicalControlDescriptor {",
+          "L58: impl PhysicalControlDescriptor {",
+          "L60: pub fn new(",
+          "L81: pub fn with_channel(mut self, ch: u8) -> Self {",
+          "L87: pub fn with_led(mut self, led_cc: u8) -> Self {",
+          "L94: pub fn with_track_index(mut self, track: usize) -> Self {",
+          "L102: pub struct DeviceSynthesizerProfile {",
+          "L117: impl DeviceSynthesizerProfile {",
+          "L119: pub fn new(",
+          "L141: pub fn with_default_channel(mut self, ch: u8) -> Self {",
+          "L147: pub fn add_parameter(&mut self, param: ParamDescriptor) {",
+          "L155: pub fn add_control(&mut self, control: PhysicalControlDescriptor) {",
+          "L160: pub fn add_tag(&mut self, tag: impl Into<String>) {",
+          "L165: pub fn get_param(&self, key: &str) -> Option<&ParamDescriptor> {",
+          "L170: pub fn get_param_by_cc(&self, cc: u8) -> Option<&ParamDescriptor> {",
+          "L179: pub fn params_for_module(&self, module: &str) -> Vec<&ParamDescriptor> {",
+          "L187: pub fn params_for_voice(&self, voice: u8) -> Vec<&ParamDescriptor> {",
+          "L197: pub fn global_params(&self) -> Vec<&ParamDescriptor> {",
+          "L205: pub fn create_default_patch(&self, patch_name: &str) -> SynthPatch {",
+          "L214: pub fn to_json(&self) -> Result<String, SynthError> {",
+          "L219: pub fn from_json(json_str: &str) -> Result<Self, SynthError> {",
+          "L231: pub fn asm_hydrasynth() -> Self {",
+          "L397: pub fn korg_nanokontrol2() -> Self {"
+        ]
+      },
+      "entity:novation-peak-pigs:synth-core-randomizer": {
+        "id": "entity:novation-peak-pigs:synth-core-randomizer",
+        "type": "CORE_ENGINE",
+        "path": "crates/synth-core/src/randomizer.rs",
+        "purpose": "Lock-shielded synthesizer parameter randomizer supporting global, section-scoped, and Gaussian-drift randomization. Scope configuration for randomization. Randomize across all unlocked parameters in the patch.",
+        "responsibilities": [
+          "Exports RandomizeScope, LockShieldedRandomizer, new, lock_param, unlock_param, is_param_locked in crates/synth-core/src/randomizer.rs"
+        ],
+        "exposedInterfaces": [
+          "RandomizeScope",
+          "LockShieldedRandomizer",
+          "new",
+          "lock_param",
+          "unlock_param",
+          "is_param_locked"
+        ],
+        "dependencies": [],
+        "blackboxConstraints": {},
+        "structuralOutline": [
+          "L17: pub enum RandomizeScope {",
+          "L26: pub struct LockShieldedRandomizer {",
+          "L37: impl Default for LockShieldedRandomizer {",
+          "L38: fn default() -> Self {",
+          "L43: impl LockShieldedRandomizer {",
+          "L45: pub fn new() -> Self {",
+          "L67: pub fn lock_param(&mut self, key: impl Into<String>) {",
+          "L72: pub fn unlock_param(&mut self, key: &str) {",
+          "L77: pub fn is_param_locked(&self, key: &str) -> bool {",
+          "L82: pub fn lock_section(&mut self, section: impl Into<String>) {",
+          "L87: pub fn unlock_section(&mut self, section: &str) {",
+          "L92: pub fn is_section_locked(&self, section: &str) -> bool {",
+          "L97: pub fn register_descriptor(&mut self, desc: ParamDescriptor) {",
+          "L106: pub fn is_shielded(&self, key: &str) -> bool {",
+          "L119: fn resolve_range(&self, key: &str) -> &ValueRange {",
+          "L132: pub fn randomize_global(",
+          "L150: pub fn randomize_section(",
+          "L173: pub fn randomize_gaussian_drift(",
+          "L192: fn randomize_internal("
+        ]
+      },
+      "entity:novation-peak-pigs:synth-midi-osc": {
+        "id": "entity:novation-peak-pigs:synth-midi-osc",
+        "type": "CRATE",
+        "path": "crates/synth-midi-osc",
+        "purpose": "Shared Linux USB/ALSA hardware identity fingerprinting, multi-device manager, and OSC router",
+        "responsibilities": [
+          "Exports DeviceFingerprint, new, with_seq_address, with_usb_path, with_by_id_path, with_device_type in crates/synth-midi-osc/src/hardware.rs",
+          "Exports hardware, osc, routing in crates/synth-midi-osc/src/lib.rs",
+          "Exports OscConfig, OscError, OscIncomingMessage, param_float, is_panic, is_subscribe in crates/synth-midi-osc/src/osc.rs",
+          "Exports MidiSafetyMode, MidiControlMode, MidiPacket, to_bytes, DualMidiRouter, new in crates/synth-midi-osc/src/routing.rs"
+        ],
+        "exposedInterfaces": [
+          "DeviceFingerprint",
+          "new",
+          "with_seq_address",
+          "with_usb_path",
+          "with_by_id_path",
+          "with_device_type",
+          "hardware",
+          "osc",
+          "routing",
+          "OscConfig",
+          "OscError",
+          "OscIncomingMessage",
+          "param_float",
+          "is_panic"
+        ],
+        "dependencies": [
+          "entity:novation-peak-pigs:synth-core"
+        ],
+        "blackboxConstraints": {},
+        "structuralOutline": [
+          "L17: pub struct DeviceFingerprint {",
+          "L33: impl DeviceFingerprint {",
+          "L35: pub fn new(",
+          "L61: pub fn with_seq_address(mut self, client: u32, port: u32) -> Self {",
+          "L68: pub fn with_usb_path(mut self, path: impl Into<String>) -> Self {",
+          "L74: pub fn with_by_id_path(mut self, path: impl Into<String>) -> Self {",
+          "L80: pub fn with_device_type(mut self, device_type: SupportedDeviceType) -> Self {",
+          "L86: pub fn identity_key(&self) -> String {",
+          "L97: pub fn device_type(&self) -> SupportedDeviceType {",
+          "L102: pub fn matches_hardware(&self, other: &DeviceFingerprint) -> bool {",
+          "L106: match (&self.serial, &other.serial) {",
+          "L115: pub enum SupportedDeviceType {",
+          "L128: impl SupportedDeviceType {",
+          "L130: pub fn from_vendor_product(vendor: &str, product: &str, card_name: &str) -> Self {",
+          "L189: pub fn display_name(&self) -> &'static str {",
+          "L205: pub fn is_synthesizer(&self) -> bool {",
+          "L218: pub fn is_controller(&self) -> bool {",
+          "L223: pub fn is_audio_interface(&self) -> bool {",
+          "L230: pub struct StoredDeviceProfile {",
+          "L247: pub enum DeviceLifecycleEvent {",
+          "L274: pub struct MultiDeviceManager {",
+          "L281: impl MultiDeviceManager {",
+          "L283: pub fn new() -> Self {",
+          "L292: pub fn active_devices(&self) -> Vec<&DeviceFingerprint> {",
+          "L297: pub fn get_active_device(&self, identity_key: &str) -> Option<&DeviceFingerprint> {",
+          "L8: pub mod hardware;",
+          "L9: pub mod osc;",
+          "L10: pub mod routing;",
+          "L42: fn reexported_types_accessible_at_crate_root() {",
+          "L56: fn live_linux_hardware_fingerprint_scan() {",
+          "L98: fn routing_and_discovery_reexported_and_operational() {",
+          "L121: fn midi_osc_schemas_and_export_roundtrip() {",
+          "L15: pub struct OscConfig {",
+          "L22: impl Default for OscConfig {",
+          "L23: fn default() -> Self {",
+          "L35: pub enum OscError {",
+          "L42: impl fmt::Display for OscError {",
+          "L43: fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {",
+          "L53: impl std::error::Error for OscError {",
+          "L54: fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {"
+        ]
+      },
+      "entity:novation-peak-pigs:synth-midi-osc-hardware": {
+        "id": "entity:novation-peak-pigs:synth-midi-osc-hardware",
+        "type": "REALTIME_DSP_GPU",
+        "path": "crates/synth-midi-osc/src/hardware.rs",
+        "purpose": "Linux USB/ALSA hardware identity fingerprinting, multi-device management, and MIDI packet codec (CC, 14-bit CC, NRPN, SysEx, rate limiting, panic). Standard USB and ALSA hardware fingerprint. Discovered via `/sys/class/sound/card*`, `/dev/snd/by-id/`,",
+        "responsibilities": [
+          "Exports DeviceFingerprint, new, with_seq_address, with_usb_path, with_by_id_path, with_device_type in crates/synth-midi-osc/src/hardware.rs"
+        ],
+        "exposedInterfaces": [
+          "DeviceFingerprint",
+          "new",
+          "with_seq_address",
+          "with_usb_path",
+          "with_by_id_path",
+          "with_device_type"
+        ],
+        "dependencies": [],
+        "blackboxConstraints": {},
+        "structuralOutline": [
+          "L17: pub struct DeviceFingerprint {",
+          "L33: impl DeviceFingerprint {",
+          "L35: pub fn new(",
+          "L61: pub fn with_seq_address(mut self, client: u32, port: u32) -> Self {",
+          "L68: pub fn with_usb_path(mut self, path: impl Into<String>) -> Self {",
+          "L74: pub fn with_by_id_path(mut self, path: impl Into<String>) -> Self {",
+          "L80: pub fn with_device_type(mut self, device_type: SupportedDeviceType) -> Self {",
+          "L86: pub fn identity_key(&self) -> String {",
+          "L97: pub fn device_type(&self) -> SupportedDeviceType {",
+          "L102: pub fn matches_hardware(&self, other: &DeviceFingerprint) -> bool {",
+          "L106: match (&self.serial, &other.serial) {",
+          "L115: pub enum SupportedDeviceType {",
+          "L128: impl SupportedDeviceType {",
+          "L130: pub fn from_vendor_product(vendor: &str, product: &str, card_name: &str) -> Self {",
+          "L189: pub fn display_name(&self) -> &'static str {",
+          "L205: pub fn is_synthesizer(&self) -> bool {",
+          "L218: pub fn is_controller(&self) -> bool {",
+          "L223: pub fn is_audio_interface(&self) -> bool {",
+          "L230: pub struct StoredDeviceProfile {",
+          "L247: pub enum DeviceLifecycleEvent {",
+          "L274: pub struct MultiDeviceManager {",
+          "L281: impl MultiDeviceManager {",
+          "L283: pub fn new() -> Self {",
+          "L292: pub fn active_devices(&self) -> Vec<&DeviceFingerprint> {",
+          "L297: pub fn get_active_device(&self, identity_key: &str) -> Option<&DeviceFingerprint> {"
+        ]
+      },
+      "entity:novation-peak-pigs:synth-midi-osc-osc": {
+        "id": "entity:novation-peak-pigs:synth-midi-osc-osc",
+        "type": "REALTIME_DSP_GPU",
+        "path": "crates/synth-midi-osc/src/osc.rs",
+        "purpose": "Bidirectional UDP Open Sound Control (OSC) server and subscriber broadcaster using `rosc = \"0.10\"`. Configuration for the OSC server and subscriber broadcaster. Errors occurring during OSC packet processing, encoding, or network I/O.",
+        "responsibilities": [
+          "Exports OscConfig, OscError, OscIncomingMessage, param_float, is_panic, is_subscribe in crates/synth-midi-osc/src/osc.rs"
+        ],
+        "exposedInterfaces": [
+          "OscConfig",
+          "OscError",
+          "OscIncomingMessage",
+          "param_float",
+          "is_panic",
+          "is_subscribe"
+        ],
+        "dependencies": [],
+        "blackboxConstraints": {},
+        "structuralOutline": [
+          "L15: pub struct OscConfig {",
+          "L22: impl Default for OscConfig {",
+          "L23: fn default() -> Self {",
+          "L35: pub enum OscError {",
+          "L42: impl fmt::Display for OscError {",
+          "L43: fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {",
+          "L53: impl std::error::Error for OscError {",
+          "L54: fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {",
+          "L62: impl From<io::Error> for OscError {",
+          "L63: fn from(e: io::Error) -> Self {",
+          "L68: impl From<rosc::OscError> for OscError {",
+          "L69: fn from(e: rosc::OscError) -> Self {",
+          "L76: pub struct OscIncomingMessage {",
+          "L82: impl OscIncomingMessage {",
+          "L84: pub fn param_float(&self) -> Option<f32> {",
+          "L94: pub fn is_panic(&self) -> bool {",
+          "L99: pub fn is_subscribe(&self) -> bool {",
+          "L104: pub fn is_unsubscribe(&self) -> bool {",
+          "L109: pub fn parse_synth_param(&self) -> Option<(&str, &str)> {",
+          "L123: pub struct OscBroadcaster {",
+          "L128: impl OscBroadcaster {",
+          "L130: pub fn new(bind_host: &str, bind_port: u16) -> Result<Self, OscError> {",
+          "L141: pub fn add_subscriber(&self, addr: SocketAddr) {",
+          "L148: pub fn remove_subscriber(&self, addr: &SocketAddr) {",
+          "L155: pub fn subscriber_count(&self) -> usize {"
+        ]
+      },
+      "entity:novation-peak-pigs:synth-midi-osc-routing": {
+        "id": "entity:novation-peak-pigs:synth-midi-osc-routing",
+        "type": "REALTIME_DSP_GPU",
+        "path": "crates/synth-midi-osc/src/routing.rs",
+        "purpose": "`synth-midi-osc::routing`: Clavia Nord Drum 2 Dual MIDI Routing, Non-Invasive ALSA Port Discovery, and Anti-Choke CC Thinning & Note-On Priority Scheduler. Provides the core routing and scheduling primitives required for real-time control of the Clavia Nord Drum 2 physical/resonant modeling drum synthesizer.",
+        "responsibilities": [
+          "Exports MidiSafetyMode, MidiControlMode, MidiPacket, to_bytes, DualMidiRouter, new in crates/synth-midi-osc/src/routing.rs"
+        ],
+        "exposedInterfaces": [
+          "MidiSafetyMode",
+          "MidiControlMode",
+          "MidiPacket",
+          "to_bytes",
+          "DualMidiRouter",
+          "new"
+        ],
+        "dependencies": [],
+        "blackboxConstraints": {},
+        "structuralOutline": [
+          "L57: pub enum MidiSafetyMode {",
+          "L72: impl MidiSafetyMode {",
+          "L98: pub enum MidiControlMode {",
+          "L112: pub enum MidiPacket {",
+          "L123: impl MidiPacket {",
+          "L126: pub fn to_bytes(&self) -> Vec<u8> {",
+          "L155: pub struct DualMidiRouter {",
+          "L168: impl Default for DualMidiRouter {",
+          "L169: fn default() -> Self {",
+          "L174: impl DualMidiRouter {",
+          "L177: pub fn new() -> Self {",
+          "L190: pub fn with_control_mode(mut self, mode: MidiControlMode) -> Self {",
+          "L197: pub fn with_safety_mode(mut self, mode: MidiSafetyMode) -> Self {",
+          "L204: pub fn with_global_channel(mut self, channel: u8) -> Self {",
+          "L210: pub fn set_trigger_note(&mut self, voice_index: u8, note: u8) -> Result<(), SynthError> {",
+          "L223: pub fn get_trigger_note(&self, voice_index: u8) -> Option<u8> {",
+          "L232: pub fn set_voice_channel(",
+          "L250: pub fn get_voice_channel(&self, voice_index: u8) -> Option<u8> {",
+          "L259: pub fn switch_focus(&mut self, voice_index: u8) -> Option<MidiPacket> {",
+          "L276: pub fn route_param_cc(&mut self, voice_index: u8, cc: u8, value: u8) -> Vec<MidiPacket> {",
+          "L317: pub fn route_note_on(&self, voice_index: u8, velocity: u8) -> Option<MidiPacket> {",
+          "L346: pub fn route_note_off(&self, voice_index: u8, velocity: u8) -> Option<MidiPacket> {",
+          "L375: pub fn dual_midi_router_json_schema() -> serde_json::Value {",
+          "L404: pub fn validate_dual_midi_router_json(",
+          "L412: pub fn export_midi_osc_schemas(dir: &std::path::Path) -> Result<(), std::io::Error> {"
+        ]
+      },
+      "entity:novation-peak-pigs:synth-ui-theme": {
+        "id": "entity:novation-peak-pigs:synth-ui-theme",
+        "type": "CRATE",
+        "path": "crates/synth-ui-theme",
+        "purpose": "Shared egui theme palettes, twoBowls backgrounds, synth accents, and vector widgets",
+        "responsibilities": [
+          "Exports widgets, TwoBowlsBackground, from_name, SynthAccent, primary_color, secondary_color in crates/synth-ui-theme/src/lib.rs",
+          "Exports SoftTakeoverOutcome, RotaryKnobModel, new, with_unit, with_bipolar, with_physical_value in crates/synth-ui-theme/src/widgets.rs"
+        ],
+        "exposedInterfaces": [
+          "widgets",
+          "TwoBowlsBackground",
+          "from_name",
+          "SynthAccent",
+          "primary_color",
+          "secondary_color",
+          "SoftTakeoverOutcome",
+          "RotaryKnobModel",
+          "new",
+          "with_unit",
+          "with_bipolar",
+          "with_physical_value"
+        ],
+        "dependencies": [
+          "entity:novation-peak-pigs:synth-core"
+        ],
+        "blackboxConstraints": {},
+        "structuralOutline": [
+          "L6: pub mod widgets;",
+          "L39: pub enum TwoBowlsBackground {",
+          "L51: impl TwoBowlsBackground {",
+          "L106: pub fn from_name(name: &str) -> Option<Self> {",
+          "L117: impl fmt::Display for TwoBowlsBackground {",
+          "L118: fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {",
+          "L127: pub enum SynthAccent {",
+          "L146: impl SynthAccent {",
+          "L205: pub fn primary_color(&self) -> Color32 {",
+          "L212: pub fn secondary_color(&self) -> Color32 {",
+          "L254: pub fn readout_color(&self) -> Color32 {",
+          "L261: pub fn from_name(name: &str) -> Option<Self> {",
+          "L281: impl fmt::Display for SynthAccent {",
+          "L282: fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {",
+          "L289: pub fn primary_color(accent: SynthAccent) -> Color32 {",
+          "L295: pub fn readout_color(accent: SynthAccent) -> Color32 {",
+          "L301: pub enum HexColorError {",
+          "L310: impl fmt::Display for HexColorError {",
+          "L311: fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {",
+          "L323: impl std::error::Error for HexColorError {}",
+          "L326: pub fn parse_hex_color(input: &str) -> Result<Color32, HexColorError> {",
+          "L390: pub fn format_hex_color(color: Color32, include_alpha: bool) -> String {",
+          "L406: pub struct CustomColorOverrides {",
+          "L429: impl CustomColorOverrides {",
+          "L432: pub fn new() -> Self {",
+          "L19: pub enum SoftTakeoverOutcome {",
+          "L36: pub struct RotaryKnobModel {",
+          "L57: impl Default for RotaryKnobModel {",
+          "L58: fn default() -> Self {",
+          "L73: impl RotaryKnobModel {",
+          "L76: pub fn new(id: impl Into<String>, label: impl Into<String>, value: f32) -> Self {",
+          "L93: pub fn with_unit(mut self, unit: impl Into<String>) -> Self {",
+          "L100: pub fn with_bipolar(mut self, bipolar: bool) -> Self {",
+          "L107: pub fn with_physical_value(mut self, physical: f32) -> Self {",
+          "L117: pub fn with_catch_threshold(mut self, threshold: f32) -> Self {",
+          "L123: pub fn set_target_value(&mut self, new_target: f32) {",
+          "L134: pub fn update_physical_value(&mut self, new_phys: f32) -> SoftTakeoverOutcome {",
+          "L162: pub fn angle_for_norm(&self, norm: f32) -> f32 {",
+          "L169: pub fn current_angle(&self) -> f32 {",
+          "L175: pub fn physical_angle(&self) -> Option<f32> {"
+        ]
+      },
+      "entity:novation-peak-pigs:synth-ui-theme-widgets": {
+        "id": "entity:novation-peak-pigs:synth-ui-theme-widgets",
+        "type": "UI_COMPONENT",
+        "path": "crates/synth-ui-theme/src/widgets.rs",
+        "purpose": "Reusable headless-testable vector widget state models and painter helpers: - [`RotaryKnobModel`]: Rotary dial with target arc and physical soft-takeover ghost ring. - [`StepLedButtonModel`]: Step sequencer button and LED indicator for 303/controller hardware. - [`EnvelopeCurveModel`]: ADSR curve visualization and polygon area generator.",
+        "responsibilities": [
+          "Exports SoftTakeoverOutcome, RotaryKnobModel, new, with_unit, with_bipolar, with_physical_value in crates/synth-ui-theme/src/widgets.rs"
+        ],
+        "exposedInterfaces": [
+          "SoftTakeoverOutcome",
+          "RotaryKnobModel",
+          "new",
+          "with_unit",
+          "with_bipolar",
+          "with_physical_value"
+        ],
+        "dependencies": [],
+        "blackboxConstraints": {},
+        "structuralOutline": [
+          "L19: pub enum SoftTakeoverOutcome {",
+          "L36: pub struct RotaryKnobModel {",
+          "L57: impl Default for RotaryKnobModel {",
+          "L58: fn default() -> Self {",
+          "L73: impl RotaryKnobModel {",
+          "L76: pub fn new(id: impl Into<String>, label: impl Into<String>, value: f32) -> Self {",
+          "L93: pub fn with_unit(mut self, unit: impl Into<String>) -> Self {",
+          "L100: pub fn with_bipolar(mut self, bipolar: bool) -> Self {",
+          "L107: pub fn with_physical_value(mut self, physical: f32) -> Self {",
+          "L117: pub fn with_catch_threshold(mut self, threshold: f32) -> Self {",
+          "L123: pub fn set_target_value(&mut self, new_target: f32) {",
+          "L134: pub fn update_physical_value(&mut self, new_phys: f32) -> SoftTakeoverOutcome {",
+          "L162: pub fn angle_for_norm(&self, norm: f32) -> f32 {",
+          "L169: pub fn current_angle(&self) -> f32 {",
+          "L175: pub fn physical_angle(&self) -> Option<f32> {",
+          "L181: pub fn dial_point(center: Pos2, radius: f32, angle_rad: f32) -> Pos2 {",
+          "L190: pub fn arc_norm_range(&self) -> (f32, f32) {",
+          "L200: pub fn track_points(&self, center: Pos2, radius: f32, steps: usize) -> Vec<Pos2> {",
+          "L213: pub fn arc_points(&self, center: Pos2, radius: f32, steps: usize) -> Vec<Pos2> {",
+          "L231: pub fn pointer_endpoints(",
+          "L246: pub fn ghost_pointer_endpoints(",
+          "L266: pub fn ghost_ring_points(&self, center: Pos2, radius: f32, steps: usize) -> Option<Vec<Pos2>> {",
+          "L285: pub fn paint(",
+          "L363: pub fn show(&mut self, ui: &mut Ui, accent_color: Color32) -> Response {",
+          "L393: pub enum StepLedState {"
+        ]
+      },
+      "entity:novation-peak-pigs:lib": {
+        "id": "entity:novation-peak-pigs:lib",
+        "type": "MODULE",
+        "path": "src/lib.rs",
+        "purpose": "Novation Peak 8-Voice Hybrid Synthesizer Manager, Librarian & Konduktiva Companion. Returns the canonical synthesizer identifier for this application.",
+        "responsibilities": [
+          "Exports synth_id in src/lib.rs"
+        ],
+        "exposedInterfaces": [
+          "synth_id"
+        ],
+        "dependencies": [],
+        "blackboxConstraints": {},
+        "structuralOutline": [
+          "L7: pub fn synth_id() -> &'static str {",
+          "L16: fn test_synth_id_baseline() {"
+        ]
+      },
+      "entity:novation-peak-pigs:main": {
+        "id": "entity:novation-peak-pigs:main",
+        "type": "BINARY",
+        "path": "src/main.rs",
+        "purpose": "CLI and GUI entrypoint for Novation Peak Manager.",
+        "responsibilities": [],
+        "exposedInterfaces": [],
+        "dependencies": [],
+        "blackboxConstraints": {},
+        "structuralOutline": [
+          "L2: fn main() {"
+        ]
+      },
+      "entity:novation-peak-pigs:konduktiva-peak": {
+        "id": "entity:novation-peak-pigs:konduktiva-peak",
+        "type": "PACKAGE",
+        "path": "js/konduktiva-peak",
+        "purpose": "Reusable Novation Peak MIDI driver for Konduktiva: CC sweeps, note voices, and a stress-test harness, bound to any host konduktiva via dependency injection.",
+        "responsibilities": [],
+        "exposedInterfaces": [],
+        "dependencies": [],
+        "blackboxConstraints": {},
+        "structuralOutline": [
+          "L21: function explain(name, err) {",
+          "L33: function resolveKonduktiva() {",
+          "L45: function resolveEasymidi() {",
+          "L27: function loadCcMap(jsonPath) {",
+          "L42: function resolveCc(name, ccMap) {",
+          "L62: function buildCcSet(ccMap) {",
+          "L84: function safeLoad() {",
+          "L101: function safeSweepRange(name) {",
+          "L35: function createPeakKit(K) {",
+          "L21: function listMidiOutputs() {",
+          "L33: function resolvePeakPort(opts) {",
+          "L47: function makeCaptureStub() {",
+          "L51: send(type, msg) {",
+          "L58: close() {},",
+          "L70: function panic(output, channel) {",
+          "L65: function makePlayers(K, sweeps) {",
+          "L76: function ensureSharedMaps(env) {",
+          "L102: function ensureRhythmLadder(env, spec) {",
+          "L141: function assertLadder(name, map) {",
+          "L168: function ensureDensityGraphs(env, rates) {",
+          "L193: function ensureChannelMap(env, channel) {",
+          "L214: function noteVoice(env, name, spec) {",
+          "L255: function ccLane(env, name, spec) {",
+          "L283: function createPeakPlayers(env, opts) {",
+          "L21: function makeStress(K, players) {",
+          "L32: function guardSuperdirtPort() {",
+          "L81: function openOutput(env, opts) {",
+          "L126: function runStressTest(env, opts) {",
+          "L207: async function buildAndRun(opts) {",
+          "L19: function makeSweeps(K) {",
+          "L27: function sweepCC(controller, lo, hi, cycleBeats, steps) {",
+          "L41: function dualSweepCC(cA, loA, hiA, cB, loB, hiB, cycleBeats, steps) {",
+          "L58: function rhythmPresets() {"
+        ]
+      },
+      "entity:novation-peak-pigs:shared-synth-sdk": {
+        "id": "entity:novation-peak-pigs:shared-synth-sdk",
+        "type": "PACKAGE",
+        "path": "js/shared-synth-sdk",
+        "purpose": "Usable across nkEditor, ASM Hydrasynth Editor, and bs2-td3-manager. Standard default UDP ports matching docs/BS2-TD3-MANAGER-SPEC.md. All 15 yaae / twoBowls theme names supported across companion apps.",
+        "responsibilities": [
+          "Exports DEFAULT_PORTS, THEMES, TWO_BOWLS_BACKGROUNDS, ACCENT_PROFILES, NORD_CRIMSON_HEX, NORD_AMBER_LED_HEX in js/shared-synth-sdk/index.js",
+          "Exports VOICE_COUNT, CLAVIA_MANUFACTURER_ID, NORD_DRUM_2_MODEL_ID, DEFAULT_GLOBAL_CHANNEL, GLOBAL_FOCUS_CC, DEFAULT_TRIGGER_NOTES in js/shared-synth-sdk/nord-drum-router.js",
+          "Exports SYSEX_MSG_TYPE_PROGRAM, SYSEX_MSG_TYPE_BANK, SYSEX_VOICE_PARAM_COUNT, SYSEX_VOICE_PAYLOAD_BYTES, SYSEX_KIT_GLOBALS_BYTES, SYSEX_KIT_TOTAL_PAYLOAD_BYTES in js/shared-synth-sdk/nord-drum-sysex.js",
+          "Exports paddedStringLen, paddedBlobLen, oscFloat, oscInt, oscString, oscBlob in js/shared-synth-sdk/osc-codec.js",
+          "Exports SYNTH_PATCH_SCHEMA, DEVICE_PROFILE_SCHEMA, CONTROLLER_MAPPING_SCHEMA, THEME_CONFIG_SCHEMA, ASM_HYDRASYNTH_PROFILE, KORG_NANOKONTROL2_PROFILE in js/shared-synth-sdk/schema-validator.js",
+          "Exports SharedSynthClient in js/shared-synth-sdk/synth-client.js"
+        ],
+        "exposedInterfaces": [
+          "DEFAULT_PORTS",
+          "THEMES",
+          "TWO_BOWLS_BACKGROUNDS",
+          "ACCENT_PROFILES",
+          "NORD_CRIMSON_HEX",
+          "NORD_AMBER_LED_HEX",
+          "VOICE_COUNT",
+          "CLAVIA_MANUFACTURER_ID",
+          "NORD_DRUM_2_MODEL_ID",
+          "DEFAULT_GLOBAL_CHANNEL",
+          "GLOBAL_FOCUS_CC",
+          "DEFAULT_TRIGGER_NOTES"
+        ],
+        "dependencies": [],
+        "blackboxConstraints": {},
+        "structuralOutline": [
+          "L16: export const DEFAULT_PORTS = {",
+          "L24: export const THEMES = [",
+          "L45: export const TWO_BOWLS_BACKGROUNDS = [",
+          "L55: export const ACCENT_PROFILES = [",
+          "L68: export const NORD_CRIMSON_HEX = '#E52521';",
+          "L73: export const NORD_AMBER_LED_HEX = '#FFB300';",
+          "L78: export const ACID_STYLES = [",
+          "L11: export const VOICE_COUNT = 6;",
+          "L12: export const CLAVIA_MANUFACTURER_ID = 0x33;",
+          "L13: export const NORD_DRUM_2_MODEL_ID = 0x12;",
+          "L14: export const DEFAULT_GLOBAL_CHANNEL = 10;",
+          "L15: export const GLOBAL_FOCUS_CC = 70;",
+          "L16: export const DEFAULT_TRIGGER_NOTES = Object.freeze([60, 62, 64, 65, 67, 69]);",
+          "L17: export const UMC1820_ALSA_DEVICE = 'hw:0,0,0';",
+          "L18: export const NANOKONTROL2_ALSA_DEVICE = 'hw:2,0,0';",
+          "L19: export const DEFAULT_CC_THROTTLE_MS = 2;",
+          "L24: export const ND2_VOICE_NAMES = Object.freeze([",
+          "L36: export const ND2_VOICE_ROLES = Object.freeze({",
+          "L48: export const ND2_CC = Object.freeze({",
+          "L96: export const MidiSafetyMode = Object.freeze({",
+          "L105: export const MidiControlMode = Object.freeze({",
+          "L113: export class NordDrumHardwareDiscovery {",
+          "L122: static discoverNonInvasive(options = {}) {",
+          "L180: static hasNordDrumPort(result) {",
+          "L189: static hasController(result) {",
+          "L198: export class DualMidiRouter {",
+          "L202: constructor(options = {}) {",
+          "L220: setTriggerNote(voiceIndex, note) {",
+          "L233: getTriggerNote(voiceIndex) {",
+          "L245: setVoiceChannel(voiceIndex, channel) {",
+          "L261: getVoiceChannel(voiceIndex) {",
+          "L273: switchFocus(voiceIndex) {",
+          "L16: export const SYSEX_MSG_TYPE_PROGRAM = 0x01;",
+          "L17: export const SYSEX_MSG_TYPE_BANK = 0x02;",
+          "L19: export const SYSEX_VOICE_PARAM_COUNT = 32;",
+          "L20: export const SYSEX_VOICE_PAYLOAD_BYTES = VOICE_COUNT * SYSEX_VOICE_PARAM_COUNT; // 192 bytes",
+          "L21: export const SYSEX_KIT_GLOBALS_BYTES = 30;",
+          "L22: export const SYSEX_KIT_TOTAL_PAYLOAD_BYTES = SYSEX_VOICE_PAYLOAD_BYTES + SYSEX_KIT_GLOBALS_BYTES; //",
+          "L23: export const SYSEX_FRAME_LENGTH = 231;",
+          "L24: export const TOTAL_PROGRAMS_PER_BANK = 50;"
+        ]
+      }
+    },
+    "relations": [
+      {
+        "from": "entity:novation-peak-pigs:synth-core",
+        "to": "entity:novation-peak-pigs:synth-core-diff",
+        "relationType": "DEPENDS_ON",
+        "contract": "Crate submodule boundary"
+      },
+      {
+        "from": "entity:novation-peak-pigs:synth-core",
+        "to": "entity:novation-peak-pigs:synth-core-error",
+        "relationType": "DEPENDS_ON",
+        "contract": "Crate submodule boundary"
+      },
+      {
+        "from": "entity:novation-peak-pigs:synth-core",
+        "to": "entity:novation-peak-pigs:synth-core-history",
+        "relationType": "DEPENDS_ON",
+        "contract": "Crate submodule boundary"
+      },
+      {
+        "from": "entity:novation-peak-pigs:synth-core",
+        "to": "entity:novation-peak-pigs:synth-core-param",
+        "relationType": "DEPENDS_ON",
+        "contract": "Crate submodule boundary"
+      },
+      {
+        "from": "entity:novation-peak-pigs:synth-core",
+        "to": "entity:novation-peak-pigs:synth-core-preset",
+        "relationType": "DEPENDS_ON",
+        "contract": "Crate submodule boundary"
+      },
+      {
+        "from": "entity:novation-peak-pigs:synth-core",
+        "to": "entity:novation-peak-pigs:synth-core-profiles",
+        "relationType": "DEPENDS_ON",
+        "contract": "Crate submodule boundary"
+      },
+      {
+        "from": "entity:novation-peak-pigs:synth-core",
+        "to": "entity:novation-peak-pigs:synth-core-randomizer",
+        "relationType": "DEPENDS_ON",
+        "contract": "Crate submodule boundary"
+      },
+      {
+        "from": "entity:novation-peak-pigs:synth-midi-osc",
+        "to": "entity:novation-peak-pigs:synth-midi-osc-hardware",
+        "relationType": "DEPENDS_ON",
+        "contract": "Crate submodule boundary"
+      },
+      {
+        "from": "entity:novation-peak-pigs:synth-midi-osc",
+        "to": "entity:novation-peak-pigs:synth-midi-osc-osc",
+        "relationType": "DEPENDS_ON",
+        "contract": "Crate submodule boundary"
+      },
+      {
+        "from": "entity:novation-peak-pigs:synth-midi-osc",
+        "to": "entity:novation-peak-pigs:synth-midi-osc-routing",
+        "relationType": "DEPENDS_ON",
+        "contract": "Crate submodule boundary"
+      },
+      {
+        "from": "entity:novation-peak-pigs:synth-midi-osc",
+        "to": "entity:novation-peak-pigs:synth-core",
+        "relationType": "DEPENDS_ON",
+        "contract": "Workspace module boundary"
+      },
+      {
+        "from": "entity:novation-peak-pigs:synth-ui-theme",
+        "to": "entity:novation-peak-pigs:synth-ui-theme-widgets",
+        "relationType": "DEPENDS_ON",
+        "contract": "Crate submodule boundary"
+      },
+      {
+        "from": "entity:novation-peak-pigs:synth-ui-theme",
+        "to": "entity:novation-peak-pigs:synth-core",
+        "relationType": "DEPENDS_ON",
+        "contract": "Workspace module boundary"
+      },
+      {
+        "from": "entity:novation-peak-pigs:synth-midi-osc",
+        "to": "entity:novation-peak-pigs:synth-core",
+        "relationType": "DEPENDS_ON",
+        "contract": "Internal module dependency"
+      },
+      {
+        "from": "entity:novation-peak-pigs:synth-ui-theme",
+        "to": "entity:novation-peak-pigs:synth-core",
+        "relationType": "DEPENDS_ON",
+        "contract": "Internal module dependency"
+      }
+    ]
+  },
+  "intentEngine": {
+    "changes": [
+      {
+        "id": "change:ingest-existing-directory-modules-and-verify-bas",
+        "title": "Ingest existing directory modules and verify baseline build",
+        "description": "Ingest existing directory modules and verify baseline build",
+        "prompt": null,
+        "status": "UNIMPLEMENTED",
+        "category": "ROADMAP",
+        "domain": "ARCHITECTURE",
+        "subIntentId": null,
+        "createdAt": "2026-11-05T19:09:40.852Z",
+        "completedAt": null,
+        "commitSha": null,
+        "txId": null
+      },
+      {
+        "id": "change:-provide-core-novation-peak-8-capabilities-for-u",
+        "title": "[Provide Core Novation Peak 8 Capabilities for Users] Deliver the primary user-facing workflows and core domain operations for Novation Peak 8",
+        "description": "[Provide Core Novation Peak 8 Capabilities for Users] Deliver the primary user-facing workflows and core domain operations for Novation Peak 8",
+        "prompt": null,
+        "status": "UNIMPLEMENTED",
+        "category": "ROADMAP",
+        "domain": "ARCHITECTURE",
+        "subIntentId": null,
+        "createdAt": "2026-11-05T19:09:40.853Z",
+        "completedAt": null,
+        "commitSha": null,
+        "txId": null
+      },
+      {
+        "id": "change:-improve-user-workflow-efficiency-and-ergonomics",
+        "title": "[Improve User Workflow Efficiency and Ergonomics] Ensure responsive controls, clear status feedback, and ergonomic keyboard/mouse interaction",
+        "description": "[Improve User Workflow Efficiency and Ergonomics] Ensure responsive controls, clear status feedback, and ergonomic keyboard/mouse interaction",
+        "prompt": null,
+        "status": "UNIMPLEMENTED",
+        "category": "ROADMAP",
+        "domain": "UI_LAYOUT",
+        "subIntentId": null,
+        "createdAt": "2026-11-05T19:09:40.853Z",
+        "completedAt": null,
+        "commitSha": null,
+        "txId": null
+      },
+      {
+        "id": "change:-ensure-reliability-data-integrity-and-state-per",
+        "title": "[Ensure Reliability, Data Integrity, and State Persistence] Persist user state and configuration reliably while handling runtime errors gracefully without crashes",
+        "description": "[Ensure Reliability, Data Integrity, and State Persistence] Persist user state and configuration reliably while handling runtime errors gracefully without crashes",
+        "prompt": null,
+        "status": "UNIMPLEMENTED",
+        "category": "ROADMAP",
+        "domain": "PERSISTENCE",
+        "subIntentId": null,
+        "createdAt": "2026-11-05T19:09:40.853Z",
+        "completedAt": null,
+        "commitSha": null,
+        "txId": null
+      },
+      {
+        "id": "change:syntax-validation-and-build-verification",
+        "title": "Syntax validation and build verification",
+        "description": "Syntax validation and build verification",
+        "prompt": null,
+        "status": "UNIMPLEMENTED",
+        "category": "ROADMAP",
+        "domain": "ARCHITECTURE",
+        "subIntentId": null,
+        "createdAt": "2026-11-05T19:09:40.853Z",
+        "completedAt": null,
+        "commitSha": null,
+        "txId": null
+      },
+      {
+        "id": "change:ast-architectural-invariant-validation",
+        "title": "AST architectural invariant validation",
+        "description": "AST architectural invariant validation",
+        "prompt": null,
+        "status": "UNIMPLEMENTED",
+        "category": "ROADMAP",
+        "domain": "DATA_MODEL",
+        "subIntentId": null,
+        "createdAt": "2026-11-05T19:09:40.853Z",
+        "completedAt": null,
+        "commitSha": null,
+        "txId": null
+      },
+      {
+        "id": "change:automated-unit-integration-test-execution",
+        "title": "Automated unit & integration test execution",
+        "description": "Automated unit & integration test execution",
+        "prompt": null,
+        "status": "UNIMPLEMENTED",
+        "category": "ROADMAP",
+        "domain": "ARCHITECTURE",
+        "subIntentId": null,
+        "createdAt": "2026-11-05T19:09:40.853Z",
+        "completedAt": null,
+        "commitSha": null,
+        "txId": null
+      },
+      {
+        "id": "change:attach-verification-metadata-to-refs-notes-world",
+        "title": "Attach verification metadata to refs/notes/world-model",
+        "description": "Attach verification metadata to refs/notes/world-model",
+        "prompt": null,
+        "status": "UNIMPLEMENTED",
+        "category": "ROADMAP",
+        "domain": "WORLD_MODEL",
+        "subIntentId": null,
+        "createdAt": "2026-11-05T19:09:40.853Z",
+        "completedAt": null,
+        "commitSha": null,
+        "txId": null
+      },
+      {
+        "id": "change:increment-world-model-epoch-and-close-causal-tra",
+        "title": "Increment world model epoch and close causal transaction",
+        "description": "Increment world model epoch and close causal transaction",
+        "prompt": null,
+        "status": "UNIMPLEMENTED",
+        "category": "ROADMAP",
+        "domain": "WORLD_MODEL",
+        "subIntentId": null,
+        "createdAt": "2026-11-05T19:09:40.853Z",
+        "completedAt": null,
+        "commitSha": null,
+        "txId": null
+      }
+    ],
+    "globalInvariants": {
+      "inv:clean-architecture": {
+        "id": "inv:clean-architecture",
+        "level": "FATAL",
+        "evaluator": "STATIC_AST_QUERY",
+        "rule": "Core domain logic must not import directly from UI or external adapters.",
+        "predicate": {
+          "forbiddenPatterns": [
+            "ui::",
+            "view::",
+            "crate::ui::"
+          ]
+        }
+      },
+      "inv:no-raw-panics": {
+        "id": "inv:no-raw-panics",
+        "level": "STRICT",
+        "evaluator": "AST_GREP",
+        "rule": "Production code must not call panic!(), unwrap(), or todo!() in hot loops.",
+        "predicate": {
+          "forbiddenKeywords": [
+            "unwrap()",
+            "panic!(",
+            "todo!("
+          ]
+        }
+      },
+      "inv:resource-bounds": {
+        "id": "inv:resource-bounds",
+        "level": "FATAL",
+        "evaluator": "RUNTIME_RESOURCE_CHECK",
+        "rule": "Max build parallelism must not exceed 2 jobs; memory footprint under 200MB.",
+        "predicate": {
+          "maxBuildJobs": 2,
+          "maxMemoryMb": 200
+        }
+      }
+    },
+    "operationalBudgets": {
+      "budget:build-latency": {
+        "targetEntity": "all",
+        "metric": "BUILD_TIME_SECONDS",
+        "threshold": 45,
+        "verifier": "CARGO_CHECK",
+        "command": "cargo check --quiet"
+      }
+    },
+    "generalizedIntent": {
+      "highLevelObjectives": [
+        {
+          "id": "subintent:core-user-capability",
+          "theme": "CORE_USER_CAPABILITY",
+          "domain": "SEQUENCING_MIDI",
+          "generalIntent": "Provide Core Novation Peak 8 Capabilities for Users",
+          "priority": "CRITICAL",
+          "rank": 1,
+          "manuallyModified": true,
+          "removedRequirements": [],
+          "requirementStatuses": {},
+          "statusOverride": null,
+          "relationToMainIntent": "Advances Main Intent [Novation Peak 8-Voice Polyphonic Hybrid Synthesizer Manager, Patch Librarian & Konduktiva Companion → Musical Pattern Sequencing, Piano Roll, Rhythm/Harmony & MIDI Events]: Provide Core Novation Peak 8 Capabilities for Users",
+          "formalSpecification": "Novation Peak 8-Voice Polyphonic Hybrid Synthesizer Manager, Patch Librarian & Konduktiva Companion",
+          "inferredRequirements": [
+            "Deliver the primary user-facing workflows and core domain operations for Novation Peak 8"
+          ],
+          "derivedFromPrompts": [
+            "Core Human Intent derived from Main Intent: Novation Peak 8-Voice Polyphonic Hybrid Synthesizer Manager, Patch Librarian & Konduktiva Companion"
+          ],
+          "targetEntities": [
+            "entity:novation-peak-pigs:synth-core",
+            "entity:novation-peak-pigs:synth-core-diff"
+          ]
+        },
+        {
+          "id": "subintent:workflow-efficiency-and-ergonomics",
+          "theme": "WORKFLOW_EFFICIENCY_AND_ERGONOMICS",
+          "domain": "ERGONOMICS",
+          "generalIntent": "Improve User Workflow Efficiency and Ergonomics",
+          "priority": "HIGH",
+          "rank": 2,
+          "manuallyModified": true,
+          "removedRequirements": [],
+          "requirementStatuses": {},
+          "statusOverride": null,
+          "relationToMainIntent": "Advances Main Intent [Novation Peak 8-Voice Polyphonic Hybrid Synthesizer Manager, Patch Librarian & Konduktiva Companion → Keyboard-First Interaction, Configurable Hotkeys, Accessibility & Workflow Ergonomics]: Improve User Workflow Efficiency and Ergonomics",
+          "formalSpecification": "Provide responsive, intuitive controls, clear visual feedback, and low-friction interaction flows across Novation Peak 8.",
+          "inferredRequirements": [
+            "Ensure responsive controls, clear status feedback, and ergonomic keyboard/mouse interaction"
+          ],
+          "derivedFromPrompts": [
+            "Core Human Intent derived from Main Intent: Novation Peak 8-Voice Polyphonic Hybrid Synthesizer Manager, Patch Librarian & Konduktiva Companion"
+          ],
+          "targetEntities": [
+            "entity:novation-peak-pigs:synth-core",
+            "entity:novation-peak-pigs:synth-core-diff"
+          ]
+        },
+        {
+          "id": "subintent:reliability-and-state-persistence",
+          "theme": "RELIABLE_STATE_AND_QUALITY",
+          "domain": "PERSISTENCE",
+          "generalIntent": "Ensure Reliability, Data Integrity, and State Persistence",
+          "priority": "HIGH",
+          "rank": 3,
+          "manuallyModified": true,
+          "removedRequirements": [],
+          "requirementStatuses": {},
+          "statusOverride": null,
+          "relationToMainIntent": "Advances Main Intent [Novation Peak 8-Voice Polyphonic Hybrid Synthesizer Manager, Patch Librarian & Konduktiva Companion → Persistent User Configuration, Project Serialization, Undo History & Storage]: Ensure Reliability, Data Integrity, and State Persistence",
+          "formalSpecification": "Maintain deterministic state persistence, graceful error handling, and automated test verification across Novation Peak 8.",
+          "inferredRequirements": [
+            "Persist user state and configuration reliably while handling runtime errors gracefully without crashes"
+          ],
+          "derivedFromPrompts": [
+            "Core Human Intent derived from Main Intent: Novation Peak 8-Voice Polyphonic Hybrid Synthesizer Manager, Patch Librarian & Konduktiva Companion"
+          ],
+          "targetEntities": [
+            "entity:novation-peak-pigs:synth-core",
+            "entity:novation-peak-pigs:synth-core-diff"
+          ]
+        }
+      ],
+      "feedbackHistory": [],
+      "activeRoadmap": [
+        {
+          "phase": 1,
+          "name": "Phase 1: Extracted Baseline & Architecture Foundation",
+          "status": "READY",
+          "deliverables": [
+            "Ingest existing directory modules and verify baseline build"
+          ]
+        },
+        {
+          "phase": 2,
+          "name": "Phase 2: Outstanding Feature & Roadmap Implementation",
+          "status": "READY",
+          "deliverables": [
+            "[Provide Core Novation Peak 8 Capabilities for Users] Deliver the primary user-facing workflows and core domain operations for Novation Peak 8",
+            "[Improve User Workflow Efficiency and Ergonomics] Ensure responsive controls, clear status feedback, and ergonomic keyboard/mouse interaction",
+            "[Ensure Reliability, Data Integrity, and State Persistence] Persist user state and configuration reliably while handling runtime errors gracefully without crashes"
+          ]
+        },
+        {
+          "phase": 3,
+          "name": "Phase 3: Deterministic Gating & Invariant Verification",
+          "status": "PLANNED",
+          "deliverables": [
+            "Syntax validation and build verification",
+            "AST architectural invariant validation",
+            "Automated unit & integration test execution"
+          ]
+        },
+        {
+          "phase": 4,
+          "name": "Phase 4: In-Band Git Provenance & World Model Epoch Transition",
+          "status": "PLANNED",
+          "deliverables": [
+            "Attach verification metadata to refs/notes/world-model",
+            "Increment world model epoch and close causal transaction"
+          ]
+        }
+      ]
+    },
+    "suggestionHistory": [],
+    "mainIntent": {
+      "title": "Novation Peak 8-Voice Polyphonic Hybrid Synthesizer Manager, Patch Librarian & Konduktiva Companion",
+      "shortSummary": "Novation Peak 8-Voice Polyphonic Hybrid Synthesizer Manager",
+      "statement": "Full-featured Rust/egui native desktop synthesizer manager, patch editor, librarian, Korg nanoKONTROL2 controller, and Konduktiva live-coding companion for the Novation Peak 8-voice polyphonic hybrid synthesizer, extending the shared synth ecosystem (synth-core, synth-midi-osc, synth-ui-theme, shared-synth-sdk, konduktiva-peak) across 5 synthesizers.",
+      "fullIntent": "Full-featured Rust/egui native desktop synthesizer manager, patch editor, librarian, Korg nanoKONTROL2 controller, and Konduktiva live-coding companion for the Novation Peak 8-voice polyphonic hybrid synthesizer, extending the shared synth ecosystem (synth-core, synth-midi-osc, synth-ui-theme, shared-synth-sdk, konduktiva-peak) across 5 synthesizers.",
+      "geminiSummarized": false,
+      "primaryDomains": [
+        "SYNTHESIS",
+        "SEQUENCING_MIDI",
+        "NETWORKING_IPC",
+        "UI_LAYOUT",
+        "ERGONOMICS",
+        "PERSISTENCE",
+        "ARCHITECTURE"
+      ]
+    },
+    "archivedTasks": [],
+    "intentsReviewed": false,
+    "structuredIntent": {
+      "projectId": "novation-peak-manager",
+      "mainIntent": {
+        "title": "Novation Peak 8-Voice Polyphonic Hybrid Synthesizer Manager, Patch Librarian & Konduktiva Companion",
+        "shortSummary": "Novation Peak 8-Voice Polyphonic Hybrid Synthesizer Manager",
+        "statement": "Full-featured Rust/egui native desktop synthesizer manager, patch editor, librarian, Korg nanoKONTROL2 controller, and Konduktiva live-coding companion for the Novation Peak 8-voice polyphonic hybrid synthesizer, extending the shared synth ecosystem (synth-core, synth-midi-osc, synth-ui-theme, shared-synth-sdk, konduktiva-peak) across 5 synthesizers.",
+        "fullIntent": "Full-featured Rust/egui native desktop synthesizer manager, patch editor, librarian, Korg nanoKONTROL2 controller, and Konduktiva live-coding companion for the Novation Peak 8-voice polyphonic hybrid synthesizer, extending the shared synth ecosystem (synth-core, synth-midi-osc, synth-ui-theme, shared-synth-sdk, konduktiva-peak) across 5 synthesizers.",
+        "geminiSummarized": false,
+        "primaryDomains": [
+          "SYNTHESIS",
+          "SEQUENCING_MIDI",
+          "NETWORKING_IPC",
+          "UI_LAYOUT",
+          "ERGONOMICS",
+          "PERSISTENCE",
+          "ARCHITECTURE"
+        ]
+      },
+      "subIntents": [
+        {
+          "id": "subintent:core-user-capability",
+          "theme": "CORE_USER_CAPABILITY",
+          "domain": "SEQUENCING_MIDI",
+          "name": "Provide Core Novation Peak 8 Capabilities for Users",
+          "shortSummary": "Provide Core Novation Peak 8 Capabilities for Users",
+          "fullIntent": "Novation Peak 8-Voice Polyphonic Hybrid Synthesizer Manager, Patch Librarian & Konduktiva Companion",
+          "geminiSummarized": false,
+          "priority": "CRITICAL",
+          "rank": 1,
+          "manuallyModified": true,
+          "removedRequirements": [],
+          "requirementStatuses": {},
+          "statusOverride": null,
+          "parentIntent": "Novation Peak 8-Voice Polyphonic Hybrid Synthesizer Manager, Patch Librarian & Konduktiva Companion",
+          "relationToMainIntent": "Advances Main Intent [Novation Peak 8-Voice Polyphonic Hybrid Synthesizer Manager, Patch Librarian & Konduktiva Companion → Musical Pattern Sequencing, Piano Roll, Rhythm/Harmony & MIDI Events]: Provide Core Novation Peak 8 Capabilities for Users",
+          "specification": "Novation Peak 8-Voice Polyphonic Hybrid Synthesizer Manager, Patch Librarian & Konduktiva Companion",
+          "inferredRequirements": [
+            "Deliver the primary user-facing workflows and core domain operations for Novation Peak 8"
+          ],
+          "derivedFromPrompts": [
+            "Core Human Intent derived from Main Intent: Novation Peak 8-Voice Polyphonic Hybrid Synthesizer Manager, Patch Librarian & Konduktiva Companion"
+          ],
+          "targetEntities": [
+            "entity:novation-peak-pigs:synth-core",
+            "entity:novation-peak-pigs:synth-core-diff"
+          ],
+          "invariants": [],
+          "childIntents": [],
+          "codeId": "I1",
+          "suggestedTasks": [
+            {
+              "id": "task:I1:req-1",
+              "codeId": "I1.1",
+              "subIntentId": "subintent:core-user-capability",
+              "subIntentCodeId": "I1",
+              "subIntentName": "Provide Core Novation Peak 8 Capabilities for Users",
+              "domain": "SEQUENCING_MIDI",
+              "kind": "REQUIREMENT",
+              "index": 1,
+              "title": "Requirement #1: Deliver the primary user-facing workflows and core domain operations for Novation Peak 8",
+              "taskPrompt": "Implement requirement #1 on [I1] (Provide Core Novation Peak 8 Capabilities for Users): Deliver the primary user-facing workflows and core domain operations for Novation Peak 8",
+              "status": "OUTSTANDING",
+              "isQueued": false,
+              "failedLastRun": false,
+              "commitSha": null
+            },
+            {
+              "id": "task:I1:synthesis",
+              "codeId": "I1.synthesis",
+              "subIntentId": "subintent:core-user-capability",
+              "subIntentCodeId": "I1",
+              "subIntentName": "Provide Core Novation Peak 8 Capabilities for Users",
+              "domain": "SEQUENCING_MIDI",
+              "kind": "SYNTHESIS",
+              "index": 2,
+              "title": "Synthesize capability: Provide Core Novation Peak 8 Capabilities for Users",
+              "taskPrompt": "Provide Core Novation Peak 8 Capabilities for Users: Novation Peak 8-Voice Polyphonic Hybrid Synthesizer Manager, Patch Librarian & Konduktiva Companion (Requirements: Deliver the primary user-facing workflows and core domain operations for Novation Peak 8)",
+              "status": "OUTSTANDING",
+              "isQueued": false,
+              "failedLastRun": false,
+              "commitSha": null
+            }
+          ],
+          "suggestions": [
+            {
+              "id": "task:I1:req-1",
+              "codeId": "I1.1",
+              "subIntentId": "subintent:core-user-capability",
+              "subIntentCodeId": "I1",
+              "subIntentName": "Provide Core Novation Peak 8 Capabilities for Users",
+              "domain": "SEQUENCING_MIDI",
+              "kind": "REQUIREMENT",
+              "index": 1,
+              "title": "Requirement #1: Deliver the primary user-facing workflows and core domain operations for Novation Peak 8",
+              "taskPrompt": "Implement requirement #1 on [I1] (Provide Core Novation Peak 8 Capabilities for Users): Deliver the primary user-facing workflows and core domain operations for Novation Peak 8",
+              "status": "OUTSTANDING",
+              "isQueued": false,
+              "failedLastRun": false,
+              "commitSha": null
+            },
+            {
+              "id": "task:I1:synthesis",
+              "codeId": "I1.synthesis",
+              "subIntentId": "subintent:core-user-capability",
+              "subIntentCodeId": "I1",
+              "subIntentName": "Provide Core Novation Peak 8 Capabilities for Users",
+              "domain": "SEQUENCING_MIDI",
+              "kind": "SYNTHESIS",
+              "index": 2,
+              "title": "Synthesize capability: Provide Core Novation Peak 8 Capabilities for Users",
+              "taskPrompt": "Provide Core Novation Peak 8 Capabilities for Users: Novation Peak 8-Voice Polyphonic Hybrid Synthesizer Manager, Patch Librarian & Konduktiva Companion (Requirements: Deliver the primary user-facing workflows and core domain operations for Novation Peak 8)",
+              "status": "OUTSTANDING",
+              "isQueued": false,
+              "failedLastRun": false,
+              "commitSha": null
+            }
+          ],
+          "hasQueuedTasks": false,
+          "requirementsDetailed": [
+            {
+              "index": 1,
+              "codeId": "I1.1",
+              "text": "Deliver the primary user-facing workflows and core domain operations for Novation Peak 8",
+              "status": "OUTSTANDING",
+              "commitSha": null,
+              "timestamp": null,
+              "txId": null,
+              "failedLastRun": false
+            }
+          ],
+          "implementationStatus": "OUTSTANDING",
+          "implementedCount": 0,
+          "inProgressCount": 0,
+          "queuedCount": 0,
+          "outstandingCount": 1,
+          "failedCount": 0,
+          "totalRequirements": 1,
+          "completionPct": 0,
+          "latestCommitSha": null,
+          "latestVerifiedAt": null
+        },
+        {
+          "id": "subintent:workflow-efficiency-and-ergonomics",
+          "theme": "WORKFLOW_EFFICIENCY_AND_ERGONOMICS",
+          "domain": "ERGONOMICS",
+          "name": "Improve User Workflow Efficiency and Ergonomics",
+          "shortSummary": "Improve User Workflow Efficiency and Ergonomics",
+          "fullIntent": "Provide responsive, intuitive controls, clear visual feedback, and low-friction interaction flows across Novation Peak 8.",
+          "geminiSummarized": false,
+          "priority": "HIGH",
+          "rank": 2,
+          "manuallyModified": true,
+          "removedRequirements": [],
+          "requirementStatuses": {},
+          "statusOverride": null,
+          "parentIntent": "Novation Peak 8-Voice Polyphonic Hybrid Synthesizer Manager, Patch Librarian & Konduktiva Companion",
+          "relationToMainIntent": "Advances Main Intent [Novation Peak 8-Voice Polyphonic Hybrid Synthesizer Manager, Patch Librarian & Konduktiva Companion → Keyboard-First Interaction, Configurable Hotkeys, Accessibility & Workflow Ergonomics]: Improve User Workflow Efficiency and Ergonomics",
+          "specification": "Provide responsive, intuitive controls, clear visual feedback, and low-friction interaction flows across Novation Peak 8.",
+          "inferredRequirements": [
+            "Ensure responsive controls, clear status feedback, and ergonomic keyboard/mouse interaction"
+          ],
+          "derivedFromPrompts": [
+            "Core Human Intent derived from Main Intent: Novation Peak 8-Voice Polyphonic Hybrid Synthesizer Manager, Patch Librarian & Konduktiva Companion"
+          ],
+          "targetEntities": [
+            "entity:novation-peak-pigs:synth-core",
+            "entity:novation-peak-pigs:synth-core-diff"
+          ],
+          "invariants": [],
+          "childIntents": [],
+          "codeId": "I2",
+          "suggestedTasks": [
+            {
+              "id": "task:I2:req-1",
+              "codeId": "I2.1",
+              "subIntentId": "subintent:workflow-efficiency-and-ergonomics",
+              "subIntentCodeId": "I2",
+              "subIntentName": "Improve User Workflow Efficiency and Ergonomics",
+              "domain": "ERGONOMICS",
+              "kind": "REQUIREMENT",
+              "index": 1,
+              "title": "Requirement #1: Ensure responsive controls, clear status feedback, and ergonomic keyboard/mouse interaction",
+              "taskPrompt": "Implement requirement #1 on [I2] (Improve User Workflow Efficiency and Ergonomics): Ensure responsive controls, clear status feedback, and ergonomic keyboard/mouse interaction",
+              "status": "OUTSTANDING",
+              "isQueued": false,
+              "failedLastRun": false,
+              "commitSha": null
+            },
+            {
+              "id": "task:I2:synthesis",
+              "codeId": "I2.synthesis",
+              "subIntentId": "subintent:workflow-efficiency-and-ergonomics",
+              "subIntentCodeId": "I2",
+              "subIntentName": "Improve User Workflow Efficiency and Ergonomics",
+              "domain": "ERGONOMICS",
+              "kind": "SYNTHESIS",
+              "index": 2,
+              "title": "Synthesize capability: Improve User Workflow Efficiency and Ergonomics",
+              "taskPrompt": "Improve User Workflow Efficiency and Ergonomics: Provide responsive, intuitive controls, clear visual feedback, and low-friction interaction flows across Novation Peak 8. (Requirements: Ensure responsive controls, clear status feedback, and ergonomic keyboard/mouse interaction)",
+              "status": "OUTSTANDING",
+              "isQueued": false,
+              "failedLastRun": false,
+              "commitSha": null
+            }
+          ],
+          "suggestions": [
+            {
+              "id": "task:I2:req-1",
+              "codeId": "I2.1",
+              "subIntentId": "subintent:workflow-efficiency-and-ergonomics",
+              "subIntentCodeId": "I2",
+              "subIntentName": "Improve User Workflow Efficiency and Ergonomics",
+              "domain": "ERGONOMICS",
+              "kind": "REQUIREMENT",
+              "index": 1,
+              "title": "Requirement #1: Ensure responsive controls, clear status feedback, and ergonomic keyboard/mouse interaction",
+              "taskPrompt": "Implement requirement #1 on [I2] (Improve User Workflow Efficiency and Ergonomics): Ensure responsive controls, clear status feedback, and ergonomic keyboard/mouse interaction",
+              "status": "OUTSTANDING",
+              "isQueued": false,
+              "failedLastRun": false,
+              "commitSha": null
+            },
+            {
+              "id": "task:I2:synthesis",
+              "codeId": "I2.synthesis",
+              "subIntentId": "subintent:workflow-efficiency-and-ergonomics",
+              "subIntentCodeId": "I2",
+              "subIntentName": "Improve User Workflow Efficiency and Ergonomics",
+              "domain": "ERGONOMICS",
+              "kind": "SYNTHESIS",
+              "index": 2,
+              "title": "Synthesize capability: Improve User Workflow Efficiency and Ergonomics",
+              "taskPrompt": "Improve User Workflow Efficiency and Ergonomics: Provide responsive, intuitive controls, clear visual feedback, and low-friction interaction flows across Novation Peak 8. (Requirements: Ensure responsive controls, clear status feedback, and ergonomic keyboard/mouse interaction)",
+              "status": "OUTSTANDING",
+              "isQueued": false,
+              "failedLastRun": false,
+              "commitSha": null
+            }
+          ],
+          "hasQueuedTasks": false,
+          "requirementsDetailed": [
+            {
+              "index": 1,
+              "codeId": "I2.1",
+              "text": "Ensure responsive controls, clear status feedback, and ergonomic keyboard/mouse interaction",
+              "status": "OUTSTANDING",
+              "commitSha": null,
+              "timestamp": null,
+              "txId": null,
+              "failedLastRun": false
+            }
+          ],
+          "implementationStatus": "OUTSTANDING",
+          "implementedCount": 0,
+          "inProgressCount": 0,
+          "queuedCount": 0,
+          "outstandingCount": 1,
+          "failedCount": 0,
+          "totalRequirements": 1,
+          "completionPct": 0,
+          "latestCommitSha": null,
+          "latestVerifiedAt": null
+        },
+        {
+          "id": "subintent:reliability-and-state-persistence",
+          "theme": "RELIABLE_STATE_AND_QUALITY",
+          "domain": "PERSISTENCE",
+          "name": "Ensure Reliability, Data Integrity, and State Persistence",
+          "shortSummary": "Ensure Reliability, Data Integrity, and State Persistence",
+          "fullIntent": "Maintain deterministic state persistence, graceful error handling, and automated test verification across Novation Peak 8.",
+          "geminiSummarized": false,
+          "priority": "HIGH",
+          "rank": 3,
+          "manuallyModified": true,
+          "removedRequirements": [],
+          "requirementStatuses": {},
+          "statusOverride": null,
+          "parentIntent": "Novation Peak 8-Voice Polyphonic Hybrid Synthesizer Manager, Patch Librarian & Konduktiva Companion",
+          "relationToMainIntent": "Advances Main Intent [Novation Peak 8-Voice Polyphonic Hybrid Synthesizer Manager, Patch Librarian & Konduktiva Companion → Persistent User Configuration, Project Serialization, Undo History & Storage]: Ensure Reliability, Data Integrity, and State Persistence",
+          "specification": "Maintain deterministic state persistence, graceful error handling, and automated test verification across Novation Peak 8.",
+          "inferredRequirements": [
+            "Persist user state and configuration reliably while handling runtime errors gracefully without crashes"
+          ],
+          "derivedFromPrompts": [
+            "Core Human Intent derived from Main Intent: Novation Peak 8-Voice Polyphonic Hybrid Synthesizer Manager, Patch Librarian & Konduktiva Companion"
+          ],
+          "targetEntities": [
+            "entity:novation-peak-pigs:synth-core",
+            "entity:novation-peak-pigs:synth-core-diff"
+          ],
+          "invariants": [],
+          "childIntents": [],
+          "codeId": "I3",
+          "suggestedTasks": [
+            {
+              "id": "task:I3:req-1",
+              "codeId": "I3.1",
+              "subIntentId": "subintent:reliability-and-state-persistence",
+              "subIntentCodeId": "I3",
+              "subIntentName": "Ensure Reliability, Data Integrity, and State Persistence",
+              "domain": "PERSISTENCE",
+              "kind": "REQUIREMENT",
+              "index": 1,
+              "title": "Requirement #1: Persist user state and configuration reliably while handling runtime errors gracefully without crashes",
+              "taskPrompt": "Implement requirement #1 on [I3] (Ensure Reliability, Data Integrity, and State Persistence): Persist user state and configuration reliably while handling runtime errors gracefully without crashes",
+              "status": "OUTSTANDING",
+              "isQueued": false,
+              "failedLastRun": false,
+              "commitSha": null
+            },
+            {
+              "id": "task:I3:synthesis",
+              "codeId": "I3.synthesis",
+              "subIntentId": "subintent:reliability-and-state-persistence",
+              "subIntentCodeId": "I3",
+              "subIntentName": "Ensure Reliability, Data Integrity, and State Persistence",
+              "domain": "PERSISTENCE",
+              "kind": "SYNTHESIS",
+              "index": 2,
+              "title": "Synthesize capability: Ensure Reliability, Data Integrity, and State Persistence",
+              "taskPrompt": "Ensure Reliability, Data Integrity, and State Persistence: Maintain deterministic state persistence, graceful error handling, and automated test verification across Novation Peak 8. (Requirements: Persist user state and configuration reliably while handling runtime errors gracefully without crashes)",
+              "status": "OUTSTANDING",
+              "isQueued": false,
+              "failedLastRun": false,
+              "commitSha": null
+            }
+          ],
+          "suggestions": [
+            {
+              "id": "task:I3:req-1",
+              "codeId": "I3.1",
+              "subIntentId": "subintent:reliability-and-state-persistence",
+              "subIntentCodeId": "I3",
+              "subIntentName": "Ensure Reliability, Data Integrity, and State Persistence",
+              "domain": "PERSISTENCE",
+              "kind": "REQUIREMENT",
+              "index": 1,
+              "title": "Requirement #1: Persist user state and configuration reliably while handling runtime errors gracefully without crashes",
+              "taskPrompt": "Implement requirement #1 on [I3] (Ensure Reliability, Data Integrity, and State Persistence): Persist user state and configuration reliably while handling runtime errors gracefully without crashes",
+              "status": "OUTSTANDING",
+              "isQueued": false,
+              "failedLastRun": false,
+              "commitSha": null
+            },
+            {
+              "id": "task:I3:synthesis",
+              "codeId": "I3.synthesis",
+              "subIntentId": "subintent:reliability-and-state-persistence",
+              "subIntentCodeId": "I3",
+              "subIntentName": "Ensure Reliability, Data Integrity, and State Persistence",
+              "domain": "PERSISTENCE",
+              "kind": "SYNTHESIS",
+              "index": 2,
+              "title": "Synthesize capability: Ensure Reliability, Data Integrity, and State Persistence",
+              "taskPrompt": "Ensure Reliability, Data Integrity, and State Persistence: Maintain deterministic state persistence, graceful error handling, and automated test verification across Novation Peak 8. (Requirements: Persist user state and configuration reliably while handling runtime errors gracefully without crashes)",
+              "status": "OUTSTANDING",
+              "isQueued": false,
+              "failedLastRun": false,
+              "commitSha": null
+            }
+          ],
+          "hasQueuedTasks": false,
+          "requirementsDetailed": [
+            {
+              "index": 1,
+              "codeId": "I3.1",
+              "text": "Persist user state and configuration reliably while handling runtime errors gracefully without crashes",
+              "status": "OUTSTANDING",
+              "commitSha": null,
+              "timestamp": null,
+              "txId": null,
+              "failedLastRun": false
+            }
+          ],
+          "implementationStatus": "OUTSTANDING",
+          "implementedCount": 0,
+          "inProgressCount": 0,
+          "queuedCount": 0,
+          "outstandingCount": 1,
+          "failedCount": 0,
+          "totalRequirements": 1,
+          "completionPct": 0,
+          "latestCommitSha": null,
+          "latestVerifiedAt": null
+        }
+      ],
+      "changes": [
+        {
+          "id": "change:ingest-existing-directory-modules-and-verify-bas",
+          "title": "Ingest existing directory modules and verify baseline build",
+          "description": "Ingest existing directory modules and verify baseline build",
+          "prompt": null,
+          "status": "UNIMPLEMENTED",
+          "category": "ROADMAP",
+          "domain": "ARCHITECTURE",
+          "subIntentId": null,
+          "createdAt": "2026-11-05T19:09:40.852Z",
+          "completedAt": null,
+          "commitSha": null,
+          "txId": null
+        },
+        {
+          "id": "change:-provide-core-novation-peak-8-capabilities-for-u",
+          "title": "[Provide Core Novation Peak 8 Capabilities for Users] Deliver the primary user-facing workflows and core domain operations for Novation Peak 8",
+          "description": "[Provide Core Novation Peak 8 Capabilities for Users] Deliver the primary user-facing workflows and core domain operations for Novation Peak 8",
+          "prompt": null,
+          "status": "UNIMPLEMENTED",
+          "category": "ROADMAP",
+          "domain": "ARCHITECTURE",
+          "subIntentId": null,
+          "createdAt": "2026-11-05T19:09:40.853Z",
+          "completedAt": null,
+          "commitSha": null,
+          "txId": null
+        },
+        {
+          "id": "change:-improve-user-workflow-efficiency-and-ergonomics",
+          "title": "[Improve User Workflow Efficiency and Ergonomics] Ensure responsive controls, clear status feedback, and ergonomic keyboard/mouse interaction",
+          "description": "[Improve User Workflow Efficiency and Ergonomics] Ensure responsive controls, clear status feedback, and ergonomic keyboard/mouse interaction",
+          "prompt": null,
+          "status": "UNIMPLEMENTED",
+          "category": "ROADMAP",
+          "domain": "UI_LAYOUT",
+          "subIntentId": null,
+          "createdAt": "2026-11-05T19:09:40.853Z",
+          "completedAt": null,
+          "commitSha": null,
+          "txId": null
+        },
+        {
+          "id": "change:-ensure-reliability-data-integrity-and-state-per",
+          "title": "[Ensure Reliability, Data Integrity, and State Persistence] Persist user state and configuration reliably while handling runtime errors gracefully without crashes",
+          "description": "[Ensure Reliability, Data Integrity, and State Persistence] Persist user state and configuration reliably while handling runtime errors gracefully without crashes",
+          "prompt": null,
+          "status": "UNIMPLEMENTED",
+          "category": "ROADMAP",
+          "domain": "PERSISTENCE",
+          "subIntentId": null,
+          "createdAt": "2026-11-05T19:09:40.853Z",
+          "completedAt": null,
+          "commitSha": null,
+          "txId": null
+        },
+        {
+          "id": "change:syntax-validation-and-build-verification",
+          "title": "Syntax validation and build verification",
+          "description": "Syntax validation and build verification",
+          "prompt": null,
+          "status": "UNIMPLEMENTED",
+          "category": "ROADMAP",
+          "domain": "ARCHITECTURE",
+          "subIntentId": null,
+          "createdAt": "2026-11-05T19:09:40.853Z",
+          "completedAt": null,
+          "commitSha": null,
+          "txId": null
+        },
+        {
+          "id": "change:ast-architectural-invariant-validation",
+          "title": "AST architectural invariant validation",
+          "description": "AST architectural invariant validation",
+          "prompt": null,
+          "status": "UNIMPLEMENTED",
+          "category": "ROADMAP",
+          "domain": "DATA_MODEL",
+          "subIntentId": null,
+          "createdAt": "2026-11-05T19:09:40.853Z",
+          "completedAt": null,
+          "commitSha": null,
+          "txId": null
+        },
+        {
+          "id": "change:automated-unit-integration-test-execution",
+          "title": "Automated unit & integration test execution",
+          "description": "Automated unit & integration test execution",
+          "prompt": null,
+          "status": "UNIMPLEMENTED",
+          "category": "ROADMAP",
+          "domain": "ARCHITECTURE",
+          "subIntentId": null,
+          "createdAt": "2026-11-05T19:09:40.853Z",
+          "completedAt": null,
+          "commitSha": null,
+          "txId": null
+        },
+        {
+          "id": "change:attach-verification-metadata-to-refs-notes-world",
+          "title": "Attach verification metadata to refs/notes/world-model",
+          "description": "Attach verification metadata to refs/notes/world-model",
+          "prompt": null,
+          "status": "UNIMPLEMENTED",
+          "category": "ROADMAP",
+          "domain": "WORLD_MODEL",
+          "subIntentId": null,
+          "createdAt": "2026-11-05T19:09:40.853Z",
+          "completedAt": null,
+          "commitSha": null,
+          "txId": null
+        },
+        {
+          "id": "change:increment-world-model-epoch-and-close-causal-tra",
+          "title": "Increment world model epoch and close causal transaction",
+          "description": "Increment world model epoch and close causal transaction",
+          "prompt": null,
+          "status": "UNIMPLEMENTED",
+          "category": "ROADMAP",
+          "domain": "WORLD_MODEL",
+          "subIntentId": null,
+          "createdAt": "2026-11-05T19:09:40.853Z",
+          "completedAt": null,
+          "commitSha": null,
+          "txId": null
+        }
+      ],
+      "archivedTasks": [],
+      "deletedSubIntents": [],
+      "tensions": [],
+      "suggestionHistory": [],
+      "intentsReviewed": false,
+      "reviewedAt": null,
+      "reviewNote": null,
+      "lastUpdated": "2026-11-05T19:09:40.862Z"
+    }
+  },
+  "processGraph": {
+    "initialState": "STATE_INTENT_INGESTION",
+    "currentState": "STATE_INTENT_INGESTION",
+    "states": {
+      "STATE_INTENT_INGESTION": {
+        "allowedAgents": [
+          "FRONTIER_PLANNER"
+        ],
+        "outputs": [
+          "PLAN_GENERATED"
+        ],
+        "nextTransitions": [
+          "STATE_SYMBOLIC_DECOMPOSITION"
+        ]
+      },
+      "STATE_SYMBOLIC_DECOMPOSITION": {
+        "allowedAgents": [
+          "SYMBOLIC_VERIFIER"
+        ],
+        "outputs": [
+          "DELTA_SPEC_BUILT"
+        ],
+        "nextTransitions": [
+          "STATE_LOCAL_MUTATION"
+        ]
+      },
+      "STATE_LOCAL_MUTATION": {
+        "allowedAgents": [
+          "LOCAL_EXECUTOR"
+        ],
+        "scope": "STRICT_LOCAL_MODULE_ONLY",
+        "outputs": [
+          "FILE_MUTATION_EMITTED"
+        ],
+        "nextTransitions": [
+          "STATE_DETERMINISTIC_GATING"
+        ]
+      },
+      "STATE_DETERMINISTIC_GATING": {
+        "allowedAgents": [
+          "SYMBOLIC_VERIFIER"
+        ],
+        "evaluators": [
+          "exec:syntax_parser",
+          "exec:ast_invariant_checker",
+          "exec:test_runner",
+          "exec:budget_benchmarker"
+        ],
+        "routes": {
+          "ON_PASS": "STATE_STATE_COMMIT",
+          "ON_FAIL": "STATE_FAULT_LOCALIZATION"
+        }
+      },
+      "STATE_FAULT_LOCALIZATION": {
+        "allowedAgents": [
+          "SYMBOLIC_VERIFIER"
+        ],
+        "outputs": [
+          "REFINED_LOCAL_PROMPT_WITH_ERROR_TRACES"
+        ],
+        "nextTransitions": [
+          "STATE_LOCAL_MUTATION"
+        ],
+        "maxCycleCount": 5,
+        "onExceededThreshold": "ESCALATE_TO_FRONTIER_REPLAN"
+      },
+      "STATE_STATE_COMMIT": {
+        "allowedAgents": [
+          "SYMBOLIC_VERIFIER"
+        ],
+        "action": "MERGE_DELTA_AND_INCREMENT_EPOCH",
+        "nextTransitions": [
+          "STATE_TERMINAL_SUCCESS"
+        ]
+      },
+      "STATE_TERMINAL_SUCCESS": {
+        "allowedAgents": [
+          "FRONTIER_PLANNER"
+        ],
+        "outputs": [
+          "TRANSACTION_CLOSED"
+        ],
+        "nextTransitions": [
+          "STATE_INTENT_INGESTION"
+        ]
+      }
+    }
+  },
+  "ledger": {
+    "activeTransactionId": null,
+    "transactions": []
+  }
+}
