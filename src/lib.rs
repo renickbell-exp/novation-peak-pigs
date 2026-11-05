@@ -7,6 +7,7 @@ pub use synth_core::profiles::{NovationPeakProfile, UnifiedEcosystemSchemaBundle
 
 pub mod hardware_verify;
 pub mod midi;
+pub mod peak_librarian;
 pub mod peak_mod_fx;
 pub mod peak_synth;
 
@@ -15,6 +16,7 @@ pub use hardware_verify::{
     verify_system_hardware, HardwareVerificationReport, VerifiedHardwareDevice,
 };
 pub use midi::PeakMidiService;
+pub use peak_librarian::*;
 pub use peak_mod_fx::*;
 pub use peak_synth::*;
 
@@ -158,5 +160,62 @@ mod tests {
         let (l, r) = fx.process(0.4, 0.4);
         assert!(l >= -1.2 && l <= 1.2);
         assert!(r >= -1.2 && r <= 1.2);
+    }
+
+    #[test]
+    fn test_peak_librarian_domain_root_exports() {
+        // 1. Curated Patches & 512-Patch Bank Manager
+        let patches = create_curated_peak_patches();
+        assert_eq!(patches.len(), 8);
+
+        let mut librarian = PeakLibrarian::new();
+        assert_eq!(librarian.library.len(), 512);
+        assert_eq!(librarian.get_patch(0, 0).map(|p| p.meta.name.as_str()), Some("Init Patch"));
+        assert_eq!(librarian.get_patch(0, 7).map(|p| p.meta.name.as_str()), Some("Animate Morph Arp"));
+
+        let (msb, lsb, pc) = librarian.select_patch(1, 10); // Bank B, Slot 10
+        assert_eq!(msb, synth_midi_osc::routing::MidiPacket::ControlChange { channel: 0, cc: 0, value: 0 });
+        assert_eq!(lsb, synth_midi_osc::routing::MidiPacket::ControlChange { channel: 0, cc: 32, value: 1 });
+        assert_eq!(pc, synth_midi_osc::routing::MidiPacket::ProgramChange { channel: 0, program: 10 });
+
+        // 2. SysEx dump codec and checksum
+        let sysex_frame = encode_single_patch_sysex(&patches[0]).expect("encode patch sysex");
+        let decoded_patch = decode_single_patch_sysex(&sysex_frame).expect("decode patch sysex");
+        assert_eq!(decoded_patch.meta.name, "Init Patch");
+
+        let mut state_machine = PeakSysExStateMachine::new();
+        let events = state_machine.feed_buffer(&sysex_frame);
+        assert_eq!(events.len(), 1);
+        assert!(matches!(events[0], SysExEvent::PatchReceived(_)));
+
+        // 3. Continuous A..B patch morphing
+        let mut morph = ContinuousMorphFader::new(patches[0].clone(), patches[1].clone());
+        let deltas = morph.set_factor(0.5);
+        assert!(!deltas.is_empty());
+        assert!((morph.factor() - 0.5).abs() < f64::EPSILON);
+
+        // 4. Safe randomizer with automatic safety caps on CCs 36, 79, 80, 104, 110
+        let randomizer = PeakSafeRandomizer::new();
+        let mut dangerous = SynthPatch::new("Extreme Danger");
+        dangerous.set_param("filter_post_drive", 127.0);
+        dangerous.set_param("filter_resonance", 127.0);
+        dangerous.set_param("filter_overdrive", 127.0);
+        dangerous.set_param("distortion_level", 127.0);
+        dangerous.set_param("delay_feedback", 127.0);
+
+        let safe = randomizer.randomize_global(&dangerous, 100.0, 100.0, Some(777));
+        assert!(safe.get_param("filter_post_drive").unwrap() <= SAFE_CAP_FILTER_POST_DRIVE);
+        assert!(safe.get_param("filter_resonance").unwrap() <= SAFE_CAP_FILTER_RESONANCE);
+        assert!(safe.get_param("filter_overdrive").unwrap() <= SAFE_CAP_FILTER_OVERDRIVE);
+        assert!(safe.get_param("distortion_level").unwrap() <= SAFE_CAP_DISTORTION_LEVEL);
+        assert!(safe.get_param("delay_feedback").unwrap() <= SAFE_CAP_DELAY_FEEDBACK);
+
+        // 5. Korg nanoKONTROL2 Surface
+        let mut surface = NanoKontrol2Surface::new(SoftTakeoverMode::Jump);
+        let action = surface.process_midi(0, 100).expect("fader 1");
+        assert!(matches!(action, NanoSurfaceAction::ParamChange { is_slider: true, target_cc: 29, .. }));
+
+        let anim = surface.process_midi(32, 127).expect("solo 1 animate 1");
+        assert!(matches!(anim, NanoSurfaceAction::AnimateTrigger { index: 1, active: true, .. }));
     }
 }

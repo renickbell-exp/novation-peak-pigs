@@ -2,7 +2,7 @@
   "meta": {
     "projectId": "novation-peak-manager",
     "version": "0.1.0",
-    "epoch": 5,
+    "epoch": 6,
     "runtimeEnvironment": {
       "platform": "linux",
       "target": "rust-and-node",
@@ -709,11 +709,12 @@
         "path": "src/lib.rs",
         "purpose": "Novation Peak 8-Voice Hybrid Synthesizer Manager, Librarian & Konduktiva Companion. Returns the canonical synthesizer identifier for this application.",
         "responsibilities": [
-          "Exports hardware_verify, midi, peak_mod_fx, peak_synth, synth_id in src/lib.rs"
+          "Exports hardware_verify, midi, peak_librarian, peak_mod_fx, peak_synth, synth_id in src/lib.rs"
         ],
         "exposedInterfaces": [
           "hardware_verify",
           "midi",
+          "peak_librarian",
           "peak_mod_fx",
           "peak_synth",
           "synth_id"
@@ -721,6 +722,7 @@
         "dependencies": [
           "entity:novation-peak-pigs:hardware_verify",
           "entity:novation-peak-pigs:midi",
+          "entity:novation-peak-pigs:peak_librarian",
           "entity:novation-peak-pigs:peak_mod_fx",
           "entity:novation-peak-pigs:peak_synth"
         ],
@@ -728,14 +730,16 @@
         "structuralOutline": [
           "L8: pub mod hardware_verify;",
           "L9: pub mod midi;",
-          "L10: pub mod peak_mod_fx;",
-          "L11: pub mod peak_synth;",
-          "L22: pub fn synth_id() -> &'static str {",
-          "L31: fn test_synth_id_baseline() {",
-          "L36: fn test_novation_peak_profile_root_integration() {",
-          "L47: fn test_hardware_verify_and_midi_service_exported() {",
-          "L65: fn test_peak_synth_domain_engine_root_exports() {",
-          "L95: fn test_peak_mod_fx_engine_root_exports() {"
+          "L10: pub mod peak_librarian;",
+          "L11: pub mod peak_mod_fx;",
+          "L12: pub mod peak_synth;",
+          "L24: pub fn synth_id() -> &'static str {",
+          "L33: fn test_synth_id_baseline() {",
+          "L38: fn test_novation_peak_profile_root_integration() {",
+          "L49: fn test_hardware_verify_and_midi_service_exported() {",
+          "L67: fn test_peak_synth_domain_engine_root_exports() {",
+          "L97: fn test_peak_mod_fx_engine_root_exports() {",
+          "L166: fn test_peak_librarian_domain_root_exports() {"
         ]
       },
       "entity:novation-peak-pigs:main": {
@@ -1031,6 +1035,52 @@
           "L351: pub fn from_f64(val: f64) -> Self {",
           "L352: match (val.round() as i32).clamp(0, 3) {"
         ]
+      },
+      "entity:novation-peak-pigs:peak_librarian": {
+        "id": "entity:novation-peak-pigs:peak_librarian",
+        "type": "MODULE",
+        "path": "src/peak_librarian.rs",
+        "purpose": "`novation_peak_manager::peak_librarian`: Complete Novation Peak patch librarian, 512-patch bank and SysEx manager (Banks A..D), A/B patch diffing and selective merge, continuous A..B patch morphing, lock-shielded safe randomizer with automatic safety caps, and Korg nanoKONTROL2 (hw:2,0,0) 8-column physical surface controller.",
+        "responsibilities": [
+          "Exports bank_letter_to_index, create_curated_peak_patches, PeakLibrarian, new, get_patch, get_patch_mut in src/peak_librarian.rs"
+        ],
+        "exposedInterfaces": [
+          "bank_letter_to_index",
+          "create_curated_peak_patches",
+          "PeakLibrarian",
+          "new",
+          "get_patch",
+          "get_patch_mut"
+        ],
+        "dependencies": [],
+        "blackboxConstraints": {},
+        "structuralOutline": [
+          "L79: pub fn bank_letter_to_index(letter: char) -> Option<u8> {",
+          "L96: pub fn create_curated_peak_patches() -> Vec<SynthPatch> {",
+          "L332: pub struct PeakLibrarian {",
+          "L343: impl Default for PeakLibrarian {",
+          "L344: fn default() -> Self {",
+          "L349: impl PeakLibrarian {",
+          "L354: pub fn new() -> Self {",
+          "L396: pub fn get_patch(&self, bank: u8, slot: u8) -> Option<&SynthPatch> {",
+          "L407: pub fn get_patch_mut(&mut self, bank: u8, slot: u8) -> Option<&mut SynthPatch> {",
+          "L418: pub fn set_patch(&mut self, bank: u8, slot: u8, mut patch: SynthPatch) -> Result<(), SynthError> {",
+          "L451: pub fn select_patch(",
+          "L482: pub fn active_patch(&self) -> &SynthPatch {",
+          "L487: pub fn active_patch_mut(&mut self) -> &mut SynthPatch {",
+          "L493: pub fn search(&self, query: &str) -> Vec<&SynthPatch> {",
+          "L499: pub fn filter_bank(&self, bank: &str) -> Vec<&SynthPatch> {",
+          "L505: pub fn filter_category(&self, category: &str) -> Vec<&SynthPatch> {",
+          "L511: pub fn filter_tag(&self, tag: &str) -> Vec<&SynthPatch> {",
+          "L517: pub fn filter_favorites(&self) -> Vec<&SynthPatch> {",
+          "L522: pub fn to_json(&self) -> Result<String, SynthError> {",
+          "L528: pub fn from_json(json_str: &str) -> Result<Self, SynthError> {",
+          "L542: pub fn calculate_peak_checksum(data: &[u8]) -> u8 {",
+          "L549: pub fn verify_peak_checksum(data: &[u8], expected_checksum: u8) -> bool {",
+          "L556: pub fn encode_single_patch_sysex(patch: &SynthPatch) -> Result<Vec<u8>, MidiCodecError> {",
+          "L604: pub fn decode_single_patch_sysex(bytes: &[u8]) -> Result<SynthPatch, MidiCodecError> {",
+          "L651: pub fn encode_bank_dump_sysex("
+        ]
       }
     },
     "relations": [
@@ -1147,6 +1197,12 @@
         "to": "entity:novation-peak-pigs:peak_mod_fx",
         "relationType": "DEPENDS_ON",
         "contract": "Internal module dependency"
+      },
+      {
+        "from": "entity:novation-peak-pigs:lib",
+        "to": "entity:novation-peak-pigs:peak_librarian",
+        "relationType": "DEPENDS_ON",
+        "contract": "Internal module dependency"
       }
     ]
   },
@@ -1213,12 +1269,12 @@
         "title": "Syntax validation and build verification",
         "description": "Syntax validation and build verification",
         "prompt": null,
-        "status": "UNIMPLEMENTED",
+        "status": "IMPLEMENTED",
         "category": "ROADMAP",
         "domain": "ARCHITECTURE",
         "subIntentId": null,
         "createdAt": "2026-11-05T19:09:40.853Z",
-        "completedAt": null,
+        "completedAt": "2026-11-05T19:59:14.173Z",
         "commitSha": null,
         "txId": null
       },
@@ -1294,17 +1350,17 @@
       },
       {
         "id": "change-tx-tx-2026-11-05T19",
-        "title": "Epoch 3 of 8: Novation Peak 8-Voice FPGA NCO Oscillator, 17-Wavetable, Ring/Noise Mixer & Analogue State-Variable Filter Domain Engine (Target: src/peak_synth.rs; Related: src/lib.rs, crates/synth-core). Implement the core 8-voice Novation Peak synthesis domain engine in src/peak_synth.rs and export in src/lib.rs, backed directly by synth_core::SynthPatch and synth_core::CommandHistory (zero duplicate wrapper or undo structs). Cover all 3 FPGA NCO oscillators per voice (Range CC3/37/65, Coarse CC14/17/20, Fine CC15/18/21, Shape/Wavetable interpolation CC12/39/71 across 17 wavetables x 5 waves, VSync CC34/42/44, Mod Env/LFO depth CCs, deterministic harmonic spectrum & wavetable slice calculator, voice divergence/drift), Mixer (Osc 1/2/3 levels CC23/24/25, Ring Mod 1x2 CC26, Noise mix CC27), and Analogue State-Variable Filter (12dB/24dB LP/BP/HP response curve calculator, Cutoff CC29, Key Tracking CC75, Osc 3 -> Filter FM CC76, Mod Env 1 -> Filter CC78, Resonance CC79, Pre-Filter Overdrive CC80, Post-Filter Drive CC36) with unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-003.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
-        "description": "Epoch 3 of 8: Novation Peak 8-Voice FPGA NCO Oscillator, 17-Wavetable, Ring/Noise Mixer & Analogue State-Variable Filter Domain Engine (Target: src/peak_synth.rs; Related: src/lib.rs, crates/synth-core). Implement the core 8-voice Novation Peak synthesis domain engine in src/peak_synth.rs and export in src/lib.rs, backed directly by synth_core::SynthPatch and synth_core::CommandHistory (zero duplicate wrapper or undo structs). Cover all 3 FPGA NCO oscillators per voice (Range CC3/37/65, Coarse CC14/17/20, Fine CC15/18/21, Shape/Wavetable interpolation CC12/39/71 across 17 wavetables x 5 waves, VSync CC34/42/44, Mod Env/LFO depth CCs, deterministic harmonic spectrum & wavetable slice calculator, voice divergence/drift), Mixer (Osc 1/2/3 levels CC23/24/25, Ring Mod 1x2 CC26, Noise mix CC27), and Analogue State-Variable Filter (12dB/24dB LP/BP/HP response curve calculator, Cutoff CC29, Key Tracking CC75, Osc 3 -> Filter FM CC76, Mod Env 1 -> Filter CC78, Resonance CC79, Pre-Filter Overdrive CC80, Post-Filter Drive CC36) with unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-003.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
-        "prompt": "Epoch 3 of 8: Novation Peak 8-Voice FPGA NCO Oscillator, 17-Wavetable, Ring/Noise Mixer & Analogue State-Variable Filter Domain Engine (Target: src/peak_synth.rs; Related: src/lib.rs, crates/synth-core). Implement the core 8-voice Novation Peak synthesis domain engine in src/peak_synth.rs and export in src/lib.rs, backed directly by synth_core::SynthPatch and synth_core::CommandHistory (zero duplicate wrapper or undo structs). Cover all 3 FPGA NCO oscillators per voice (Range CC3/37/65, Coarse CC14/17/20, Fine CC15/18/21, Shape/Wavetable interpolation CC12/39/71 across 17 wavetables x 5 waves, VSync CC34/42/44, Mod Env/LFO depth CCs, deterministic harmonic spectrum & wavetable slice calculator, voice divergence/drift), Mixer (Osc 1/2/3 levels CC23/24/25, Ring Mod 1x2 CC26, Noise mix CC27), and Analogue State-Variable Filter (12dB/24dB LP/BP/HP response curve calculator, Cutoff CC29, Key Tracking CC75, Osc 3 -> Filter FM CC76, Mod Env 1 -> Filter CC78, Resonance CC79, Pre-Filter Overdrive CC80, Post-Filter Drive CC36) with unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-003.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+        "title": "Epoch 4 of 8: 3x ADSR Envelopes, Dual Tempo-Synced LFOs, 16-Slot Mod Matrix + 4-Slot FX Matrix, Animate 1/2 Macros, Arpeggiator & Master FX Chain (Target: src/peak_mod_fx.rs; Related: src/lib.rs, src/peak_synth.rs). Implement the complete Novation Peak modulation and effects engine in src/peak_mod_fx.rs and wire into src/lib.rs: 3 ADSR envelopes (Amp CC86-89, Mod 1 CC90-93, Mod 2 CC94/95/117/103 with deterministic ADSR curve generator), 2 LFOs (Rate CC30/31, Sync Rate CC81/84, Fade CC82/85, Range CC83, LFO->Pitch/Shape/Filter depths), 16-slot dual-source Modulation Matrix (Source A x Source B -> Destination with bipolar depth -64..+63) + 4-slot FX Mod Matrix, Animate 1 & 2 performance macro buttons (CC114/CC115) with live parameter offset preview, Arpeggiator gate/clock (CC116) & Glide (CC5/CC35), and Master FX chain (Analogue Distortion CC104, 3-mode Chorus CC105/107/118, Sync Delay CC108/109/110, 3-type Reverb CC112/113) with unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-004.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+        "description": "Epoch 4 of 8: 3x ADSR Envelopes, Dual Tempo-Synced LFOs, 16-Slot Mod Matrix + 4-Slot FX Matrix, Animate 1/2 Macros, Arpeggiator & Master FX Chain (Target: src/peak_mod_fx.rs; Related: src/lib.rs, src/peak_synth.rs). Implement the complete Novation Peak modulation and effects engine in src/peak_mod_fx.rs and wire into src/lib.rs: 3 ADSR envelopes (Amp CC86-89, Mod 1 CC90-93, Mod 2 CC94/95/117/103 with deterministic ADSR curve generator), 2 LFOs (Rate CC30/31, Sync Rate CC81/84, Fade CC82/85, Range CC83, LFO->Pitch/Shape/Filter depths), 16-slot dual-source Modulation Matrix (Source A x Source B -> Destination with bipolar depth -64..+63) + 4-slot FX Mod Matrix, Animate 1 & 2 performance macro buttons (CC114/CC115) with live parameter offset preview, Arpeggiator gate/clock (CC116) & Glide (CC5/CC35), and Master FX chain (Analogue Distortion CC104, 3-mode Chorus CC105/107/118, Sync Delay CC108/109/110, 3-type Reverb CC112/113) with unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-004.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+        "prompt": "Epoch 4 of 8: 3x ADSR Envelopes, Dual Tempo-Synced LFOs, 16-Slot Mod Matrix + 4-Slot FX Matrix, Animate 1/2 Macros, Arpeggiator & Master FX Chain (Target: src/peak_mod_fx.rs; Related: src/lib.rs, src/peak_synth.rs). Implement the complete Novation Peak modulation and effects engine in src/peak_mod_fx.rs and wire into src/lib.rs: 3 ADSR envelopes (Amp CC86-89, Mod 1 CC90-93, Mod 2 CC94/95/117/103 with deterministic ADSR curve generator), 2 LFOs (Rate CC30/31, Sync Rate CC81/84, Fade CC82/85, Range CC83, LFO->Pitch/Shape/Filter depths), 16-slot dual-source Modulation Matrix (Source A x Source B -> Destination with bipolar depth -64..+63) + 4-slot FX Mod Matrix, Animate 1 & 2 performance macro buttons (CC114/CC115) with live parameter offset preview, Arpeggiator gate/clock (CC116) & Glide (CC5/CC35), and Master FX chain (Analogue Distortion CC104, 3-mode Chorus CC105/107/118, Sync Delay CC108/109/110, 3-type Reverb CC112/113) with unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-004.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
         "status": "IMPLEMENTED",
         "category": "FEATURE",
         "domain": "ARCHITECTURE",
         "subIntentId": null,
-        "createdAt": "2026-11-05T19:46:47.820Z",
-        "completedAt": "2026-11-05T19:46:47.820Z",
-        "commitSha": "fd2f3c25e90e16802bf82d113dbf0d0aa87fc190",
-        "txId": "tx-2026-11-05T19-46-47-820Z-udjx"
+        "createdAt": "2026-11-05T19:54:59.401Z",
+        "completedAt": "2026-11-05T19:54:59.401Z",
+        "commitSha": "b06a0c22669cacda0a6df3b7044f9a312b55d9ce",
+        "txId": "tx-2026-11-05T19-54-59-401Z-pzlc"
       },
       {
         "id": "change:epoch-2-of-8-non-invasive-alsa-hardware-discover",
@@ -1335,30 +1391,30 @@
         "txId": null
       },
       {
-        "id": "change:epoch-4-of-8-3x-adsr-envelopes-dual-tempo-synced",
+        "id": "change-1793908499315-wguy",
         "title": "Epoch 4 of 8: 3x ADSR Envelopes, Dual Tempo-Synced LFOs, 16-Slot Mod Matrix + 4-Slot FX Matrix, Animate 1/2 Macros, Arpeggiator &",
-        "description": "Epoch 4 of 8: 3x ADSR Envelopes, Dual Tempo-Synced LFOs, 16-Slot Mod Matrix + 4-Slot FX Matrix, Animate 1/2 Macros, Arpeggiator &",
-        "prompt": null,
+        "description": "Epoch 4 of 8: 3x ADSR Envelopes, Dual Tempo-Synced LFOs, 16-Slot Mod Matrix + 4-Slot FX Matrix, Animate 1/2 Macros, Arpeggiator & Master FX Chain (Target: src/peak_mod_fx.rs; Related: src/lib.rs, src/peak_synth.rs). Implement the complete Novation Peak modulation and effects engine in src/peak_mod_fx.rs and wire into src/lib.rs: 3 ADSR envelopes (Amp CC86-89, Mod 1 CC90-93, Mod 2 CC94/95/117/103 with deterministic ADSR curve generator), 2 LFOs (Rate CC30/31, Sync Rate CC81/84, Fade CC82/85, Range CC83, LFO->Pitch/Shape/Filter depths), 16-slot dual-source Modulation Matrix (Source A x Source B -> Destination with bipolar depth -64..+63) + 4-slot FX Mod Matrix, Animate 1 & 2 performance macro buttons (CC114/CC115) with live parameter offset preview, Arpeggiator gate/clock (CC116) & Glide (CC5/CC35), and Master FX chain (Analogue Distortion CC104, 3-mode Chorus CC105/107/118, Sync Delay CC108/109/110, 3-type Reverb CC112/113) with unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-004.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+        "prompt": "Epoch 4 of 8: 3x ADSR Envelopes, Dual Tempo-Synced LFOs, 16-Slot Mod Matrix + 4-Slot FX Matrix, Animate 1/2 Macros, Arpeggiator & Master FX Chain (Target: src/peak_mod_fx.rs; Related: src/lib.rs, src/peak_synth.rs). Implement the complete Novation Peak modulation and effects engine in src/peak_mod_fx.rs and wire into src/lib.rs: 3 ADSR envelopes (Amp CC86-89, Mod 1 CC90-93, Mod 2 CC94/95/117/103 with deterministic ADSR curve generator), 2 LFOs (Rate CC30/31, Sync Rate CC81/84, Fade CC82/85, Range CC83, LFO->Pitch/Shape/Filter depths), 16-slot dual-source Modulation Matrix (Source A x Source B -> Destination with bipolar depth -64..+63) + 4-slot FX Mod Matrix, Animate 1 & 2 performance macro buttons (CC114/CC115) with live parameter offset preview, Arpeggiator gate/clock (CC116) & Glide (CC5/CC35), and Master FX chain (Analogue Distortion CC104, 3-mode Chorus CC105/107/118, Sync Delay CC108/109/110, 3-type Reverb CC112/113) with unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-004.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
         "status": "IMPLEMENTED",
         "category": "FEATURE",
         "domain": "SEQUENCING_MIDI",
         "subIntentId": null,
-        "createdAt": "2026-11-05T19:54:59.380Z",
+        "createdAt": "2026-11-05T19:54:59.315Z",
         "completedAt": "2026-11-05T19:54:59.401Z",
-        "commitSha": null,
+        "commitSha": "b06a0c22669cacda0a6df3b7044f9a312b55d9ce",
         "txId": null
       },
       {
         "id": "change:epoch-5-of-8-patch-librarian-crud-512-patch-bank",
-        "title": "Epoch 5 of 8: Patch Librarian CRUD, 512-Patch Bank/SysEx Manager, A/B Patch Diff & Selective Merge, Continuous Morph Fader, Safe Randomizer & Korg nanoKONTROL2 Surface Controller (Target: src/peak_librarian.rs; Related: src/lib.rs, crates/synth-core). Implement src/peak_librarian.rs reusing synth_core::PresetLibrary, PatchDiff, Randomizer, and SoftTakeoverState directly: 8 curated Novation Peak factory patches (Init Patch, Oxford FPGA Pad, Acid Overdrive Bass, VSync Lead, Ring Mod Bell, Lush Chorus Strings, Dub Delay Chord, Animate Morph Arp), 4 banks x 128 patches (Banks A..D via CC0/CC32 + Program Change), SysEx single-patch and bank dump state machine with checksum verification, continuous A..B patch morphing (0.0..=1.0), lock-shielded randomizer (Global, Section-Scoped for Osc/Filter/Env/LFO/FX, and Gaussian Drift with automatic safety caps on CCs 36/79/80/104/110), and Korg nanoKONTROL2 (hw:2,0,0) 8-column fader/knob/button surface mapper with Jump/Catch/Pickup soft takeover and Animate 1/2 triggers. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-005.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
-        "description": "Epoch 5 of 8: Patch Librarian CRUD, 512-Patch Bank/SysEx Manager, A/B Patch Diff & Selective Merge, Continuous Morph Fader, Safe Randomizer & Korg nanoKONTROL2 Surface Controller (Target: src/peak_librarian.rs; Related: src/lib.rs, crates/synth-core). Implement src/peak_librarian.rs reusing synth_core::PresetLibrary, PatchDiff, Randomizer, and SoftTakeoverState directly: 8 curated Novation Peak factory patches (Init Patch, Oxford FPGA Pad, Acid Overdrive Bass, VSync Lead, Ring Mod Bell, Lush Chorus Strings, Dub Delay Chord, Animate Morph Arp), 4 banks x 128 patches (Banks A..D via CC0/CC32 + Program Change), SysEx single-patch and bank dump state machine with checksum verification, continuous A..B patch morphing (0.0..=1.0), lock-shielded randomizer (Global, Section-Scoped for Osc/Filter/Env/LFO/FX, and Gaussian Drift with automatic safety caps on CCs 36/79/80/104/110), and Korg nanoKONTROL2 (hw:2,0,0) 8-column fader/knob/button surface mapper with Jump/Catch/Pickup soft takeover and Animate 1/2 triggers. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-005.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
-        "prompt": "Epoch 5 of 8: Patch Librarian CRUD, 512-Patch Bank/SysEx Manager, A/B Patch Diff & Selective Merge, Continuous Morph Fader, Safe Randomizer & Korg nanoKONTROL2 Surface Controller (Target: src/peak_librarian.rs; Related: src/lib.rs, crates/synth-core). Implement src/peak_librarian.rs reusing synth_core::PresetLibrary, PatchDiff, Randomizer, and SoftTakeoverState directly: 8 curated Novation Peak factory patches (Init Patch, Oxford FPGA Pad, Acid Overdrive Bass, VSync Lead, Ring Mod Bell, Lush Chorus Strings, Dub Delay Chord, Animate Morph Arp), 4 banks x 128 patches (Banks A..D via CC0/CC32 + Program Change), SysEx single-patch and bank dump state machine with checksum verification, continuous A..B patch morphing (0.0..=1.0), lock-shielded randomizer (Global, Section-Scoped for Osc/Filter/Env/LFO/FX, and Gaussian Drift with automatic safety caps on CCs 36/79/80/104/110), and Korg nanoKONTROL2 (hw:2,0,0) 8-column fader/knob/button surface mapper with Jump/Catch/Pickup soft takeover and Animate 1/2 triggers. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-005.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
-        "status": "QUEUED",
+        "title": "Epoch 5 of 8: Patch Librarian CRUD, 512-Patch Bank/SysEx Manager, A/B Patch Diff & Selective Merge, Continuous Morph Fader, Safe Randomizer &",
+        "description": "Epoch 5 of 8: Patch Librarian CRUD, 512-Patch Bank/SysEx Manager, A/B Patch Diff & Selective Merge, Continuous Morph Fader, Safe Randomizer &",
+        "prompt": null,
+        "status": "IMPLEMENTED",
         "category": "FEATURE",
-        "domain": "ARCHITECTURE",
+        "domain": "SYNTHESIS",
         "subIntentId": null,
-        "createdAt": "2026-11-05T19:54:59.380Z",
-        "completedAt": null,
+        "createdAt": "2026-11-05T19:59:14.151Z",
+        "completedAt": "2026-11-05T19:59:14.173Z",
         "commitSha": null,
         "txId": null
       },
@@ -1371,7 +1427,7 @@
         "category": "FEATURE",
         "domain": "ARCHITECTURE",
         "subIntentId": null,
-        "createdAt": "2026-11-05T19:54:59.380Z",
+        "createdAt": "2026-11-05T19:59:14.151Z",
         "completedAt": null,
         "commitSha": null,
         "txId": null
@@ -1385,7 +1441,7 @@
         "category": "FEATURE",
         "domain": "ARCHITECTURE",
         "subIntentId": null,
-        "createdAt": "2026-11-05T19:54:59.380Z",
+        "createdAt": "2026-11-05T19:59:14.151Z",
         "completedAt": null,
         "commitSha": null,
         "txId": null
@@ -1399,7 +1455,7 @@
         "category": "FEATURE",
         "domain": "ARCHITECTURE",
         "subIntentId": null,
-        "createdAt": "2026-11-05T19:54:59.380Z",
+        "createdAt": "2026-11-05T19:59:14.151Z",
         "completedAt": null,
         "commitSha": null,
         "txId": null
@@ -1511,9 +1567,9 @@
         "category": "FEATURE",
         "domain": "ARCHITECTURE",
         "subIntentId": null,
-        "createdAt": "2026-11-05T19:54:59.380Z",
-        "completedAt": "2026-11-05T19:46:47.820Z",
-        "commitSha": "fd2f3c25e90e16802bf82d113dbf0d0aa87fc190",
+        "createdAt": "2026-11-05T19:59:14.151Z",
+        "completedAt": "2026-11-05T19:54:59.401Z",
+        "commitSha": "b06a0c22669cacda0a6df3b7044f9a312b55d9ce",
         "txId": null
       },
       {
@@ -1527,7 +1583,7 @@
         "subIntentId": null,
         "createdAt": "2026-11-05T19:54:59.315Z",
         "completedAt": "2026-11-05T19:54:59.401Z",
-        "commitSha": null,
+        "commitSha": "b06a0c22669cacda0a6df3b7044f9a312b55d9ce",
         "txId": null
       },
       {
@@ -1555,7 +1611,7 @@
         "subIntentId": null,
         "createdAt": "2026-11-05T19:54:59.380Z",
         "completedAt": "2026-11-05T19:54:59.401Z",
-        "commitSha": null,
+        "commitSha": "b06a0c22669cacda0a6df3b7044f9a312b55d9ce",
         "txId": null
       },
       {
@@ -1569,7 +1625,7 @@
         "subIntentId": null,
         "createdAt": "2026-11-05T19:54:59.380Z",
         "completedAt": "2026-11-05T19:54:59.401Z",
-        "commitSha": null,
+        "commitSha": "b06a0c22669cacda0a6df3b7044f9a312b55d9ce",
         "txId": null
       },
       {
@@ -1583,7 +1639,7 @@
         "subIntentId": null,
         "createdAt": "2026-11-05T19:54:59.380Z",
         "completedAt": "2026-11-05T19:54:59.401Z",
-        "commitSha": null,
+        "commitSha": "b06a0c22669cacda0a6df3b7044f9a312b55d9ce",
         "txId": null
       },
       {
@@ -1598,6 +1654,76 @@
         "createdAt": "2026-11-05T19:54:59.380Z",
         "completedAt": "2026-11-05T19:46:47.820Z",
         "commitSha": "fd2f3c25e90e16802bf82d113dbf0d0aa87fc190",
+        "txId": null
+      },
+      {
+        "id": "change-1793908754083-tdzs",
+        "title": "Epoch 5 of 8: Patch Librarian CRUD, 512-Patch Bank/SysEx Manager, A/B Patch Diff & Selective Merge, Continuous Morph Fader, Safe Randomizer &",
+        "description": "Epoch 5 of 8: Patch Librarian CRUD, 512-Patch Bank/SysEx Manager, A/B Patch Diff & Selective Merge, Continuous Morph Fader, Safe Randomizer & Korg nanoKONTROL2 Surface Controller (Target: src/peak_librarian.rs; Related: src/lib.rs, crates/synth-core). Implement src/peak_librarian.rs reusing synth_core::PresetLibrary, PatchDiff, Randomizer, and SoftTakeoverState directly: 8 curated Novation Peak factory patches (Init Patch, Oxford FPGA Pad, Acid Overdrive Bass, VSync Lead, Ring Mod Bell, Lush Chorus Strings, Dub Delay Chord, Animate Morph Arp), 4 banks x 128 patches (Banks A..D via CC0/CC32 + Program Change), SysEx single-patch and bank dump state machine with checksum verification, continuous A..B patch morphing (0.0..=1.0), lock-shielded randomizer (Global, Section-Scoped for Osc/Filter/Env/LFO/FX, and Gaussian Drift with automatic safety caps on CCs 36/79/80/104/110), and Korg nanoKONTROL2 (hw:2,0,0) 8-column fader/knob/button surface mapper with Jump/Catch/Pickup soft takeover and Animate 1/2 triggers. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-005.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+        "prompt": "Epoch 5 of 8: Patch Librarian CRUD, 512-Patch Bank/SysEx Manager, A/B Patch Diff & Selective Merge, Continuous Morph Fader, Safe Randomizer & Korg nanoKONTROL2 Surface Controller (Target: src/peak_librarian.rs; Related: src/lib.rs, crates/synth-core). Implement src/peak_librarian.rs reusing synth_core::PresetLibrary, PatchDiff, Randomizer, and SoftTakeoverState directly: 8 curated Novation Peak factory patches (Init Patch, Oxford FPGA Pad, Acid Overdrive Bass, VSync Lead, Ring Mod Bell, Lush Chorus Strings, Dub Delay Chord, Animate Morph Arp), 4 banks x 128 patches (Banks A..D via CC0/CC32 + Program Change), SysEx single-patch and bank dump state machine with checksum verification, continuous A..B patch morphing (0.0..=1.0), lock-shielded randomizer (Global, Section-Scoped for Osc/Filter/Env/LFO/FX, and Gaussian Drift with automatic safety caps on CCs 36/79/80/104/110), and Korg nanoKONTROL2 (hw:2,0,0) 8-column fader/knob/button surface mapper with Jump/Catch/Pickup soft takeover and Animate 1/2 triggers. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-005.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+        "status": "IMPLEMENTED",
+        "category": "FEATURE",
+        "domain": "SYNTHESIS",
+        "subIntentId": null,
+        "createdAt": "2026-11-05T19:59:14.083Z",
+        "completedAt": "2026-11-05T19:59:14.173Z",
+        "commitSha": null,
+        "txId": null
+      },
+      {
+        "id": "change-inferred-epoch-patch-librarian-crud",
+        "title": "Epoch 5 of 8: Patch Librarian CRUD, 512-Patch Bank/SysEx Manager, A/B Patch Diff & Selective Merge, Continuous Morph Fader, Safe",
+        "description": "Epoch 5 of 8: Patch Librarian CRUD, 512-Patch Bank/SysEx Manager, A/B Patch Diff & Selective Merge, Continuous Morph Fader, Safe Randomizer &.",
+        "prompt": "Epoch 5 of 8: Patch Librarian CRUD, 512-Patch Bank/SysEx Manager, A/B Patch Diff & Selective Merge, Continuous Morph Fader, Safe Randomizer & Korg nanoKONTROL2 Surface Controller (Target: src/peak_librarian.rs; Related: src/lib.rs, crates/synth-core). Implement src/peak_librarian.rs reusing synth_core::PresetLibrary, PatchDiff, Randomizer, and SoftTakeoverState directly: 8 curated Novation Peak factory patches (Init Patch, Oxford FPGA Pad, Acid Overdrive Bass, VSync Lead, Ring Mod Bell, Lush Chorus Strings, Dub Delay Chord, Animate Morph Arp), 4 banks x 128 patches (Banks A..D via CC0/CC32 + Program Change), SysEx single-patch and bank dump state machine with checksum verification, continuous A..B patch morphing (0.0..=1.0), lock-shielded randomizer (Global, Section-Scoped for Osc/Filter/Env/LFO/FX, and Gaussian Drift with automatic safety caps on CCs 36/79/80/104/110), and Korg nanoKONTROL2 (hw:2,0,0) 8-column fader/knob/button surface mapper with Jump/Catch/Pickup soft takeover and Animate 1/2 triggers. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-005.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+        "status": "IMPLEMENTED",
+        "category": "FEATURE",
+        "domain": "SYNTHESIS",
+        "subIntentId": null,
+        "createdAt": "2026-11-05T19:59:14.151Z",
+        "completedAt": "2026-11-05T19:59:14.173Z",
+        "commitSha": null,
+        "txId": null
+      },
+      {
+        "id": "change-inferred-implement-src-peaklibrarian-reusing",
+        "title": "Implement src/peaklibrarian.rs reusing synthcore::PresetLibrary, PatchDiff, Randomizer, and SoftTakeoverState directly: 8 curated Novation Peak factory patches (Init Patch, Oxford FPGA Pad",
+        "description": "Implement src/peaklibrarian.rs reusing synthcore::PresetLibrary, PatchDiff, Randomizer, and SoftTakeoverState directly: 8 curated Novation Peak factory patches (Init Patch, Oxford FPGA Pad, Acid Overdrive.",
+        "prompt": "Epoch 5 of 8: Patch Librarian CRUD, 512-Patch Bank/SysEx Manager, A/B Patch Diff & Selective Merge, Continuous Morph Fader, Safe Randomizer & Korg nanoKONTROL2 Surface Controller (Target: src/peak_librarian.rs; Related: src/lib.rs, crates/synth-core). Implement src/peak_librarian.rs reusing synth_core::PresetLibrary, PatchDiff, Randomizer, and SoftTakeoverState directly: 8 curated Novation Peak factory patches (Init Patch, Oxford FPGA Pad, Acid Overdrive Bass, VSync Lead, Ring Mod Bell, Lush Chorus Strings, Dub Delay Chord, Animate Morph Arp), 4 banks x 128 patches (Banks A..D via CC0/CC32 + Program Change), SysEx single-patch and bank dump state machine with checksum verification, continuous A..B patch morphing (0.0..=1.0), lock-shielded randomizer (Global, Section-Scoped for Osc/Filter/Env/LFO/FX, and Gaussian Drift with automatic safety caps on CCs 36/79/80/104/110), and Korg nanoKONTROL2 (hw:2,0,0) 8-column fader/knob/button surface mapper with Jump/Catch/Pickup soft takeover and Animate 1/2 triggers. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-005.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+        "status": "IMPLEMENTED",
+        "category": "FEATURE",
+        "domain": "ARCHITECTURE",
+        "subIntentId": null,
+        "createdAt": "2026-11-05T19:59:14.151Z",
+        "completedAt": "2026-11-05T19:59:14.173Z",
+        "commitSha": null,
+        "txId": null
+      },
+      {
+        "id": "change:implement-src-peaklibrarian-rs-reusing-synthcore",
+        "title": "Implement src/peaklibrarian.rs reusing synthcore::PresetLibrary, PatchDiff, Randomizer, and SoftTakeoverState directly: 8 curated Novation Peak factory patches (Init Patch, Oxford FPGA Pad, Acid Overdrive",
+        "description": "Implement src/peaklibrarian.rs reusing synthcore::PresetLibrary, PatchDiff, Randomizer, and SoftTakeoverState directly: 8 curated Novation Peak factory patches (Init Patch, Oxford FPGA Pad, Acid Overdrive",
+        "prompt": null,
+        "status": "IMPLEMENTED",
+        "category": "FEATURE",
+        "domain": "ARCHITECTURE",
+        "subIntentId": null,
+        "createdAt": "2026-11-05T19:59:14.151Z",
+        "completedAt": "2026-11-05T19:59:14.173Z",
+        "commitSha": null,
+        "txId": null
+      },
+      {
+        "id": "change:write-reports-report-005-md-and-compile-it-with-",
+        "title": "Write reports/report-005.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf",
+        "description": "Write reports/report-005.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf",
+        "prompt": null,
+        "status": "IMPLEMENTED",
+        "category": "FEATURE",
+        "domain": "ARCHITECTURE",
+        "subIntentId": null,
+        "createdAt": "2026-11-05T19:59:14.152Z",
+        "completedAt": "2026-11-05T19:54:59.401Z",
+        "commitSha": "b06a0c22669cacda0a6df3b7044f9a312b55d9ce",
         "txId": null
       }
     ],
@@ -1962,6 +2088,10 @@
         {
           "feedback": "Epoch 4 of 8: 3x ADSR Envelopes, Dual Tempo-Synced LFOs, 16-Slot Mod Matrix + 4-Slot FX Matrix, Animate 1/2 Macros, Arpeggiator & Master FX Chain (Target: src/peak_mod_fx.rs; Related: src/lib.rs, src/peak_synth.rs). Implement the complete Novation Peak modulation and effects engine in src/peak_mod_fx.rs and wire into src/lib.rs: 3 ADSR envelopes (Amp CC86-89, Mod 1 CC90-93, Mod 2 CC94/95/117/103 with deterministic ADSR curve generator), 2 LFOs (Rate CC30/31, Sync Rate CC81/84, Fade CC82/85, Range CC83, LFO->Pitch/Shape/Filter depths), 16-slot dual-source Modulation Matrix (Source A x Source B -> Destination with bipolar depth -64..+63) + 4-slot FX Mod Matrix, Animate 1 & 2 performance macro buttons (CC114/CC115) with live parameter offset preview, Arpeggiator gate/clock (CC116) & Glide (CC5/CC35), and Master FX chain (Analogue Distortion CC104, 3-mode Chorus CC105/107/118, Sync Delay CC108/109/110, 3-type Reverb CC112/113) with unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-004.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
           "timestamp": "2026-11-05T19:54:59.323Z"
+        },
+        {
+          "feedback": "Epoch 5 of 8: Patch Librarian CRUD, 512-Patch Bank/SysEx Manager, A/B Patch Diff & Selective Merge, Continuous Morph Fader, Safe Randomizer & Korg nanoKONTROL2 Surface Controller (Target: src/peak_librarian.rs; Related: src/lib.rs, crates/synth-core). Implement src/peak_librarian.rs reusing synth_core::PresetLibrary, PatchDiff, Randomizer, and SoftTakeoverState directly: 8 curated Novation Peak factory patches (Init Patch, Oxford FPGA Pad, Acid Overdrive Bass, VSync Lead, Ring Mod Bell, Lush Chorus Strings, Dub Delay Chord, Animate Morph Arp), 4 banks x 128 patches (Banks A..D via CC0/CC32 + Program Change), SysEx single-patch and bank dump state machine with checksum verification, continuous A..B patch morphing (0.0..=1.0), lock-shielded randomizer (Global, Section-Scoped for Osc/Filter/Env/LFO/FX, and Gaussian Drift with automatic safety caps on CCs 36/79/80/104/110), and Korg nanoKONTROL2 (hw:2,0,0) 8-column fader/knob/button surface mapper with Jump/Catch/Pickup soft takeover and Animate 1/2 triggers. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-005.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+          "timestamp": "2026-11-05T19:59:14.091Z"
         }
       ],
       "activeRoadmap": [
@@ -1970,10 +2100,10 @@
           "name": "Phase 1: Ingestion & Environment Alignment",
           "status": "READY",
           "deliverables": [
-            "Epoch 4 of 8: 3x ADSR Envelopes, Dual Tempo-Synced LFOs, 16-Slot Mod Matrix + 4-Slot FX Matrix, Animate 1/2 Macros, Arpeggiator &",
-            "Implement the complete Novation Peak modulation and effects engine in src/peakmodfx.rs and wire into src/lib.rs: 3 ADSR envelopes (Amp CC86-89, Mod 1",
+            "Epoch 5 of 8: Patch Librarian CRUD, 512-Patch Bank/SysEx Manager, A/B Patch Diff & Selective Merge, Continuous Morph Fader, Safe Randomizer &",
+            "Implement src/peaklibrarian.rs reusing synthcore::PresetLibrary, PatchDiff, Randomizer, and SoftTakeoverState directly: 8 curated Novation Peak factory patches (Init Patch, Oxford FPGA Pad, Acid Overdrive",
             "Ensure all workspace tests pass (CARGOBUILDJOBS=2 cargo test --workspace and npm test)",
-            "Write reports/report-004.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf"
+            "Write reports/report-005.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf"
           ],
           "suggestions": [
             "Validate configuration schemas against target environments",
@@ -1985,7 +2115,7 @@
           "name": "Phase 2: Local Core Mutation & Feature Implementation",
           "status": "PENDING",
           "deliverables": [
-            "Epoch 4 of 8: 3x ADSR Envelopes, Dual Tempo-Synced LFOs, 16-Slot Mod Matrix + 4-Slot FX Matrix, Animate 1/2 Macros, Arpeggiator &"
+            "Epoch 5 of 8: Patch Librarian CRUD, 512-Patch Bank/SysEx Manager, A/B Patch Diff & Selective Merge, Continuous Morph Fader, Safe Randomizer &"
           ],
           "suggestions": [
             "Preserve modular boundary interfaces without circular couplings",
@@ -2941,7 +3071,7 @@
               "status": "IMPLEMENTED",
               "isQueued": false,
               "failedLastRun": false,
-              "commitSha": null
+              "commitSha": "b06a0c22669cacda0a6df3b7044f9a312b55d9ce"
             },
             {
               "id": "task:I7:req-2",
@@ -2954,10 +3084,10 @@
               "index": 2,
               "title": "Requirement #2: Implement the complete Novation Peak modulation and effects engine in src/peak_mod_fx.rs and wire into src/lib.rs: 3 ADSR envelopes (Amp CC86-89, Mod 1 CC90-93, Mod 2 CC94/95/117/103 with deterministic ADSR curve generator), 2 LFOs (Rate CC30/31, Sync Rate CC81/84, Fade CC82/85, Range CC83, LFO->Pitch/Shape/Filter depths), 16-slot dual-source Modulation Matrix (Source A x Source B -> Destination with bipolar depth -64..+63) + 4-slot FX Mod Matrix, Animate 1 & 2 performance macro buttons (CC114/CC115) with live parameter offset preview, Arpeggiator gate/clock (CC116) & Glide (CC5/CC35), and Master FX chain (Analogue Distortion CC104, 3-mode Chorus CC105/107/118, Sync Delay CC108/109/110, 3-type Reverb CC112/113) with unit tests.",
               "taskPrompt": "Implement requirement #2 on [I7] (Epoch 4/8: 3x ADSR Envelopes, Dual Tempo-Synced LFOs, 16-Slot Mod Matrix + 4-Slot FX Matrix, Animate 1/2 Macros, Arpeggiator &): Implement the complete Novation Peak modulation and effects engine in src/peak_mod_fx.rs and wire into src/lib.rs: 3 ADSR envelopes (Amp CC86-89, Mod 1 CC90-93, Mod 2 CC94/95/117/103 with deterministic ADSR curve generator), 2 LFOs (Rate CC30/31, Sync Rate CC81/84, Fade CC82/85, Range CC83, LFO->Pitch/Shape/Filter depths), 16-slot dual-source Modulation Matrix (Source A x Source B -> Destination with bipolar depth -64..+63) + 4-slot FX Mod Matrix, Animate 1 & 2 performance macro buttons (CC114/CC115) with live parameter offset preview, Arpeggiator gate/clock (CC116) & Glide (CC5/CC35), and Master FX chain (Analogue Distortion CC104, 3-mode Chorus CC105/107/118, Sync Delay CC108/109/110, 3-type Reverb CC112/113) with unit tests.",
-              "status": "IN_PROGRESS",
+              "status": "IMPLEMENTED",
               "isQueued": false,
               "failedLastRun": false,
-              "commitSha": null
+              "commitSha": "b06a0c22669cacda0a6df3b7044f9a312b55d9ce"
             },
             {
               "id": "task:I7:synthesis",
@@ -2970,10 +3100,10 @@
               "index": 3,
               "title": "Synthesize capability: Epoch 4/8: 3x ADSR Envelopes, Dual Tempo-Synced LFOs, 16-Slot Mod Matrix + 4-Slot FX Matrix, Animate 1/2 Macros, Arpeggiator &",
               "taskPrompt": "Epoch 4/8: 3x ADSR Envelopes, Dual Tempo-Synced LFOs, 16-Slot Mod Matrix + 4-Slot FX Matrix, Animate 1/2 Macros, Arpeggiator &: Implement the complete Novation Peak modulation and effects engine in src/peak_mod_fx.rs and wire into src/lib.rs: 3 ADSR envelopes (Amp CC86-89, Mod 1 CC90-93, Mod 2 CC94/95/117/103 with deterministic ADSR curve generator), 2 LFOs (Rate CC30/31, Sync Rate CC81/84, Fade CC82/85, Range CC83, LFO->Pitch/Shape/Filter depths), 16-slot dual-source Modulation Matrix (Source A x Source B -> Destination with bipolar depth -64..+63) + 4-slot FX Mod Matrix, Animate 1 & 2 performance macro buttons (CC114/CC115) with live parameter offset preview, Arpeggiator gate/clock (CC116) & Glide (CC5/CC35), and Master FX chain (Analogue Distortion CC104, 3-mode Chorus CC105/107/118, Sync Delay CC108/109/110, 3-type Reverb CC112/113) with unit tests. (Requirements: Epoch 4/8: 3x ADSR Envelopes, Dual Tempo-Synced LFOs, 16-Slot Mod Matrix + 4-Slot FX Matrix, Animate 1/2 Macros, Arpeggiator &; Implement the complete Novation Peak modulation and effects engine in src/peak_mod_fx.rs and wire into src/lib.rs: 3 ADSR envelopes (Amp CC86-89, Mod 1 CC90-93, Mod 2 CC94/95/117/103 with deterministic ADSR curve generator), 2 LFOs (Rate CC30/31, Sync Rate CC81/84, Fade CC82/85, Range CC83, LFO->Pitch/Shape/Filter depths), 16-slot dual-source Modulation Matrix (Source A x Source B -> Destination with bipolar depth -64..+63) + 4-slot FX Mod Matrix, Animate 1 & 2 performance macro buttons (CC114/CC115) with live parameter offset preview, Arpeggiator gate/clock (CC116) & Glide (CC5/CC35), and Master FX chain (Analogue Distortion CC104, 3-mode Chorus CC105/107/118, Sync Delay CC108/109/110, 3-type Reverb CC112/113) with unit tests.)",
-              "status": "OUTSTANDING",
+              "status": "IMPLEMENTED",
               "isQueued": false,
               "failedLastRun": false,
-              "commitSha": null
+              "commitSha": "b06a0c22669cacda0a6df3b7044f9a312b55d9ce"
             }
           ],
           "suggestions": [
@@ -2991,7 +3121,7 @@
               "status": "IMPLEMENTED",
               "isQueued": false,
               "failedLastRun": false,
-              "commitSha": null
+              "commitSha": "b06a0c22669cacda0a6df3b7044f9a312b55d9ce"
             },
             {
               "id": "task:I7:req-2",
@@ -3004,10 +3134,10 @@
               "index": 2,
               "title": "Requirement #2: Implement the complete Novation Peak modulation and effects engine in src/peak_mod_fx.rs and wire into src/lib.rs: 3 ADSR envelopes (Amp CC86-89, Mod 1 CC90-93, Mod 2 CC94/95/117/103 with deterministic ADSR curve generator), 2 LFOs (Rate CC30/31, Sync Rate CC81/84, Fade CC82/85, Range CC83, LFO->Pitch/Shape/Filter depths), 16-slot dual-source Modulation Matrix (Source A x Source B -> Destination with bipolar depth -64..+63) + 4-slot FX Mod Matrix, Animate 1 & 2 performance macro buttons (CC114/CC115) with live parameter offset preview, Arpeggiator gate/clock (CC116) & Glide (CC5/CC35), and Master FX chain (Analogue Distortion CC104, 3-mode Chorus CC105/107/118, Sync Delay CC108/109/110, 3-type Reverb CC112/113) with unit tests.",
               "taskPrompt": "Implement requirement #2 on [I7] (Epoch 4/8: 3x ADSR Envelopes, Dual Tempo-Synced LFOs, 16-Slot Mod Matrix + 4-Slot FX Matrix, Animate 1/2 Macros, Arpeggiator &): Implement the complete Novation Peak modulation and effects engine in src/peak_mod_fx.rs and wire into src/lib.rs: 3 ADSR envelopes (Amp CC86-89, Mod 1 CC90-93, Mod 2 CC94/95/117/103 with deterministic ADSR curve generator), 2 LFOs (Rate CC30/31, Sync Rate CC81/84, Fade CC82/85, Range CC83, LFO->Pitch/Shape/Filter depths), 16-slot dual-source Modulation Matrix (Source A x Source B -> Destination with bipolar depth -64..+63) + 4-slot FX Mod Matrix, Animate 1 & 2 performance macro buttons (CC114/CC115) with live parameter offset preview, Arpeggiator gate/clock (CC116) & Glide (CC5/CC35), and Master FX chain (Analogue Distortion CC104, 3-mode Chorus CC105/107/118, Sync Delay CC108/109/110, 3-type Reverb CC112/113) with unit tests.",
-              "status": "IN_PROGRESS",
+              "status": "IMPLEMENTED",
               "isQueued": false,
               "failedLastRun": false,
-              "commitSha": null
+              "commitSha": "b06a0c22669cacda0a6df3b7044f9a312b55d9ce"
             },
             {
               "id": "task:I7:synthesis",
@@ -3020,10 +3150,10 @@
               "index": 3,
               "title": "Synthesize capability: Epoch 4/8: 3x ADSR Envelopes, Dual Tempo-Synced LFOs, 16-Slot Mod Matrix + 4-Slot FX Matrix, Animate 1/2 Macros, Arpeggiator &",
               "taskPrompt": "Epoch 4/8: 3x ADSR Envelopes, Dual Tempo-Synced LFOs, 16-Slot Mod Matrix + 4-Slot FX Matrix, Animate 1/2 Macros, Arpeggiator &: Implement the complete Novation Peak modulation and effects engine in src/peak_mod_fx.rs and wire into src/lib.rs: 3 ADSR envelopes (Amp CC86-89, Mod 1 CC90-93, Mod 2 CC94/95/117/103 with deterministic ADSR curve generator), 2 LFOs (Rate CC30/31, Sync Rate CC81/84, Fade CC82/85, Range CC83, LFO->Pitch/Shape/Filter depths), 16-slot dual-source Modulation Matrix (Source A x Source B -> Destination with bipolar depth -64..+63) + 4-slot FX Mod Matrix, Animate 1 & 2 performance macro buttons (CC114/CC115) with live parameter offset preview, Arpeggiator gate/clock (CC116) & Glide (CC5/CC35), and Master FX chain (Analogue Distortion CC104, 3-mode Chorus CC105/107/118, Sync Delay CC108/109/110, 3-type Reverb CC112/113) with unit tests. (Requirements: Epoch 4/8: 3x ADSR Envelopes, Dual Tempo-Synced LFOs, 16-Slot Mod Matrix + 4-Slot FX Matrix, Animate 1/2 Macros, Arpeggiator &; Implement the complete Novation Peak modulation and effects engine in src/peak_mod_fx.rs and wire into src/lib.rs: 3 ADSR envelopes (Amp CC86-89, Mod 1 CC90-93, Mod 2 CC94/95/117/103 with deterministic ADSR curve generator), 2 LFOs (Rate CC30/31, Sync Rate CC81/84, Fade CC82/85, Range CC83, LFO->Pitch/Shape/Filter depths), 16-slot dual-source Modulation Matrix (Source A x Source B -> Destination with bipolar depth -64..+63) + 4-slot FX Mod Matrix, Animate 1 & 2 performance macro buttons (CC114/CC115) with live parameter offset preview, Arpeggiator gate/clock (CC116) & Glide (CC5/CC35), and Master FX chain (Analogue Distortion CC104, 3-mode Chorus CC105/107/118, Sync Delay CC108/109/110, 3-type Reverb CC112/113) with unit tests.)",
-              "status": "OUTSTANDING",
+              "status": "IMPLEMENTED",
               "isQueued": false,
               "failedLastRun": false,
-              "commitSha": null
+              "commitSha": "b06a0c22669cacda0a6df3b7044f9a312b55d9ce"
             }
           ],
           "hasQueuedTasks": false,
@@ -3033,7 +3163,7 @@
               "codeId": "I7.1",
               "text": "Epoch 4/8: 3x ADSR Envelopes, Dual Tempo-Synced LFOs, 16-Slot Mod Matrix + 4-Slot FX Matrix, Animate 1/2 Macros, Arpeggiator &",
               "status": "IMPLEMENTED",
-              "commitSha": null,
+              "commitSha": "b06a0c22669cacda0a6df3b7044f9a312b55d9ce",
               "timestamp": "2026-11-05T19:54:59.401Z",
               "txId": "tx-2026-11-05T19-54-59-401Z-pzlc",
               "failedLastRun": false
@@ -3042,22 +3172,22 @@
               "index": 2,
               "codeId": "I7.2",
               "text": "Implement the complete Novation Peak modulation and effects engine in src/peak_mod_fx.rs and wire into src/lib.rs: 3 ADSR envelopes (Amp CC86-89, Mod 1 CC90-93, Mod 2 CC94/95/117/103 with deterministic ADSR curve generator), 2 LFOs (Rate CC30/31, Sync Rate CC81/84, Fade CC82/85, Range CC83, LFO->Pitch/Shape/Filter depths), 16-slot dual-source Modulation Matrix (Source A x Source B -> Destination with bipolar depth -64..+63) + 4-slot FX Mod Matrix, Animate 1 & 2 performance macro buttons (CC114/CC115) with live parameter offset preview, Arpeggiator gate/clock (CC116) & Glide (CC5/CC35), and Master FX chain (Analogue Distortion CC104, 3-mode Chorus CC105/107/118, Sync Delay CC108/109/110, 3-type Reverb CC112/113) with unit tests.",
-              "status": "IN_PROGRESS",
-              "commitSha": null,
-              "timestamp": null,
-              "txId": null,
+              "status": "IMPLEMENTED",
+              "commitSha": "b06a0c22669cacda0a6df3b7044f9a312b55d9ce",
+              "timestamp": "2026-11-05T19:54:59.401Z",
+              "txId": "tx-2026-11-05T19-54-59-401Z-pzlc",
               "failedLastRun": false
             }
           ],
-          "implementationStatus": "IN_PROGRESS",
-          "implementedCount": 1,
-          "inProgressCount": 1,
+          "implementationStatus": "IMPLEMENTED",
+          "implementedCount": 2,
+          "inProgressCount": 0,
           "queuedCount": 0,
           "outstandingCount": 0,
           "failedCount": 0,
           "totalRequirements": 2,
-          "completionPct": 50,
-          "latestCommitSha": null,
+          "completionPct": 100,
+          "latestCommitSha": "b06a0c22669cacda0a6df3b7044f9a312b55d9ce",
           "latestVerifiedAt": "2026-11-05T19:54:59.401Z"
         },
         {
@@ -3103,7 +3233,7 @@
               "index": 1,
               "title": "Requirement #1: Epoch 5/8: Patch Librarian CRUD, 512-Patch Bank/SysEx Manager, A/B Patch Diff & Selective Merge, Continuous Morph Fader, Safe Randomizer &",
               "taskPrompt": "Implement requirement #1 on [I8] (Epoch 5/8: Patch Librarian CRUD, 512-Patch Bank/SysEx Manager, A/B Patch Diff & Selective Merge, Continuous Morph Fader, Safe Randomizer &): Epoch 5/8: Patch Librarian CRUD, 512-Patch Bank/SysEx Manager, A/B Patch Diff & Selective Merge, Continuous Morph Fader, Safe Randomizer &",
-              "status": "OUTSTANDING",
+              "status": "IMPLEMENTED",
               "isQueued": false,
               "failedLastRun": false,
               "commitSha": null
@@ -3119,8 +3249,8 @@
               "index": 2,
               "title": "Requirement #2: Implement src/peak_librarian.rs reusing synth_core::PresetLibrary, PatchDiff, Randomizer, and SoftTakeoverState directly: 8 curated Novation Peak factory patches (Init Patch, Oxford FPGA Pad, Acid Overdrive Bass, VSync Lead, Ring Mod Bell, Lush Chorus Strings, Dub Delay Chord, Animate Morph Arp), 4 banks x 128 patches (Banks A..D via CC0/CC32 + Program Change), SysEx single-patch and bank dump state machine with checksum verification, continuous A..B patch morphing (0.0..=1.0), lock-shielded randomizer (Global, Section-Scoped for Osc/Filter/Env/LFO/FX, and Gaussian Drift with automatic safety caps on CCs 36/79/80/104/110), and Korg nanoKONTROL2 (hw:2,0,0) 8-column fader/knob/button surface mapper with Jump/Catch/Pickup soft takeover and Animate 1/2 triggers.",
               "taskPrompt": "Implement requirement #2 on [I8] (Epoch 5/8: Patch Librarian CRUD, 512-Patch Bank/SysEx Manager, A/B Patch Diff & Selective Merge, Continuous Morph Fader, Safe Randomizer &): Implement src/peak_librarian.rs reusing synth_core::PresetLibrary, PatchDiff, Randomizer, and SoftTakeoverState directly: 8 curated Novation Peak factory patches (Init Patch, Oxford FPGA Pad, Acid Overdrive Bass, VSync Lead, Ring Mod Bell, Lush Chorus Strings, Dub Delay Chord, Animate Morph Arp), 4 banks x 128 patches (Banks A..D via CC0/CC32 + Program Change), SysEx single-patch and bank dump state machine with checksum verification, continuous A..B patch morphing (0.0..=1.0), lock-shielded randomizer (Global, Section-Scoped for Osc/Filter/Env/LFO/FX, and Gaussian Drift with automatic safety caps on CCs 36/79/80/104/110), and Korg nanoKONTROL2 (hw:2,0,0) 8-column fader/knob/button surface mapper with Jump/Catch/Pickup soft takeover and Animate 1/2 triggers.",
-              "status": "QUEUED",
-              "isQueued": true,
+              "status": "IN_PROGRESS",
+              "isQueued": false,
               "failedLastRun": false,
               "commitSha": null
             },
@@ -3153,7 +3283,7 @@
               "index": 1,
               "title": "Requirement #1: Epoch 5/8: Patch Librarian CRUD, 512-Patch Bank/SysEx Manager, A/B Patch Diff & Selective Merge, Continuous Morph Fader, Safe Randomizer &",
               "taskPrompt": "Implement requirement #1 on [I8] (Epoch 5/8: Patch Librarian CRUD, 512-Patch Bank/SysEx Manager, A/B Patch Diff & Selective Merge, Continuous Morph Fader, Safe Randomizer &): Epoch 5/8: Patch Librarian CRUD, 512-Patch Bank/SysEx Manager, A/B Patch Diff & Selective Merge, Continuous Morph Fader, Safe Randomizer &",
-              "status": "OUTSTANDING",
+              "status": "IMPLEMENTED",
               "isQueued": false,
               "failedLastRun": false,
               "commitSha": null
@@ -3169,8 +3299,8 @@
               "index": 2,
               "title": "Requirement #2: Implement src/peak_librarian.rs reusing synth_core::PresetLibrary, PatchDiff, Randomizer, and SoftTakeoverState directly: 8 curated Novation Peak factory patches (Init Patch, Oxford FPGA Pad, Acid Overdrive Bass, VSync Lead, Ring Mod Bell, Lush Chorus Strings, Dub Delay Chord, Animate Morph Arp), 4 banks x 128 patches (Banks A..D via CC0/CC32 + Program Change), SysEx single-patch and bank dump state machine with checksum verification, continuous A..B patch morphing (0.0..=1.0), lock-shielded randomizer (Global, Section-Scoped for Osc/Filter/Env/LFO/FX, and Gaussian Drift with automatic safety caps on CCs 36/79/80/104/110), and Korg nanoKONTROL2 (hw:2,0,0) 8-column fader/knob/button surface mapper with Jump/Catch/Pickup soft takeover and Animate 1/2 triggers.",
               "taskPrompt": "Implement requirement #2 on [I8] (Epoch 5/8: Patch Librarian CRUD, 512-Patch Bank/SysEx Manager, A/B Patch Diff & Selective Merge, Continuous Morph Fader, Safe Randomizer &): Implement src/peak_librarian.rs reusing synth_core::PresetLibrary, PatchDiff, Randomizer, and SoftTakeoverState directly: 8 curated Novation Peak factory patches (Init Patch, Oxford FPGA Pad, Acid Overdrive Bass, VSync Lead, Ring Mod Bell, Lush Chorus Strings, Dub Delay Chord, Animate Morph Arp), 4 banks x 128 patches (Banks A..D via CC0/CC32 + Program Change), SysEx single-patch and bank dump state machine with checksum verification, continuous A..B patch morphing (0.0..=1.0), lock-shielded randomizer (Global, Section-Scoped for Osc/Filter/Env/LFO/FX, and Gaussian Drift with automatic safety caps on CCs 36/79/80/104/110), and Korg nanoKONTROL2 (hw:2,0,0) 8-column fader/knob/button surface mapper with Jump/Catch/Pickup soft takeover and Animate 1/2 triggers.",
-              "status": "QUEUED",
-              "isQueued": true,
+              "status": "IN_PROGRESS",
+              "isQueued": false,
               "failedLastRun": false,
               "commitSha": null
             },
@@ -3191,39 +3321,39 @@
               "commitSha": null
             }
           ],
-          "hasQueuedTasks": true,
+          "hasQueuedTasks": false,
           "requirementsDetailed": [
             {
               "index": 1,
               "codeId": "I8.1",
               "text": "Epoch 5/8: Patch Librarian CRUD, 512-Patch Bank/SysEx Manager, A/B Patch Diff & Selective Merge, Continuous Morph Fader, Safe Randomizer &",
-              "status": "OUTSTANDING",
+              "status": "IMPLEMENTED",
               "commitSha": null,
-              "timestamp": null,
-              "txId": null,
+              "timestamp": "2026-11-05T19:59:14.173Z",
+              "txId": "tx-2026-11-05T19-59-14-173Z-me03",
               "failedLastRun": false
             },
             {
               "index": 2,
               "codeId": "I8.2",
               "text": "Implement src/peak_librarian.rs reusing synth_core::PresetLibrary, PatchDiff, Randomizer, and SoftTakeoverState directly: 8 curated Novation Peak factory patches (Init Patch, Oxford FPGA Pad, Acid Overdrive Bass, VSync Lead, Ring Mod Bell, Lush Chorus Strings, Dub Delay Chord, Animate Morph Arp), 4 banks x 128 patches (Banks A..D via CC0/CC32 + Program Change), SysEx single-patch and bank dump state machine with checksum verification, continuous A..B patch morphing (0.0..=1.0), lock-shielded randomizer (Global, Section-Scoped for Osc/Filter/Env/LFO/FX, and Gaussian Drift with automatic safety caps on CCs 36/79/80/104/110), and Korg nanoKONTROL2 (hw:2,0,0) 8-column fader/knob/button surface mapper with Jump/Catch/Pickup soft takeover and Animate 1/2 triggers.",
-              "status": "QUEUED",
+              "status": "IN_PROGRESS",
               "commitSha": null,
               "timestamp": null,
               "txId": null,
               "failedLastRun": false
             }
           ],
-          "implementationStatus": "QUEUED",
-          "implementedCount": 0,
-          "inProgressCount": 0,
-          "queuedCount": 1,
-          "outstandingCount": 1,
+          "implementationStatus": "IN_PROGRESS",
+          "implementedCount": 1,
+          "inProgressCount": 1,
+          "queuedCount": 0,
+          "outstandingCount": 0,
           "failedCount": 0,
           "totalRequirements": 2,
-          "completionPct": 0,
+          "completionPct": 50,
           "latestCommitSha": null,
-          "latestVerifiedAt": null
+          "latestVerifiedAt": "2026-11-05T19:59:14.173Z"
         },
         {
           "id": "subintent:epoch-6-two-bowls-yaae-native-egui-desktop-gui-n",
@@ -3303,7 +3433,7 @@
               "status": "OUTSTANDING",
               "isQueued": false,
               "failedLastRun": false,
-              "commitSha": "fd2f3c25e90e16802bf82d113dbf0d0aa87fc190"
+              "commitSha": "b06a0c22669cacda0a6df3b7044f9a312b55d9ce"
             }
           ],
           "suggestions": [
@@ -3353,7 +3483,7 @@
               "status": "OUTSTANDING",
               "isQueued": false,
               "failedLastRun": false,
-              "commitSha": "fd2f3c25e90e16802bf82d113dbf0d0aa87fc190"
+              "commitSha": "b06a0c22669cacda0a6df3b7044f9a312b55d9ce"
             }
           ],
           "hasQueuedTasks": true,
@@ -3364,8 +3494,8 @@
               "text": "Epoch 6/8: Two-Bowls / YAAE Native egui Desktop GUI (NovationPeakApp) — Oscillators/Wavetable, SVF Filter, Envelopes/LFOs/16-Slot Mod Matrix, FX/Animate Bar &",
               "status": "IMPLEMENTED",
               "commitSha": null,
-              "timestamp": "2026-11-05T19:54:59.401Z",
-              "txId": "tx-2026-11-05T19-54-59-401Z-pzlc",
+              "timestamp": "2026-11-05T19:59:14.173Z",
+              "txId": "tx-2026-11-05T19-59-14-173Z-me03",
               "failedLastRun": false
             },
             {
@@ -3468,7 +3598,7 @@
               "status": "OUTSTANDING",
               "isQueued": false,
               "failedLastRun": false,
-              "commitSha": null
+              "commitSha": "b06a0c22669cacda0a6df3b7044f9a312b55d9ce"
             }
           ],
           "suggestions": [
@@ -3518,7 +3648,7 @@
               "status": "OUTSTANDING",
               "isQueued": false,
               "failedLastRun": false,
-              "commitSha": null
+              "commitSha": "b06a0c22669cacda0a6df3b7044f9a312b55d9ce"
             }
           ],
           "hasQueuedTasks": true,
@@ -3529,8 +3659,8 @@
               "text": "Epoch 7/8: konduktiva-peak Live-Coding Integration, 8-Player Polyphonic & Dual-CC Sweep Sequencer Bridge, and Cross-Language Rust/Node Parity",
               "status": "IMPLEMENTED",
               "commitSha": null,
-              "timestamp": "2026-11-05T19:54:59.401Z",
-              "txId": "tx-2026-11-05T19-54-59-401Z-pzlc",
+              "timestamp": "2026-11-05T19:59:14.173Z",
+              "txId": "tx-2026-11-05T19-59-14-173Z-me03",
               "failedLastRun": false
             },
             {
@@ -3601,7 +3731,7 @@
               "status": "IMPLEMENTED",
               "isQueued": false,
               "failedLastRun": false,
-              "commitSha": "fd2f3c25e90e16802bf82d113dbf0d0aa87fc190"
+              "commitSha": null
             },
             {
               "id": "task:I11:req-2",
@@ -3651,7 +3781,7 @@
               "status": "IMPLEMENTED",
               "isQueued": false,
               "failedLastRun": false,
-              "commitSha": "fd2f3c25e90e16802bf82d113dbf0d0aa87fc190"
+              "commitSha": null
             },
             {
               "id": "task:I11:req-2",
@@ -3693,9 +3823,9 @@
               "codeId": "I11.1",
               "text": "Epoch 8/8: 1,000-Event 8-Voice Polyphonic + CC Sweep Stress Benchmark, Non-Invasive Hardware Verification CLI (--verify-hardware, --dry-stress, --export-shared-schemas), Documentation & Release",
               "status": "IMPLEMENTED",
-              "commitSha": "fd2f3c25e90e16802bf82d113dbf0d0aa87fc190",
-              "timestamp": "2026-11-05T19:46:47.820Z",
-              "txId": "tx-2026-11-05T19-46-47-820Z-udjx",
+              "commitSha": null,
+              "timestamp": "2026-11-05T19:59:14.173Z",
+              "txId": "tx-2026-11-05T19-59-14-173Z-me03",
               "failedLastRun": false
             },
             {
@@ -3717,8 +3847,8 @@
           "failedCount": 0,
           "totalRequirements": 2,
           "completionPct": 50,
-          "latestCommitSha": "fd2f3c25e90e16802bf82d113dbf0d0aa87fc190",
-          "latestVerifiedAt": "2026-11-05T19:46:47.820Z"
+          "latestCommitSha": null,
+          "latestVerifiedAt": null
         },
         {
           "id": "subintent:keyboard-and-input-ergonomics",
@@ -3905,12 +4035,12 @@
           "title": "Syntax validation and build verification",
           "description": "Syntax validation and build verification",
           "prompt": null,
-          "status": "UNIMPLEMENTED",
+          "status": "IMPLEMENTED",
           "category": "ROADMAP",
           "domain": "ARCHITECTURE",
           "subIntentId": null,
           "createdAt": "2026-11-05T19:09:40.853Z",
-          "completedAt": null,
+          "completedAt": "2026-11-05T19:59:14.173Z",
           "commitSha": null,
           "txId": null
         },
@@ -3986,17 +4116,17 @@
         },
         {
           "id": "change-tx-tx-2026-11-05T19",
-          "title": "Epoch 3 of 8: Novation Peak 8-Voice FPGA NCO Oscillator, 17-Wavetable, Ring/Noise Mixer & Analogue State-Variable Filter Domain Engine (Target: src/peak_synth.rs; Related: src/lib.rs, crates/synth-core). Implement the core 8-voice Novation Peak synthesis domain engine in src/peak_synth.rs and export in src/lib.rs, backed directly by synth_core::SynthPatch and synth_core::CommandHistory (zero duplicate wrapper or undo structs). Cover all 3 FPGA NCO oscillators per voice (Range CC3/37/65, Coarse CC14/17/20, Fine CC15/18/21, Shape/Wavetable interpolation CC12/39/71 across 17 wavetables x 5 waves, VSync CC34/42/44, Mod Env/LFO depth CCs, deterministic harmonic spectrum & wavetable slice calculator, voice divergence/drift), Mixer (Osc 1/2/3 levels CC23/24/25, Ring Mod 1x2 CC26, Noise mix CC27), and Analogue State-Variable Filter (12dB/24dB LP/BP/HP response curve calculator, Cutoff CC29, Key Tracking CC75, Osc 3 -> Filter FM CC76, Mod Env 1 -> Filter CC78, Resonance CC79, Pre-Filter Overdrive CC80, Post-Filter Drive CC36) with unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-003.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
-          "description": "Epoch 3 of 8: Novation Peak 8-Voice FPGA NCO Oscillator, 17-Wavetable, Ring/Noise Mixer & Analogue State-Variable Filter Domain Engine (Target: src/peak_synth.rs; Related: src/lib.rs, crates/synth-core). Implement the core 8-voice Novation Peak synthesis domain engine in src/peak_synth.rs and export in src/lib.rs, backed directly by synth_core::SynthPatch and synth_core::CommandHistory (zero duplicate wrapper or undo structs). Cover all 3 FPGA NCO oscillators per voice (Range CC3/37/65, Coarse CC14/17/20, Fine CC15/18/21, Shape/Wavetable interpolation CC12/39/71 across 17 wavetables x 5 waves, VSync CC34/42/44, Mod Env/LFO depth CCs, deterministic harmonic spectrum & wavetable slice calculator, voice divergence/drift), Mixer (Osc 1/2/3 levels CC23/24/25, Ring Mod 1x2 CC26, Noise mix CC27), and Analogue State-Variable Filter (12dB/24dB LP/BP/HP response curve calculator, Cutoff CC29, Key Tracking CC75, Osc 3 -> Filter FM CC76, Mod Env 1 -> Filter CC78, Resonance CC79, Pre-Filter Overdrive CC80, Post-Filter Drive CC36) with unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-003.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
-          "prompt": "Epoch 3 of 8: Novation Peak 8-Voice FPGA NCO Oscillator, 17-Wavetable, Ring/Noise Mixer & Analogue State-Variable Filter Domain Engine (Target: src/peak_synth.rs; Related: src/lib.rs, crates/synth-core). Implement the core 8-voice Novation Peak synthesis domain engine in src/peak_synth.rs and export in src/lib.rs, backed directly by synth_core::SynthPatch and synth_core::CommandHistory (zero duplicate wrapper or undo structs). Cover all 3 FPGA NCO oscillators per voice (Range CC3/37/65, Coarse CC14/17/20, Fine CC15/18/21, Shape/Wavetable interpolation CC12/39/71 across 17 wavetables x 5 waves, VSync CC34/42/44, Mod Env/LFO depth CCs, deterministic harmonic spectrum & wavetable slice calculator, voice divergence/drift), Mixer (Osc 1/2/3 levels CC23/24/25, Ring Mod 1x2 CC26, Noise mix CC27), and Analogue State-Variable Filter (12dB/24dB LP/BP/HP response curve calculator, Cutoff CC29, Key Tracking CC75, Osc 3 -> Filter FM CC76, Mod Env 1 -> Filter CC78, Resonance CC79, Pre-Filter Overdrive CC80, Post-Filter Drive CC36) with unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-003.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+          "title": "Epoch 4 of 8: 3x ADSR Envelopes, Dual Tempo-Synced LFOs, 16-Slot Mod Matrix + 4-Slot FX Matrix, Animate 1/2 Macros, Arpeggiator & Master FX Chain (Target: src/peak_mod_fx.rs; Related: src/lib.rs, src/peak_synth.rs). Implement the complete Novation Peak modulation and effects engine in src/peak_mod_fx.rs and wire into src/lib.rs: 3 ADSR envelopes (Amp CC86-89, Mod 1 CC90-93, Mod 2 CC94/95/117/103 with deterministic ADSR curve generator), 2 LFOs (Rate CC30/31, Sync Rate CC81/84, Fade CC82/85, Range CC83, LFO->Pitch/Shape/Filter depths), 16-slot dual-source Modulation Matrix (Source A x Source B -> Destination with bipolar depth -64..+63) + 4-slot FX Mod Matrix, Animate 1 & 2 performance macro buttons (CC114/CC115) with live parameter offset preview, Arpeggiator gate/clock (CC116) & Glide (CC5/CC35), and Master FX chain (Analogue Distortion CC104, 3-mode Chorus CC105/107/118, Sync Delay CC108/109/110, 3-type Reverb CC112/113) with unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-004.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+          "description": "Epoch 4 of 8: 3x ADSR Envelopes, Dual Tempo-Synced LFOs, 16-Slot Mod Matrix + 4-Slot FX Matrix, Animate 1/2 Macros, Arpeggiator & Master FX Chain (Target: src/peak_mod_fx.rs; Related: src/lib.rs, src/peak_synth.rs). Implement the complete Novation Peak modulation and effects engine in src/peak_mod_fx.rs and wire into src/lib.rs: 3 ADSR envelopes (Amp CC86-89, Mod 1 CC90-93, Mod 2 CC94/95/117/103 with deterministic ADSR curve generator), 2 LFOs (Rate CC30/31, Sync Rate CC81/84, Fade CC82/85, Range CC83, LFO->Pitch/Shape/Filter depths), 16-slot dual-source Modulation Matrix (Source A x Source B -> Destination with bipolar depth -64..+63) + 4-slot FX Mod Matrix, Animate 1 & 2 performance macro buttons (CC114/CC115) with live parameter offset preview, Arpeggiator gate/clock (CC116) & Glide (CC5/CC35), and Master FX chain (Analogue Distortion CC104, 3-mode Chorus CC105/107/118, Sync Delay CC108/109/110, 3-type Reverb CC112/113) with unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-004.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+          "prompt": "Epoch 4 of 8: 3x ADSR Envelopes, Dual Tempo-Synced LFOs, 16-Slot Mod Matrix + 4-Slot FX Matrix, Animate 1/2 Macros, Arpeggiator & Master FX Chain (Target: src/peak_mod_fx.rs; Related: src/lib.rs, src/peak_synth.rs). Implement the complete Novation Peak modulation and effects engine in src/peak_mod_fx.rs and wire into src/lib.rs: 3 ADSR envelopes (Amp CC86-89, Mod 1 CC90-93, Mod 2 CC94/95/117/103 with deterministic ADSR curve generator), 2 LFOs (Rate CC30/31, Sync Rate CC81/84, Fade CC82/85, Range CC83, LFO->Pitch/Shape/Filter depths), 16-slot dual-source Modulation Matrix (Source A x Source B -> Destination with bipolar depth -64..+63) + 4-slot FX Mod Matrix, Animate 1 & 2 performance macro buttons (CC114/CC115) with live parameter offset preview, Arpeggiator gate/clock (CC116) & Glide (CC5/CC35), and Master FX chain (Analogue Distortion CC104, 3-mode Chorus CC105/107/118, Sync Delay CC108/109/110, 3-type Reverb CC112/113) with unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-004.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
           "status": "IMPLEMENTED",
           "category": "FEATURE",
           "domain": "ARCHITECTURE",
           "subIntentId": null,
-          "createdAt": "2026-11-05T19:46:47.820Z",
-          "completedAt": "2026-11-05T19:46:47.820Z",
-          "commitSha": "fd2f3c25e90e16802bf82d113dbf0d0aa87fc190",
-          "txId": "tx-2026-11-05T19-46-47-820Z-udjx"
+          "createdAt": "2026-11-05T19:54:59.401Z",
+          "completedAt": "2026-11-05T19:54:59.401Z",
+          "commitSha": "b06a0c22669cacda0a6df3b7044f9a312b55d9ce",
+          "txId": "tx-2026-11-05T19-54-59-401Z-pzlc"
         },
         {
           "id": "change:epoch-2-of-8-non-invasive-alsa-hardware-discover",
@@ -4027,30 +4157,30 @@
           "txId": null
         },
         {
-          "id": "change:epoch-4-of-8-3x-adsr-envelopes-dual-tempo-synced",
+          "id": "change-1793908499315-wguy",
           "title": "Epoch 4 of 8: 3x ADSR Envelopes, Dual Tempo-Synced LFOs, 16-Slot Mod Matrix + 4-Slot FX Matrix, Animate 1/2 Macros, Arpeggiator &",
-          "description": "Epoch 4 of 8: 3x ADSR Envelopes, Dual Tempo-Synced LFOs, 16-Slot Mod Matrix + 4-Slot FX Matrix, Animate 1/2 Macros, Arpeggiator &",
-          "prompt": null,
+          "description": "Epoch 4 of 8: 3x ADSR Envelopes, Dual Tempo-Synced LFOs, 16-Slot Mod Matrix + 4-Slot FX Matrix, Animate 1/2 Macros, Arpeggiator & Master FX Chain (Target: src/peak_mod_fx.rs; Related: src/lib.rs, src/peak_synth.rs). Implement the complete Novation Peak modulation and effects engine in src/peak_mod_fx.rs and wire into src/lib.rs: 3 ADSR envelopes (Amp CC86-89, Mod 1 CC90-93, Mod 2 CC94/95/117/103 with deterministic ADSR curve generator), 2 LFOs (Rate CC30/31, Sync Rate CC81/84, Fade CC82/85, Range CC83, LFO->Pitch/Shape/Filter depths), 16-slot dual-source Modulation Matrix (Source A x Source B -> Destination with bipolar depth -64..+63) + 4-slot FX Mod Matrix, Animate 1 & 2 performance macro buttons (CC114/CC115) with live parameter offset preview, Arpeggiator gate/clock (CC116) & Glide (CC5/CC35), and Master FX chain (Analogue Distortion CC104, 3-mode Chorus CC105/107/118, Sync Delay CC108/109/110, 3-type Reverb CC112/113) with unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-004.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+          "prompt": "Epoch 4 of 8: 3x ADSR Envelopes, Dual Tempo-Synced LFOs, 16-Slot Mod Matrix + 4-Slot FX Matrix, Animate 1/2 Macros, Arpeggiator & Master FX Chain (Target: src/peak_mod_fx.rs; Related: src/lib.rs, src/peak_synth.rs). Implement the complete Novation Peak modulation and effects engine in src/peak_mod_fx.rs and wire into src/lib.rs: 3 ADSR envelopes (Amp CC86-89, Mod 1 CC90-93, Mod 2 CC94/95/117/103 with deterministic ADSR curve generator), 2 LFOs (Rate CC30/31, Sync Rate CC81/84, Fade CC82/85, Range CC83, LFO->Pitch/Shape/Filter depths), 16-slot dual-source Modulation Matrix (Source A x Source B -> Destination with bipolar depth -64..+63) + 4-slot FX Mod Matrix, Animate 1 & 2 performance macro buttons (CC114/CC115) with live parameter offset preview, Arpeggiator gate/clock (CC116) & Glide (CC5/CC35), and Master FX chain (Analogue Distortion CC104, 3-mode Chorus CC105/107/118, Sync Delay CC108/109/110, 3-type Reverb CC112/113) with unit tests. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-004.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
           "status": "IMPLEMENTED",
           "category": "FEATURE",
           "domain": "SEQUENCING_MIDI",
           "subIntentId": null,
-          "createdAt": "2026-11-05T19:54:59.380Z",
+          "createdAt": "2026-11-05T19:54:59.315Z",
           "completedAt": "2026-11-05T19:54:59.401Z",
-          "commitSha": null,
+          "commitSha": "b06a0c22669cacda0a6df3b7044f9a312b55d9ce",
           "txId": null
         },
         {
           "id": "change:epoch-5-of-8-patch-librarian-crud-512-patch-bank",
-          "title": "Epoch 5 of 8: Patch Librarian CRUD, 512-Patch Bank/SysEx Manager, A/B Patch Diff & Selective Merge, Continuous Morph Fader, Safe Randomizer & Korg nanoKONTROL2 Surface Controller (Target: src/peak_librarian.rs; Related: src/lib.rs, crates/synth-core). Implement src/peak_librarian.rs reusing synth_core::PresetLibrary, PatchDiff, Randomizer, and SoftTakeoverState directly: 8 curated Novation Peak factory patches (Init Patch, Oxford FPGA Pad, Acid Overdrive Bass, VSync Lead, Ring Mod Bell, Lush Chorus Strings, Dub Delay Chord, Animate Morph Arp), 4 banks x 128 patches (Banks A..D via CC0/CC32 + Program Change), SysEx single-patch and bank dump state machine with checksum verification, continuous A..B patch morphing (0.0..=1.0), lock-shielded randomizer (Global, Section-Scoped for Osc/Filter/Env/LFO/FX, and Gaussian Drift with automatic safety caps on CCs 36/79/80/104/110), and Korg nanoKONTROL2 (hw:2,0,0) 8-column fader/knob/button surface mapper with Jump/Catch/Pickup soft takeover and Animate 1/2 triggers. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-005.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
-          "description": "Epoch 5 of 8: Patch Librarian CRUD, 512-Patch Bank/SysEx Manager, A/B Patch Diff & Selective Merge, Continuous Morph Fader, Safe Randomizer & Korg nanoKONTROL2 Surface Controller (Target: src/peak_librarian.rs; Related: src/lib.rs, crates/synth-core). Implement src/peak_librarian.rs reusing synth_core::PresetLibrary, PatchDiff, Randomizer, and SoftTakeoverState directly: 8 curated Novation Peak factory patches (Init Patch, Oxford FPGA Pad, Acid Overdrive Bass, VSync Lead, Ring Mod Bell, Lush Chorus Strings, Dub Delay Chord, Animate Morph Arp), 4 banks x 128 patches (Banks A..D via CC0/CC32 + Program Change), SysEx single-patch and bank dump state machine with checksum verification, continuous A..B patch morphing (0.0..=1.0), lock-shielded randomizer (Global, Section-Scoped for Osc/Filter/Env/LFO/FX, and Gaussian Drift with automatic safety caps on CCs 36/79/80/104/110), and Korg nanoKONTROL2 (hw:2,0,0) 8-column fader/knob/button surface mapper with Jump/Catch/Pickup soft takeover and Animate 1/2 triggers. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-005.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
-          "prompt": "Epoch 5 of 8: Patch Librarian CRUD, 512-Patch Bank/SysEx Manager, A/B Patch Diff & Selective Merge, Continuous Morph Fader, Safe Randomizer & Korg nanoKONTROL2 Surface Controller (Target: src/peak_librarian.rs; Related: src/lib.rs, crates/synth-core). Implement src/peak_librarian.rs reusing synth_core::PresetLibrary, PatchDiff, Randomizer, and SoftTakeoverState directly: 8 curated Novation Peak factory patches (Init Patch, Oxford FPGA Pad, Acid Overdrive Bass, VSync Lead, Ring Mod Bell, Lush Chorus Strings, Dub Delay Chord, Animate Morph Arp), 4 banks x 128 patches (Banks A..D via CC0/CC32 + Program Change), SysEx single-patch and bank dump state machine with checksum verification, continuous A..B patch morphing (0.0..=1.0), lock-shielded randomizer (Global, Section-Scoped for Osc/Filter/Env/LFO/FX, and Gaussian Drift with automatic safety caps on CCs 36/79/80/104/110), and Korg nanoKONTROL2 (hw:2,0,0) 8-column fader/knob/button surface mapper with Jump/Catch/Pickup soft takeover and Animate 1/2 triggers. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-005.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
-          "status": "QUEUED",
+          "title": "Epoch 5 of 8: Patch Librarian CRUD, 512-Patch Bank/SysEx Manager, A/B Patch Diff & Selective Merge, Continuous Morph Fader, Safe Randomizer &",
+          "description": "Epoch 5 of 8: Patch Librarian CRUD, 512-Patch Bank/SysEx Manager, A/B Patch Diff & Selective Merge, Continuous Morph Fader, Safe Randomizer &",
+          "prompt": null,
+          "status": "IMPLEMENTED",
           "category": "FEATURE",
-          "domain": "ARCHITECTURE",
+          "domain": "SYNTHESIS",
           "subIntentId": null,
-          "createdAt": "2026-11-05T19:54:59.380Z",
-          "completedAt": null,
+          "createdAt": "2026-11-05T19:59:14.151Z",
+          "completedAt": "2026-11-05T19:59:14.173Z",
           "commitSha": null,
           "txId": null
         },
@@ -4063,7 +4193,7 @@
           "category": "FEATURE",
           "domain": "ARCHITECTURE",
           "subIntentId": null,
-          "createdAt": "2026-11-05T19:54:59.380Z",
+          "createdAt": "2026-11-05T19:59:14.151Z",
           "completedAt": null,
           "commitSha": null,
           "txId": null
@@ -4077,7 +4207,7 @@
           "category": "FEATURE",
           "domain": "ARCHITECTURE",
           "subIntentId": null,
-          "createdAt": "2026-11-05T19:54:59.380Z",
+          "createdAt": "2026-11-05T19:59:14.151Z",
           "completedAt": null,
           "commitSha": null,
           "txId": null
@@ -4091,7 +4221,7 @@
           "category": "FEATURE",
           "domain": "ARCHITECTURE",
           "subIntentId": null,
-          "createdAt": "2026-11-05T19:54:59.380Z",
+          "createdAt": "2026-11-05T19:59:14.151Z",
           "completedAt": null,
           "commitSha": null,
           "txId": null
@@ -4203,9 +4333,9 @@
           "category": "FEATURE",
           "domain": "ARCHITECTURE",
           "subIntentId": null,
-          "createdAt": "2026-11-05T19:54:59.380Z",
-          "completedAt": "2026-11-05T19:46:47.820Z",
-          "commitSha": "fd2f3c25e90e16802bf82d113dbf0d0aa87fc190",
+          "createdAt": "2026-11-05T19:59:14.151Z",
+          "completedAt": "2026-11-05T19:54:59.401Z",
+          "commitSha": "b06a0c22669cacda0a6df3b7044f9a312b55d9ce",
           "txId": null
         },
         {
@@ -4219,7 +4349,7 @@
           "subIntentId": null,
           "createdAt": "2026-11-05T19:54:59.315Z",
           "completedAt": "2026-11-05T19:54:59.401Z",
-          "commitSha": null,
+          "commitSha": "b06a0c22669cacda0a6df3b7044f9a312b55d9ce",
           "txId": null
         },
         {
@@ -4247,7 +4377,7 @@
           "subIntentId": null,
           "createdAt": "2026-11-05T19:54:59.380Z",
           "completedAt": "2026-11-05T19:54:59.401Z",
-          "commitSha": null,
+          "commitSha": "b06a0c22669cacda0a6df3b7044f9a312b55d9ce",
           "txId": null
         },
         {
@@ -4261,7 +4391,7 @@
           "subIntentId": null,
           "createdAt": "2026-11-05T19:54:59.380Z",
           "completedAt": "2026-11-05T19:54:59.401Z",
-          "commitSha": null,
+          "commitSha": "b06a0c22669cacda0a6df3b7044f9a312b55d9ce",
           "txId": null
         },
         {
@@ -4275,7 +4405,7 @@
           "subIntentId": null,
           "createdAt": "2026-11-05T19:54:59.380Z",
           "completedAt": "2026-11-05T19:54:59.401Z",
-          "commitSha": null,
+          "commitSha": "b06a0c22669cacda0a6df3b7044f9a312b55d9ce",
           "txId": null
         },
         {
@@ -4290,6 +4420,76 @@
           "createdAt": "2026-11-05T19:54:59.380Z",
           "completedAt": "2026-11-05T19:46:47.820Z",
           "commitSha": "fd2f3c25e90e16802bf82d113dbf0d0aa87fc190",
+          "txId": null
+        },
+        {
+          "id": "change-1793908754083-tdzs",
+          "title": "Epoch 5 of 8: Patch Librarian CRUD, 512-Patch Bank/SysEx Manager, A/B Patch Diff & Selective Merge, Continuous Morph Fader, Safe Randomizer &",
+          "description": "Epoch 5 of 8: Patch Librarian CRUD, 512-Patch Bank/SysEx Manager, A/B Patch Diff & Selective Merge, Continuous Morph Fader, Safe Randomizer & Korg nanoKONTROL2 Surface Controller (Target: src/peak_librarian.rs; Related: src/lib.rs, crates/synth-core). Implement src/peak_librarian.rs reusing synth_core::PresetLibrary, PatchDiff, Randomizer, and SoftTakeoverState directly: 8 curated Novation Peak factory patches (Init Patch, Oxford FPGA Pad, Acid Overdrive Bass, VSync Lead, Ring Mod Bell, Lush Chorus Strings, Dub Delay Chord, Animate Morph Arp), 4 banks x 128 patches (Banks A..D via CC0/CC32 + Program Change), SysEx single-patch and bank dump state machine with checksum verification, continuous A..B patch morphing (0.0..=1.0), lock-shielded randomizer (Global, Section-Scoped for Osc/Filter/Env/LFO/FX, and Gaussian Drift with automatic safety caps on CCs 36/79/80/104/110), and Korg nanoKONTROL2 (hw:2,0,0) 8-column fader/knob/button surface mapper with Jump/Catch/Pickup soft takeover and Animate 1/2 triggers. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-005.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+          "prompt": "Epoch 5 of 8: Patch Librarian CRUD, 512-Patch Bank/SysEx Manager, A/B Patch Diff & Selective Merge, Continuous Morph Fader, Safe Randomizer & Korg nanoKONTROL2 Surface Controller (Target: src/peak_librarian.rs; Related: src/lib.rs, crates/synth-core). Implement src/peak_librarian.rs reusing synth_core::PresetLibrary, PatchDiff, Randomizer, and SoftTakeoverState directly: 8 curated Novation Peak factory patches (Init Patch, Oxford FPGA Pad, Acid Overdrive Bass, VSync Lead, Ring Mod Bell, Lush Chorus Strings, Dub Delay Chord, Animate Morph Arp), 4 banks x 128 patches (Banks A..D via CC0/CC32 + Program Change), SysEx single-patch and bank dump state machine with checksum verification, continuous A..B patch morphing (0.0..=1.0), lock-shielded randomizer (Global, Section-Scoped for Osc/Filter/Env/LFO/FX, and Gaussian Drift with automatic safety caps on CCs 36/79/80/104/110), and Korg nanoKONTROL2 (hw:2,0,0) 8-column fader/knob/button surface mapper with Jump/Catch/Pickup soft takeover and Animate 1/2 triggers. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-005.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+          "status": "IMPLEMENTED",
+          "category": "FEATURE",
+          "domain": "SYNTHESIS",
+          "subIntentId": null,
+          "createdAt": "2026-11-05T19:59:14.083Z",
+          "completedAt": "2026-11-05T19:59:14.173Z",
+          "commitSha": null,
+          "txId": null
+        },
+        {
+          "id": "change-inferred-epoch-patch-librarian-crud",
+          "title": "Epoch 5 of 8: Patch Librarian CRUD, 512-Patch Bank/SysEx Manager, A/B Patch Diff & Selective Merge, Continuous Morph Fader, Safe",
+          "description": "Epoch 5 of 8: Patch Librarian CRUD, 512-Patch Bank/SysEx Manager, A/B Patch Diff & Selective Merge, Continuous Morph Fader, Safe Randomizer &.",
+          "prompt": "Epoch 5 of 8: Patch Librarian CRUD, 512-Patch Bank/SysEx Manager, A/B Patch Diff & Selective Merge, Continuous Morph Fader, Safe Randomizer & Korg nanoKONTROL2 Surface Controller (Target: src/peak_librarian.rs; Related: src/lib.rs, crates/synth-core). Implement src/peak_librarian.rs reusing synth_core::PresetLibrary, PatchDiff, Randomizer, and SoftTakeoverState directly: 8 curated Novation Peak factory patches (Init Patch, Oxford FPGA Pad, Acid Overdrive Bass, VSync Lead, Ring Mod Bell, Lush Chorus Strings, Dub Delay Chord, Animate Morph Arp), 4 banks x 128 patches (Banks A..D via CC0/CC32 + Program Change), SysEx single-patch and bank dump state machine with checksum verification, continuous A..B patch morphing (0.0..=1.0), lock-shielded randomizer (Global, Section-Scoped for Osc/Filter/Env/LFO/FX, and Gaussian Drift with automatic safety caps on CCs 36/79/80/104/110), and Korg nanoKONTROL2 (hw:2,0,0) 8-column fader/knob/button surface mapper with Jump/Catch/Pickup soft takeover and Animate 1/2 triggers. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-005.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+          "status": "IMPLEMENTED",
+          "category": "FEATURE",
+          "domain": "SYNTHESIS",
+          "subIntentId": null,
+          "createdAt": "2026-11-05T19:59:14.151Z",
+          "completedAt": "2026-11-05T19:59:14.173Z",
+          "commitSha": null,
+          "txId": null
+        },
+        {
+          "id": "change-inferred-implement-src-peaklibrarian-reusing",
+          "title": "Implement src/peaklibrarian.rs reusing synthcore::PresetLibrary, PatchDiff, Randomizer, and SoftTakeoverState directly: 8 curated Novation Peak factory patches (Init Patch, Oxford FPGA Pad",
+          "description": "Implement src/peaklibrarian.rs reusing synthcore::PresetLibrary, PatchDiff, Randomizer, and SoftTakeoverState directly: 8 curated Novation Peak factory patches (Init Patch, Oxford FPGA Pad, Acid Overdrive.",
+          "prompt": "Epoch 5 of 8: Patch Librarian CRUD, 512-Patch Bank/SysEx Manager, A/B Patch Diff & Selective Merge, Continuous Morph Fader, Safe Randomizer & Korg nanoKONTROL2 Surface Controller (Target: src/peak_librarian.rs; Related: src/lib.rs, crates/synth-core). Implement src/peak_librarian.rs reusing synth_core::PresetLibrary, PatchDiff, Randomizer, and SoftTakeoverState directly: 8 curated Novation Peak factory patches (Init Patch, Oxford FPGA Pad, Acid Overdrive Bass, VSync Lead, Ring Mod Bell, Lush Chorus Strings, Dub Delay Chord, Animate Morph Arp), 4 banks x 128 patches (Banks A..D via CC0/CC32 + Program Change), SysEx single-patch and bank dump state machine with checksum verification, continuous A..B patch morphing (0.0..=1.0), lock-shielded randomizer (Global, Section-Scoped for Osc/Filter/Env/LFO/FX, and Gaussian Drift with automatic safety caps on CCs 36/79/80/104/110), and Korg nanoKONTROL2 (hw:2,0,0) 8-column fader/knob/button surface mapper with Jump/Catch/Pickup soft takeover and Animate 1/2 triggers. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-005.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+          "status": "IMPLEMENTED",
+          "category": "FEATURE",
+          "domain": "ARCHITECTURE",
+          "subIntentId": null,
+          "createdAt": "2026-11-05T19:59:14.151Z",
+          "completedAt": "2026-11-05T19:59:14.173Z",
+          "commitSha": null,
+          "txId": null
+        },
+        {
+          "id": "change:implement-src-peaklibrarian-rs-reusing-synthcore",
+          "title": "Implement src/peaklibrarian.rs reusing synthcore::PresetLibrary, PatchDiff, Randomizer, and SoftTakeoverState directly: 8 curated Novation Peak factory patches (Init Patch, Oxford FPGA Pad, Acid Overdrive",
+          "description": "Implement src/peaklibrarian.rs reusing synthcore::PresetLibrary, PatchDiff, Randomizer, and SoftTakeoverState directly: 8 curated Novation Peak factory patches (Init Patch, Oxford FPGA Pad, Acid Overdrive",
+          "prompt": null,
+          "status": "IMPLEMENTED",
+          "category": "FEATURE",
+          "domain": "ARCHITECTURE",
+          "subIntentId": null,
+          "createdAt": "2026-11-05T19:59:14.151Z",
+          "completedAt": "2026-11-05T19:59:14.173Z",
+          "commitSha": null,
+          "txId": null
+        },
+        {
+          "id": "change:write-reports-report-005-md-and-compile-it-with-",
+          "title": "Write reports/report-005.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf",
+          "description": "Write reports/report-005.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf",
+          "prompt": null,
+          "status": "IMPLEMENTED",
+          "category": "FEATURE",
+          "domain": "ARCHITECTURE",
+          "subIntentId": null,
+          "createdAt": "2026-11-05T19:59:14.152Z",
+          "completedAt": "2026-11-05T19:54:59.401Z",
+          "commitSha": "b06a0c22669cacda0a6df3b7044f9a312b55d9ce",
           "txId": null
         }
       ],
@@ -4499,7 +4699,7 @@
       "intentsReviewed": false,
       "reviewedAt": null,
       "reviewNote": null,
-      "lastUpdated": "2026-11-05T19:54:59.380Z"
+      "lastUpdated": "2026-11-05T19:59:14.152Z"
     },
     "intentRevisionLog": [
       {
@@ -5309,6 +5509,187 @@
       {
         "stepNumber": 5,
         "revisionId": "rev-005",
+        "timestamp": "2026-11-05T19:59:14.091Z",
+        "triggerType": "USER_CLI_PROMPT",
+        "shiftKind": "MULTI_DOMAIN_SHIFT",
+        "userPrompt": "Epoch 5 of 8: Patch Librarian CRUD, 512-Patch Bank/SysEx Manager, A/B Patch Diff & Selective Merge, Continuous Morph Fader, Safe Randomizer & Korg nanoKONTROL2 Surface Controller (Target: src/peak_librarian.rs; Related: src/lib.rs, crates/synth-core). Implement src/peak_librarian.rs reusing synth_core::PresetLibrary, PatchDiff, Randomizer, and SoftTakeoverState directly: 8 curated Novation Peak factory patches (Init Patch, Oxford FPGA Pad, Acid Overdrive Bass, VSync Lead, Ring Mod Bell, Lush Chorus Strings, Dub Delay Chord, Animate Morph Arp), 4 banks x 128 patches (Banks A..D via CC0/CC32 + Program Change), SysEx single-patch and bank dump state machine with checksum verification, continuous A..B patch morphing (0.0..=1.0), lock-shielded randomizer (Global, Section-Scoped for Osc/Filter/Env/LFO/FX, and Gaussian Drift with automatic safety caps on CCs 36/79/80/104/110), and Korg nanoKONTROL2 (hw:2,0,0) 8-column fader/knob/button surface mapper with Jump/Catch/Pickup soft takeover and Animate 1/2 triggers. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-005.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+        "distilledRequirement": "Epoch 5 of 8: Patch Librarian CRUD, 512-Patch Bank/SysEx Manager, A/B Patch Diff & Selective Merge, Continuous Morph Fader, Safe Randomizer &",
+        "mainIntentSnapshot": {
+          "title": "Novation Peak 8-Voice Polyphonic Hybrid Synthesizer Manager, Patch Librarian & Konduktiva Companion",
+          "statement": "Full-featured Rust/egui native desktop synthesizer manager, patch editor, librarian, Korg nanoKONTROL2 controller, and Konduktiva live-coding companion for the Novation Peak 8-voice polyphonic hybrid synthesizer, extending the shared synth ecosystem (synth-core, synth-midi-osc, synth-ui-theme, shared-synth-sdk, konduktiva-peak) across 5 synthesizers.",
+          "primaryDomains": [
+            "SYNTHESIS",
+            "SEQUENCING_MIDI",
+            "NETWORKING_IPC",
+            "UI_LAYOUT",
+            "ERGONOMICS",
+            "PERSISTENCE",
+            "ARCHITECTURE"
+          ]
+        },
+        "shiftSummary": "Prompt #5 created [SYNTHESIS] \"Epoch 5 of 8: Patch Librarian CRUD, 512-Patch Bank/SysEx Manager, A/B Patch Diff & Selective Merge, Continuous Morph Fader, Safe Randomizer &\"; created [ARCHITECTURE] \"Implement src/peaklibrarian.rs reusing synthcore::PresetLibrary, PatchDiff, Randomizer, and SoftTakeoverState directly: 8 curated Novation Peak factory patches (Init Patch, Oxford FPGA Pad, Acid Overdrive\"; refined [ARCHITECTURE] \"Ensure all workspace tests pass (CARGOBUILDJOBS=2 cargo test --workspace and npm test)\" (+1 req); created [ARCHITECTURE] \"Write reports/report-005.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf\": stored sub-intents: 16 → 19, stored requirements: 16 → 19.",
+        "mutations": [
+          {
+            "subIntentId": "subintent:inferred-epoch-patch-librarian-crud",
+            "theme": "INFERRED_EPOCH_PATCH_LIBRARIAN_CRUD",
+            "domain": "SYNTHESIS",
+            "name": "Epoch 5 of 8: Patch Librarian CRUD, 512-Patch Bank/SysEx Manager, A/B Patch Diff & Selective Merge, Continuous Morph Fader, Safe Randomizer &",
+            "changeType": "NEW_SUBINTENT",
+            "relationToMainIntent": "Advances Main Intent [Novation Peak 8-Voice Polyphonic Hybrid Synthesizer Manager, Patch Librarian & Konduktiva Companion → SYNTHESIS]: Epoch 5 of 8: Patch Librarian CRUD, 512-Patch Bank/SysEx Manager, A/B Patch Diff & Selective Merge, Continuous Morph Fader, Safe Randomizer &",
+            "beforeState": {
+              "existed": false,
+              "requirementsCount": 0,
+              "promptsCount": 0,
+              "previousRequirements": [],
+              "summary": "Did not exist yet in stored intent prior to Prompt #5."
+            },
+            "delta": {
+              "addedRequirements": [
+                "Epoch 5 of 8: Patch Librarian CRUD, 512-Patch Bank/SysEx Manager, A/B Patch Diff & Selective Merge, Continuous Morph Fader, Safe Randomizer &"
+              ],
+              "addedInvariants": [],
+              "targetEntities": [
+                "entity:novation-peak-pigs:synth-core",
+                "entity:novation-peak-pigs:synth-core-diff"
+              ]
+            },
+            "afterState": {
+              "requirementsCount": 1,
+              "promptsCount": 1,
+              "allRequirements": [
+                "Epoch 5 of 8: Patch Librarian CRUD, 512-Patch Bank/SysEx Manager, A/B Patch Diff & Selective Merge, Continuous Morph Fader, Safe Randomizer &"
+              ],
+              "specification": "Epoch 5 of 8: Patch Librarian CRUD, 512-Patch Bank/SysEx Manager, A/B Patch Diff & Selective Merge, Continuous Morph Fader, Safe Randomizer &.",
+              "summary": "Created new [SYNTHESIS] sub-intent \"Epoch 5 of 8: Patch Librarian CRUD, 512-Patch Bank/SysEx Manager, A/B Patch Diff & Selective Merge, Continuous Morph Fader, Safe Randomizer &\" with 1 requirement(s)."
+            }
+          },
+          {
+            "subIntentId": "subintent:inferred-implement-src-peaklibrarian-reusing",
+            "theme": "INFERRED_IMPLEMENT_SRC_PEAKLIBRARIAN_REUSING",
+            "domain": "ARCHITECTURE",
+            "name": "Implement src/peaklibrarian.rs reusing synthcore::PresetLibrary, PatchDiff, Randomizer, and SoftTakeoverState directly: 8 curated Novation Peak factory patches (Init Patch, Oxford FPGA Pad, Acid Overdrive",
+            "changeType": "NEW_SUBINTENT",
+            "relationToMainIntent": "Advances Main Intent [Novation Peak 8-Voice Polyphonic Hybrid Synthesizer Manager, Patch Librarian & Konduktiva Companion → ARCHITECTURE]: Implement src/peaklibrarian.rs reusing synthcore::PresetLibrary, PatchDiff, Randomizer, and SoftTakeoverState directly: 8 curated Novation Peak factory patches (Init Patch, Oxford FPGA Pad, Acid Overdrive",
+            "beforeState": {
+              "existed": false,
+              "requirementsCount": 0,
+              "promptsCount": 0,
+              "previousRequirements": [],
+              "summary": "Did not exist yet in stored intent prior to Prompt #5."
+            },
+            "delta": {
+              "addedRequirements": [
+                "Implement src/peaklibrarian.rs reusing synthcore::PresetLibrary, PatchDiff, Randomizer, and SoftTakeoverState directly: 8 curated Novation Peak factory patches (Init Patch, Oxford FPGA Pad, Acid Overdrive"
+              ],
+              "addedInvariants": [],
+              "targetEntities": [
+                "entity:novation-peak-pigs:synth-core",
+                "entity:novation-peak-pigs:synth-core-diff"
+              ]
+            },
+            "afterState": {
+              "requirementsCount": 1,
+              "promptsCount": 1,
+              "allRequirements": [
+                "Implement src/peaklibrarian.rs reusing synthcore::PresetLibrary, PatchDiff, Randomizer, and SoftTakeoverState directly: 8 curated Novation Peak factory patches (Init Patch, Oxford FPGA Pad, Acid Overdrive"
+              ],
+              "specification": "Implement src/peaklibrarian.rs reusing synthcore::PresetLibrary, PatchDiff, Randomizer, and SoftTakeoverState directly: 8 curated Novation Peak factory patches (Init Patch, Oxford FPGA Pad, Acid Overdrive.",
+              "summary": "Created new [ARCHITECTURE] sub-intent \"Implement src/peaklibrarian.rs reusing synthcore::PresetLibrary, PatchDiff, Randomizer, and SoftTakeoverState directly: 8 curated Novation Peak factory patches (Init Patch, Oxford FPGA Pad, Acid Overdrive\" with 1 requirement(s)."
+            }
+          },
+          {
+            "subIntentId": "subintent:inferred-ensure-all-workspace-tests",
+            "theme": "INFERRED_ENSURE_ALL_WORKSPACE_TESTS",
+            "domain": "ARCHITECTURE",
+            "name": "Ensure all workspace tests pass (CARGOBUILDJOBS=2 cargo test --workspace and npm test)",
+            "changeType": "REINFORCED_SUBINTENT",
+            "relationToMainIntent": "Advances Main Intent [Novation Peak 8-Voice Polyphonic Hybrid Synthesizer Manager, Patch Librarian & Konduktiva Companion → ARCHITECTURE]: Ensure all workspace tests pass (CARGOBUILDJOBS=2 cargo test --workspace and npm test)",
+            "beforeState": {
+              "existed": true,
+              "requirementsCount": 1,
+              "promptsCount": 2,
+              "previousRequirements": [
+                "Ensure all workspace tests pass (CARGOBUILDJOBS=2 cargo test --workspace and npm test)"
+              ],
+              "summary": "Existed in [ARCHITECTURE] with 1 requirement(s) derived from 2 prior prompt(s)."
+            },
+            "delta": {
+              "addedRequirements": [
+                "Epoch 5 of 8: Patch Librarian CRUD, 512-Patch Bank/SysEx Manager, A/B Patch Diff & Selective Merge, Continuous Morph Fader, Safe Randomizer &"
+              ],
+              "addedInvariants": [],
+              "targetEntities": [
+                "entity:novation-peak-pigs:synth-core",
+                "entity:novation-peak-pigs:synth-core-diff"
+              ]
+            },
+            "afterState": {
+              "requirementsCount": 1,
+              "promptsCount": 3,
+              "allRequirements": [
+                "Ensure all workspace tests pass (CARGOBUILDJOBS=2 cargo test --workspace and npm test)"
+              ],
+              "specification": "Ensure all workspace tests pass (CARGOBUILDJOBS=2 cargo test --workspace and npm test).",
+              "summary": "Reinforced existing specification for \"Ensure all workspace tests pass (CARGOBUILDJOBS=2 cargo test --workspace and npm test)\" (1 requirement(s) across 3 prompts)."
+            }
+          },
+          {
+            "subIntentId": "subintent:inferred-write-reports-report-005",
+            "theme": "INFERRED_WRITE_REPORTS_REPORT_005",
+            "domain": "ARCHITECTURE",
+            "name": "Write reports/report-005.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf",
+            "changeType": "NEW_SUBINTENT",
+            "relationToMainIntent": "Advances Main Intent [Novation Peak 8-Voice Polyphonic Hybrid Synthesizer Manager, Patch Librarian & Konduktiva Companion → ARCHITECTURE]: Write reports/report-005.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf",
+            "beforeState": {
+              "existed": false,
+              "requirementsCount": 0,
+              "promptsCount": 0,
+              "previousRequirements": [],
+              "summary": "Did not exist yet in stored intent prior to Prompt #5."
+            },
+            "delta": {
+              "addedRequirements": [
+                "Write reports/report-005.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf"
+              ],
+              "addedInvariants": [],
+              "targetEntities": [
+                "entity:novation-peak-pigs:synth-core",
+                "entity:novation-peak-pigs:synth-core-diff"
+              ]
+            },
+            "afterState": {
+              "requirementsCount": 1,
+              "promptsCount": 1,
+              "allRequirements": [
+                "Write reports/report-005.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf"
+              ],
+              "specification": "Write reports/report-005.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+              "summary": "Created new [ARCHITECTURE] sub-intent \"Write reports/report-005.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf\" with 1 requirement(s)."
+            }
+          }
+        ],
+        "storedStateTotals": {
+          "subIntentsBefore": 16,
+          "subIntentsAfter": 19,
+          "totalRequirementsBefore": 16,
+          "totalRequirementsAfter": 19,
+          "domainsCoveredAfter": [
+            "ARCHITECTURE",
+            "DSP_AUDIO",
+            "DATA_LIBRARIAN",
+            "UI_LAYOUT",
+            "ECOSYSTEM_PARITY",
+            "VERIFICATION",
+            "ERGONOMICS",
+            "SYNTHESIS",
+            "PERSISTENCE",
+            "SEQUENCING_MIDI"
+          ]
+        }
+      },
+      {
+        "stepNumber": 6,
+        "revisionId": "rev-006",
         "timestamp": "2026-11-05T19:16:22.466Z",
         "triggerType": "USER_CLI_PROMPT",
         "shiftKind": "CREATED_NEW_SUBINTENT",
@@ -5327,7 +5708,7 @@
             "ARCHITECTURE"
           ]
         },
-        "shiftSummary": "Prompt #5 created [ARCHITECTURE] \"Demo Patches, Konduktiva Live-Coding & HTML Documentation\": stored sub-intents: 16 → 17, stored requirements: 16 → 17.",
+        "shiftSummary": "Prompt #6 created [ARCHITECTURE] \"Demo Patches, Konduktiva Live-Coding & HTML Documentation\": stored sub-intents: 19 → 20, stored requirements: 19 → 20.",
         "mutations": [
           {
             "subIntentId": "subintent:demos-livecoding-and-docs",
@@ -5341,7 +5722,7 @@
               "requirementsCount": 0,
               "promptsCount": 0,
               "previousRequirements": [],
-              "summary": "Did not exist yet in stored intent prior to Prompt #5."
+              "summary": "Did not exist yet in stored intent prior to Prompt #6."
             },
             "delta": {
               "addedRequirements": [
@@ -5365,10 +5746,10 @@
           }
         ],
         "storedStateTotals": {
-          "subIntentsBefore": 16,
-          "subIntentsAfter": 17,
-          "totalRequirementsBefore": 16,
-          "totalRequirementsAfter": 17,
+          "subIntentsBefore": 19,
+          "subIntentsAfter": 20,
+          "totalRequirementsBefore": 19,
+          "totalRequirementsAfter": 20,
           "domainsCoveredAfter": [
             "ARCHITECTURE",
             "DSP_AUDIO",
@@ -5732,20 +6113,88 @@
         },
         "durationSeconds": 245.541530071,
         "networkRecovered": false,
+        "allPassed": true,
+        "commitSha": "b06a0c22669cacda0a6df3b7044f9a312b55d9ce"
+      },
+      {
+        "id": "tx-2026-11-05T19-59-14-173Z-me03",
+        "initiatedBy": "FRONTIER_PLANNER",
+        "intentId": "intent:1793908754173",
+        "description": "Epoch 5 of 8: Patch Librarian CRUD, 512-Patch Bank/SysEx Manager, A/B Patch Diff & Selective Merge, Continuous Morph Fader, Safe Randomizer & Korg nanoKONTROL2 Surface Controller (Target: src/peak_librarian.rs; Related: src/lib.rs, crates/synth-core). Implement src/peak_librarian.rs reusing synth_core::PresetLibrary, PatchDiff, Randomizer, and SoftTakeoverState directly: 8 curated Novation Peak factory patches (Init Patch, Oxford FPGA Pad, Acid Overdrive Bass, VSync Lead, Ring Mod Bell, Lush Chorus Strings, Dub Delay Chord, Animate Morph Arp), 4 banks x 128 patches (Banks A..D via CC0/CC32 + Program Change), SysEx single-patch and bank dump state machine with checksum verification, continuous A..B patch morphing (0.0..=1.0), lock-shielded randomizer (Global, Section-Scoped for Osc/Filter/Env/LFO/FX, and Gaussian Drift with automatic safety caps on CCs 36/79/80/104/110), and Korg nanoKONTROL2 (hw:2,0,0) 8-column fader/knob/button surface mapper with Jump/Catch/Pickup soft takeover and Animate 1/2 triggers. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-005.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
+        "targetEntities": [],
+        "assignedTo": "gemini-3.8-flash-high (high)",
+        "diffArtifactUrl": null,
+        "verificationPipeline": {
+          "mutationCheck": {
+            "status": "PASS",
+            "meaning": "Code changes were saved to disk.",
+            "modifiedFiles": [
+              "src/lib.rs",
+              "src/peak_librarian.rs"
+            ]
+          },
+          "syntaxCheck": {
+            "status": "PASS",
+            "durationMs": 607,
+            "type": "rust-and-node"
+          },
+          "astInvariants": {
+            "status": "PASS",
+            "durationMs": 13,
+            "results": [
+              {
+                "id": "inv:clean-architecture",
+                "status": "PASS",
+                "durationMs": 7
+              },
+              {
+                "id": "inv:no-raw-panics",
+                "status": "PASS",
+                "durationMs": 2
+              },
+              {
+                "id": "inv:resource-bounds",
+                "status": "PASS",
+                "durationMs": 0
+              }
+            ],
+            "violations": [],
+            "firstFailing": null
+          },
+          "unitTests": {
+            "status": "PASS",
+            "durationMs": 3501,
+            "type": "rust-and-node",
+            "output": "test result: ok. 43 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s; test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s; test result: ok. 34 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s; test result: ok. 33 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s; test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s; test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s; test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s; test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s; test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s | 8/8 automated tests passed"
+          },
+          "budgetCheck": {
+            "status": "PASS",
+            "durationMs": 0
+          }
+        },
+        "retryCount": 0,
+        "resolved": true,
+        "timestamp": "2026-11-05T19:59:14.173Z",
+        "allocationProfile": "HIGH_REASONING_FLASH",
+        "tokenBudgetClass": "MEDIUM_HIGH_TOKEN",
+        "allocationRationale": "Architectural scope or high-complexity keywords detected; routing to high inference tier",
+        "tokenUsage": {
+          "input_tokens": 291778,
+          "output_tokens": 63136,
+          "thinking_tokens": 28632,
+          "cache_read_tokens": 4515791,
+          "total_tokens": 354914
+        },
+        "durationSeconds": 316.217421997,
+        "networkRecovered": false,
         "allPassed": true
       }
     ]
   },
   "runtimeQueue": {
     "paused": false,
-    "updatedAt": "2026-11-05T19:54:59.286Z",
+    "updatedAt": "2026-11-05T19:59:14.056Z",
     "items": [
-      {
-        "text": "Epoch 5 of 8: Patch Librarian CRUD, 512-Patch Bank/SysEx Manager, A/B Patch Diff & Selective Merge, Continuous Morph Fader, Safe Randomizer & Korg nanoKONTROL2 Surface Controller (Target: src/peak_librarian.rs; Related: src/lib.rs, crates/synth-core). Implement src/peak_librarian.rs reusing synth_core::PresetLibrary, PatchDiff, Randomizer, and SoftTakeoverState directly: 8 curated Novation Peak factory patches (Init Patch, Oxford FPGA Pad, Acid Overdrive Bass, VSync Lead, Ring Mod Bell, Lush Chorus Strings, Dub Delay Chord, Animate Morph Arp), 4 banks x 128 patches (Banks A..D via CC0/CC32 + Program Change), SysEx single-patch and bank dump state machine with checksum verification, continuous A..B patch morphing (0.0..=1.0), lock-shielded randomizer (Global, Section-Scoped for Osc/Filter/Env/LFO/FX, and Gaussian Drift with automatic safety caps on CCs 36/79/80/104/110), and Korg nanoKONTROL2 (hw:2,0,0) 8-column fader/knob/button surface mapper with Jump/Catch/Pickup soft takeover and Animate 1/2 triggers. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-005.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
-        "id": "q-1793906182434-r5v3",
-        "addedAt": "2026-11-05T19:16:22.434Z",
-        "targetProject": "/home/renick/antigravity/novation-peak-pigs"
-      },
       {
         "text": "Epoch 6 of 8: Two-Bowls / YAAE Native egui Desktop GUI (NovationPeakApp) — Oscillators/Wavetable, SVF Filter, Envelopes/LFOs/16-Slot Mod Matrix, FX/Animate Bar & Headless Geometry Auditor (Target: src/app.rs; Related: src/gui.rs, crates/synth-ui-theme). Extend crates/synth-ui-theme with NovationPeakOxfordBlue / NovationPeakAmber accent tokens and custom vector widgets (5-wave wavetable interpolator display, SVF LP/BP/HP filter & drive response curve, 3x ADSR envelope plotter, 16-slot mod matrix grid, and Animate 1/2 performance pads). Build the complete eframe::App desktop GUI in src/app.rs and src/gui.rs embedding synth_core::CommandHistory directly for global Undo/Redo (Ctrl+Z/Ctrl+Y), top hardware status bar (Peak MIDI 1 hw:3,0,0, UMC1820 hw:0,0,0, nanoKONTROL2 hw:2,0,0, explicit Live MIDI Arm toggle defaulting to safe virtual loopback, Panic button), Librarian/A-B Diff/Randomizer modals, single-key shortcut gating when text inputs are focused, and a headless egui::Context::run layout geometry auditor verifying zero overlapping rects at 1280x800 and 1920x1080. Ensure all workspace tests pass (CARGO_BUILD_JOBS=2 cargo test --workspace and npm test). Write reports/report-006.md and compile it with /home/renick/claude/html-report-generator/build-report.sh --pdf.",
         "id": "q-1793906182429-plnx",
